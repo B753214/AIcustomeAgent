@@ -2,11 +2,10 @@ import uuid
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
-from pymilvus import Index
-from sqlalchemy import String, ForeignKey, Text, DateTime
+from sqlalchemy import String, ForeignKey, Text, DateTime, Index
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
-from AICustomeRobort.app.database import Base
+from app.database import Base
 
 
 class ChatSession(Base):

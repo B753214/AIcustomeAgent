@@ -2,7 +2,7 @@ from typing import Callable, Any
 
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from AICustomeRobort.app.config import settings
+from app.config import settings
 
 
 @retry(

@@ -3,12 +3,13 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Depends
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
-from AICustomeRobort.app.config import settings
-from AICustomeRobort.app.database import engine, init_db
-from AICustomeRobort.app.rag.milvus_store import ensure_collection, get_milvus_client
+from app.config import settings
+from app.database import engine, init_db
+from app.rag.milvus_store import ensure_collection, get_milvus_client
 from app.database import get_db
 from app.schemas import ChatResponse, ChatRequest
 from app.services.chat import chat
@@ -16,30 +17,30 @@ from app.services.session_service import get_sessions
 
 
 @asynccontextmanager
-async def lifespan():
+async def lifespan(app: FastAPI):
     await init_db()
-    await asyncio.gather(ensure_collection())
+    ensure_collection()
     yield
     await engine.dispose()
 
 
-app=FastAPIapp=FastAPI(title="智能客服", version=settings.APP_VERSION, lifespan=lifespan)
+app=FastAPI(title="智能客服", version=settings.APP_VERSION, lifespan=lifespan)
 @app.get("/health")
 async def health():
     pg_status="ok"
     try:
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
             pg_status="ok"
     except Exception as e:
         pg_status=f"unreachable: {str(e)}"
     milvus_status="ok"
     try:
         milnvs_client = get_milvus_client()
-        await asyncio.gather(milnvs_client.list_collection())
+        milnvs_client.list_collections()
     except Exception as e:
         milvus_status=f"unreachable: {str(e)}"
-    is_healthy= (pg_status=="ok") and (milnvs_client=="ok")
+    is_healthy= (pg_status=="ok") and (milvus_status=="ok")
     status_code = 200 if is_healthy else 503
     return JSONResponse(
         status_code=status_code,

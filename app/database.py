@@ -4,8 +4,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from AICustomeRobort.app.config import get_settings, settings
-from AICustomeRobort.app.models.sessions import ChatSession, ChatMessage
+from app.config import get_settings, settings
+
 engine = create_async_engine(settings.POSTGRES_URI, echo=settings.DEBUG, pool_pre_ping=True)
 AsyncSession = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
@@ -24,6 +24,8 @@ async def get_db()->AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 async def init_db()->None:
+    import app.models.sessions
+    import app.models.document
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         print("Database initialized")

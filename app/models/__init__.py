@@ -1,3 +1,4 @@
-from AICustomeRobort.app.models.sessions import ChatSession, ChatMessage
+from app.models.sessions import ChatSession, ChatMessage
+from app.models.document import Document, Chunk
 
-__all__ = ["ChatSession", "ChatMessage"]
+__all__ = ["ChatSession", "ChatMessage", "Document", "Chunk"]

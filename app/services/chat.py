@@ -8,10 +8,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import Field, BaseModel
 
-from AICustomeRobort.app.agents.tools import query_order
-from AICustomeRobort.app.config import settings
-from AICustomeRobort.app.rag.retriever import aanswer_with_rag
-from AICustomeRobort.app.services.resilience import ainvoke_with_retry
+from app.agents.tools import query_order
+from app.config import settings
+from app.rag.retriever import aanswer_with_rag
+from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.session_service import load_session_history, save_message, clear_session_history
 
