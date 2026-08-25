@@ -29,3 +29,64 @@ def ensure_collection()->None:
         schema=schema,
         index_params=index_params,
     )
+
+
+def upset_chunk_vector(chunk_id: str, doc_id: str, vector: list[float]) -> None:
+    client = get_milvus_client()
+    client.upsert(
+        collection_name=COLLECTION_NAME,
+        data=[{
+            "id": chunk_id,
+            "chunk_id": chunk_id,
+            "doc_id": doc_id,
+            "vector": vector,
+        }],
+    )
+def search_vectors(query_vector: list[float], top_k: int = 5) -> list[dict]:
+    if not query_vector:
+        return []
+    client = get_milvus_client()
+
+    results = client.search(
+        collection_name=COLLECTION_NAME,
+        data=[query_vector],
+        top_k=top_k,
+        metric_type="COSINE",
+        output_fields=["chunk_id", "doc_id"],
+    )
+    print("results:", results)
+    hits=[]
+    for group in results:
+        for hit in group:
+            entry = hit.get("entity") or {}
+            hits.append({
+                "chunk_id": entry.get("chunk_id"),
+                "doc_id": entry.get("doc_id"),
+            })
+
+    return hits
+
+if __name__ == '__main__':
+    client = get_milvus_client()
+    # if client.has_collection(collection_name=COLLECTION_NAME):
+    #     client.drop_collection(collection_name=COLLECTION_NAME)
+    #     print(f"已删除旧集合: {COLLECTION_NAME}")
+    #
+    # # ② 创建新集合（dim=1024）
+    ensure_collection()
+    # print(f"已创建新集合: {COLLECTION_NAME}, dim={DIM}")
+    info = client.describe_collection(collection_name=COLLECTION_NAME)
+    print("=== Collection Schema ===")
+    print(info)
+    from app.rag.retriever import build_embedding
+    texts: str ="退货运费由卖家承担"
+    llm = build_embedding()
+    vector = llm.embed_query(texts)
+
+    # upset_chunk_vector("1", "1", vector)
+    # query="运费谁出"
+    # query_vector = llm.embed_query(query)
+    # print(f"query_vector: {query_vector}")
+    # hits = search_vectors(query_vector)
+    # print(f"hits: {hits}")
+

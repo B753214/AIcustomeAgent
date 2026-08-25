@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     AIROBOT_LLM_BASE_URL: str
     AIROBOT_LLM_API_KEY: str
     AIROBOT_LLM_MODEL: str
+    AIROBOT_EMBEDDING_BASE_URL: str
+    AIROBOT_EMBEDDING_API_KEY: str
+    AIROBOT_EMBEDDING_MODEL: str
     provider: str = "openai"
     # Embedding
     embedding_base_url: str
@@ -32,7 +35,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     MILVUS_URI: str = "http://localhost:19530"
     COLLECTION_NAME: str = "customer_milvus_collection"
-    DIM: int = 1536
+    DIM: int = 1024
 
 @lru_cache
 def get_settings()->Settings:

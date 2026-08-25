@@ -14,13 +14,19 @@ def _parse_docx(path):
     return "\n".join(p.text.strip() for p in doc.paragraphs if p.text.strip())
 
 
-def parse_life(path: Path):
+def parse_file(path: Path):
     suffix = path.suffix.lower()
+    print(f"suffix: {suffix}")
     if suffix == ".pdf":
         return _parse_pdf(path)
     elif suffix == ".docx":
         return _parse_docx(path)
-    elif suffix == (".txt", ".md", ".markdown"):
-        return path.read_text(encoding="utf-8", errors="ignore")
+    elif suffix in (".txt", ".md", ".markdown"):
+        return path.read_text(encoding="utf-8-sig", errors="ignore")
     else:
         raise ValueError(f"Unsupported file format: {suffix}")
+
+if __name__ == "__main__":
+    path = Path("../db/knowledge_base.md")
+    content = parse_file(path)
+

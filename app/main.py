@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -11,9 +12,13 @@ from app.config import settings
 from app.database import engine, init_db
 from app.rag.milvus_store import ensure_collection, get_milvus_client
 from app.database import get_db
+from app.rag.retriever import aanswer_with_rag
 from app.schemas import ChatResponse, ChatRequest
 from app.services.chat import chat
 from app.services.session_service import get_sessions
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @asynccontextmanager
@@ -36,8 +41,8 @@ async def health():
         pg_status=f"unreachable: {str(e)}"
     milvus_status="ok"
     try:
-        milnvs_client = get_milvus_client()
-        milnvs_client.list_collections()
+        client = get_milvus_client()
+        client.list_collections()
     except Exception as e:
         milvus_status=f"unreachable: {str(e)}"
     is_healthy= (pg_status=="ok") and (milvus_status=="ok")
@@ -68,6 +73,10 @@ async def create_session(db: AsyncSession = Depends(get_db)):
     session = await create_session(db)
     return session
 
-
+@app.get("/retrieval/{query}")
+async def retrieval(query: str, db: AsyncSession = Depends(get_db)):
+    result = await aanswer_with_rag(query, db)
+    return result
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(app, host="0.0.0.0", port=8000,loop="asyncio")

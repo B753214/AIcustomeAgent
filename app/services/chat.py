@@ -46,7 +46,10 @@ def get_llm()->BaseChatModel:
 async def classify_intent(message: str) -> Classifier:
     llm_struct = get_llm().with_structured_output(Classifier)
     response = await llm_struct.ainvoke(INTENT_PROMPT.format(message=message))
-    return response.intent | "chat"
+    print(response)
+    if response.intent:
+        return "chat"
+    return response.intent
 
 async def fallback_chat(message: str, session_id: str, db: AsyncSession) -> dict:
     history = await load_session_history(session_id, db)
@@ -78,4 +81,5 @@ async def chat(message: str, session_id: str) -> dict:
     return result
 
 if __name__ == "__main__":
-    pass
+    res= asyncio.run(classify_intent("运费谁出"))
+    print(res)
