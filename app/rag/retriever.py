@@ -1,3 +1,8 @@
+
+from __future__ import annotations
+import time
+from typing import List, Tuple
+
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain.chat_models import init_chat_model
@@ -7,8 +12,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHea
 
 from app.config import settings
 from app.database import AsyncSession, get_db
+from app.models import Chunk
 
+from app.rag.fusion import reciprocal_rank_fusion
+from app.rag.lexical import BM25Index
+from pathlib import Path
 from app.rag.milvus_store import search_vectors
+from app.rag.reranker import Reranker
 from app.services.chunk_service import get_chunks_by_ids
 from app.services.resilience import ainvoke_with_retry
 from rich import print as rprint
@@ -30,21 +40,21 @@ def build_llm():
         )
 
 
-async def aanswer_with_rag(query: str,db: AsyncSession, llm=None, history=None) -> str:
-    """使用 RAG 模型回答用户问题。"""
-    llm = build_embedding()
-    query_vector = llm.embed_query(query)
-    # 检索最相关的文档
-    related_chunks = search_vectors(query_vector)
-    chunk_ids = [chunk["chunk_id"] for chunk in related_chunks]
-    chunk_text = await get_chunks_by_ids(chunk_ids, db)
+
+async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None) -> Tuple[str, List[str]]:
+    """混合检索（向量+BM25+RRF+rerank）+ RAG 生成，返回 (回答, 来源列表)。"""
+    chunks = await kb.search(query)
+
+    if not chunks:
+        return ("未检索到相关知识，请尝试其他关键词。", [])
 
     # 合并所有文档内容
-    document_content = "\n\n".join([doc.content for doc in chunk_text])
-    chain = RAG_PROMPT | build_llm()
+    document_content = "\n\n".join([c.content for c in chunks])
+    print(f"document_content: {document_content}")
+    chain = RAG_PROMPT | (llm or build_llm())
     answer = await ainvoke_with_retry(
         chain.ainvoke, {"context": document_content, "question": query, "history": history or []})
-    sources = [f"{d.title}#{d.chunk_index}" for d in chunk_text]
+    sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
     return answer, sources
 def build_embedding()->DashScopeEmbeddings:
     # return OpenAIEmbeddings(
@@ -99,7 +109,160 @@ def split_text(title: str, text: str) -> list[Document]:
 
     return result
 
+class KnowledgeBase:
+    def __init__(self, db: AsyncSession):
+        self._splitter = build_splitter()
+        self._markdown_splitter = build_markdown_splitter()
+        self._bm25 = BM25Index()
+        self._reranker = Reranker()
+        self._documents: list[Chunk] = []  # 🔑 上层存业务对象（和BM25的_corpus一一对应）
+        self._store = db
+
+    @property
+    def bm25_ready(self) -> bool:
+        return self._bm25.ready
+
+    def _split_text(self, title: str, text: str) -> list[Document]:
+        return split_text(title, text)
+
+    def embed_query(self, query: str) -> list[float]:
+        llm = build_embedding()
+        query_vector = llm.embed_query(query)
+        return query_vector
+
+    async def build_index(self) -> None:
+        """启动时全量构建：从PG加载所有chunk，同时更新上层_documents和BM25"""
+        from app.services.chunk_service import list_all_chunks
+        all_chunks = await list_all_chunks(self._store)
+        # 1. 上层存业务对象（做映射表）
+        self._documents = all_chunks
+        # 2. BM25存纯文本（做检索）
+        self._bm25.add_documents([c.content for c in all_chunks])
+        print(f"✅ 全量索引构建完成：共 {len(all_chunks)} 个chunk")
+
+    async def ingest_file(self, path: Path) -> None:
+        """从文件路径加载文档并将其索引到数据库中。"""
+        from app.rag.document_embedding import save_file_to_db
+        try:
+            new_chunks = await save_file_to_db(path, self._store) # 追加，不是覆盖
+        except Exception as e:
+            # 外层持久化失败，直接抛出，不追加BM25
+            print(f"❌ 持久化失败，跳过BM25更新: {e}")
+            raise e
+        self._documents.extend(new_chunks)
+        self._bm25.add_documents([c.content for c in new_chunks])  # 追加，不是覆盖
+
+    async def search(self, query: str, top_k: int | None = None) -> list[Document]:
+        """混合检索：向量 + BM25 -> RRF 融合 -> bge-reranker 重排。"""
+        docs, _ = await self.search_detailed(query, top_k)
+        return docs
+
+    async def search_detailed(self, query: str, top_k: int | None = None) -> Tuple[list[Document], dict]:
+        """混合检索并返回各阶段耗时明细，供控制台全链路可视化使用。
+
+        返回 (docs, detail)，detail 字段：
+        vector_ms / vector_hits / bm25_ms / bm25_hits / fusion_ms / fused /
+        rerank_ms / rerank_enabled / hybrid。
+        """
+        top_k = top_k or settings.top_k
+        detail = {"vector_ms": 0.0, "vector_hits": 0, "bm25_ms": 0.0, "bm25_hits": 0,
+                  "fusion_ms": 0.0, "fused": 0, "rerank_ms": 0.0, "rerank_enabled": False,
+                  "hybrid": bool(self._bm25.ready and settings.hybrid_enabled)}
+        if not self._bm25.ready or not settings.hybrid_enabled:
+            t0 = time.perf_counter()
+            docs = await self.search_vector(query, top_k)
+            detail["vector_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+            detail["vector_hits"] = len(docs)
+            return self._rerank_if_enabled(query, docs, top_k, detail), detail
+
+        t0 = time.perf_counter()
+        vector_docs = await self.search_vector(query, settings.hybrid_vector_top_k)
+        detail["vector_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+        detail["vector_hits"] = len(vector_docs)
+
+        t0 = time.perf_counter()
+        bm25_docs = self.search_bm25(query, settings.hybrid_bm25_top_k)
+        detail["bm25_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+        detail["bm25_hits"] = len(bm25_docs)
+
+        t0 = time.perf_counter()
+        fused_ids = reciprocal_rank_fusion(
+            [[d.id for d in vector_docs],
+             [d.id for d in bm25_docs]],
+            top_k=settings.hybrid_fusion_top_k,
+        )
+        detail["fusion_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+        detail["fused"] = len(fused_ids)
+
+        doc_map = {d.id: d for d in vector_docs + bm25_docs}
+        docs = [doc_map[did] for did in fused_ids if did in doc_map]
+        return self._rerank_if_enabled(query, docs, top_k, detail), detail
+    def _rerank_if_enabled(self, query: str, docs: list[Chunk], top_k: int,
+                           detail: dict) -> list[Chunk]:
+
+        if settings.rerank_enabled and self._reranker.ready:
+            t0 = time.perf_counter()
+            print(f"start reranking !!!!{len(docs)} docs")
+            docs = self._reranker.rerank(query, docs, top_k)
+            detail["rerank_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+            detail["rerank_enabled"] = True
+            print(f"end reranking !!!!{len(docs)} docs")
+        return docs[:top_k]
+
+    async def search_vector(self, query: str, top_k: int | None = None) -> list[Chunk]:
+        """纯向量检索（对照用）。"""
+        query_vector = self.embed_query(query)
+        related_chunks = search_vectors(query_vector)
+        chunk_ids = [chunk["chunk_id"] for chunk in related_chunks]
+        chunk_texts = await get_chunks_by_ids(chunk_ids, self._store)
+        return chunk_texts
+    def search_bm25(self, query: str, top_k: int | None = None) -> list[Chunk]:
+        """BM25检索：用BM25返回的下标映射上层的_documents，拿到业务对象"""
+        indices = self._bm25.search(query, top_k)
+        # 🔑 关键：用下标映射上层的_documents（不是BM25内部的_corpus）
+        return [self._documents[i] for i in indices if i < len(self._documents)]
+
+    async def search_hybrid(self, query: str, top_k: int | None = None) -> list[Chunk]:
+        """RRF 融合（不含重排），供评测脚本与对照实验使用。"""
+        top_k = top_k or settings.top_k
+        if not self._bm25.ready or not settings.hybrid_enabled:
+            return await self.search_vector(query, top_k)
+        vector_docs = await self.search_vector(query, settings.hybrid_vector_top_k)
+        from rich import print as rprint
+        rprint("vectors::",vector_docs)
+        bm25_docs = self.search_bm25(query, settings.hybrid_bm25_top_k)
+        rprint("BM25:",bm25_docs)
+        fused_ids = reciprocal_rank_fusion(
+            [[d.id for d in vector_docs],
+             [d.id for d in bm25_docs]],
+            top_k=settings.hybrid_fusion_top_k,
+        )
+        chunk_map = {c.id: c for c in vector_docs + bm25_docs}
+        docs = [chunk_map[cid] for cid in fused_ids if cid in chunk_map]
+        # doc_map = {d.id: d for d in vector_docs + bm25_docs}
+        return docs
+
+_kb_instance: KnowledgeBase | None = None
+def get_kb_instance(db: AsyncSession) -> KnowledgeBase:
+    """获取全局唯一的KnowledgeBase实例（单例模式，避免重复初始化）"""
+    global _kb_instance
+    if _kb_instance is None:
+        _kb_instance = KnowledgeBase(db)
+    return _kb_instance
+
 if __name__ == "__main__":
-    from app.rag.loader import parse_file
-    from pathlib import Path
+    import asyncio
     from rich import print as rprint
+    async def init():
+        async for db in get_db():
+            kb = get_kb_instance(db)
+            await kb.build_index()
+            print(f"✅ 测试初始化完成：共 {len(kb._documents)} 个chunk")
+            answer, sources = await aanswer_with_rag("七天无理由", kb)
+            rprint("RRF",answer)
+            rprint("sources:",sources)
+            return
+
+
+    asyncio.run(init())
+    #

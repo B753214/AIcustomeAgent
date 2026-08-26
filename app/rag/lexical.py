@@ -1,0 +1,26 @@
+from typing import List
+from rank_bm25 import BM25Okapi
+import jieba
+
+
+def tokenize(text: str) -> List[str]:
+    return [t for t in jieba.lcut(text) if t.strip()]
+
+class BM25Index:
+    def __init__(self)->None:
+        self._corpus: List[str] = []
+        self._bm25: BM25Okapi | None = None
+    @property
+    def ready(self)->bool:
+        return self._bm25 is not None
+    def add_documents(self, texts: List[str]) -> None:
+        self._corpus.extend(texts)
+        self._bm25 = BM25Okapi([tokenize(t) for t in self._corpus])
+
+    def search(self, query: str, top_k: int) -> List[int]:
+        """返回按 BM25 得分排序的文档索引列表（仅保留得分>0 的命中）。"""
+        if not self.ready or not self._corpus:
+            return []
+        scores = self._bm25.get_scores(tokenize(query))
+        order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+        return [i for i in order if scores[i] > 0][:top_k]

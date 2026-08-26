@@ -46,7 +46,6 @@ def search_vectors(query_vector: list[float], top_k: int = 5) -> list[dict]:
     if not query_vector:
         return []
     client = get_milvus_client()
-
     results = client.search(
         collection_name=COLLECTION_NAME,
         data=[query_vector],
@@ -54,7 +53,6 @@ def search_vectors(query_vector: list[float], top_k: int = 5) -> list[dict]:
         metric_type="COSINE",
         output_fields=["chunk_id", "doc_id"],
     )
-    print("results:", results)
     hits=[]
     for group in results:
         for hit in group:

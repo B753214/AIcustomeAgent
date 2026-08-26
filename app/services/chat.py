@@ -10,7 +10,7 @@ from pydantic import Field, BaseModel
 
 from app.agents.tools import query_order
 from app.config import settings
-from app.rag.retriever import aanswer_with_rag
+from app.rag.retriever import aanswer_with_rag, get_kb_instance, KnowledgeBase
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.session_service import load_session_history, save_message, clear_session_history
@@ -51,20 +51,20 @@ async def classify_intent(message: str) -> Classifier:
         return "chat"
     return response.intent
 
-async def fallback_chat(message: str, session_id: str, db: AsyncSession) -> dict:
+async def fallback_chat(message: str, session_id: str, kb: KnowledgeBase, db: AsyncSession) -> dict:
     history = await load_session_history(session_id, db)
     intent = await classify_intent(message)
     if intent == "order":
         return { "reply": query_order(message), "intent": intent, "sources": [], "engine": "langchain"}
     if intent == "knowledge":
-        answer, sources = await aanswer_with_rag(message, get_llm(), history)
+        answer, sources = await aanswer_with_rag(message, kb, get_llm(), history)
         return { "reply": answer, "intent": intent, "sources": sources, "engine": "langchain"}
     chain = CHAT_PROMPT | get_llm()
     reply = await ainvoke_with_retry(chain.ainvoke, {"message": message, "history": history})
     return {"reply": reply, "intent": "chat", "sources": [], "engine": "langchain"}
 
 
-async def chat(message: str, session_id: str) -> dict:
+async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
     entry = {"message": message[:80], "session_id": session_id, "status": 200}
     t_start = time.perf_counter()
     if not settings.llm_api_key:
@@ -72,7 +72,8 @@ async def chat(message: str, session_id: str) -> dict:
         return {"reply": "未配置 AIROBOT_LLM_API_KEY，请复制 .env.example 为 .env 并填入密钥。",
                 "intent": None, "sources": [], "engine": "langchain"}
     t_llm=time.perf_counter()
-    result = await fallback_chat(message, session_id)
+    kb = get_kb_instance(db)
+    result = await fallback_chat(message, session_id,kb, db)
     entry.update(intent=result.get("intent"), engine=result.get("engine"),
                  llm_ms=round((time.perf_counter() - t_llm) * 1000, 1),
                  sources=len(result.get("sources", [])),

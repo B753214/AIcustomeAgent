@@ -29,4 +29,5 @@ def parse_file(path: Path):
 if __name__ == "__main__":
     path = Path("../db/knowledge_base.md")
     content = parse_file(path)
+    print(content)
 

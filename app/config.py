@@ -28,10 +28,18 @@ class Settings(BaseSettings):
     top_k: int
     chunk_size: int
     chunk_overlap: int
-    memory_max_turns: int = 20
-    retry_max_wait: int = 10
+    hybrid_vector_top_k: int = 15
+    hybrid_enabled: bool = True
+    hybrid_bm25_top_k: int = 15
+    rerank_enabled:bool = False
+    rerank_provider: str = "local"
+    rerank_model: str = "qwen3-rerank"
+    rerank_api_key: str = ""
+    hybrid_fusion_top_k: int = 5
+    memory_max_turns: int = 5
+    retry_max_wait: int = 3
     POSTGRES_URI: str
-    DEBUG: bool = False
+    DEBUG: bool = True
     APP_VERSION: str = "0.1.0"
     MILVUS_URI: str = "http://localhost:19530"
     COLLECTION_NAME: str = "customer_milvus_collection"

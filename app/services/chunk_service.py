@@ -3,8 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Document, Chunk
 
+async def list_all_chunks(db: AsyncSession) -> list[Chunk]:
+    """全量加载所有chunk（用于服务启动时构建BM25索引）"""
+    stmt = select(Chunk).order_by(Chunk.chunk_index.asc())
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
-async def save_document_with_chunks(file_name: str, hash_document: str, list_chunks: list[str], db: AsyncSession) -> tuple[str, list[tuple[str, str]]]:
+async def save_document_with_chunks(file_name: str, hash_document: str, list_chunks: list[str], db: AsyncSession) -> tuple[str, list[Chunk]]:
     document = Document(
         file_name=file_name,
         content_sha256=hash_document,
@@ -23,7 +28,7 @@ async def save_document_with_chunks(file_name: str, hash_document: str, list_chu
         db.add(row)
         rows.append(row)
     await db.flush()
-    return document.id, [(row.id, row.content) for row in rows]
+    return document.id, rows
 
 
 async def list_chunk_texts(document_id: str, db: AsyncSession) -> list[str]:
@@ -39,5 +44,4 @@ async def list_chunk_texts(document_id: str, db: AsyncSession) -> list[str]:
 async def get_chunks_by_ids(chunk_ids: list[str], db: AsyncSession) -> list[Chunk]:
     stmt = select(Chunk).where(Chunk.id.in_(chunk_ids))
     result = await db.execute(stmt)
-    print(result)
     return result.scalars().all()

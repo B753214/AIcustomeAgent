@@ -15,3 +15,8 @@ class ChatResponse(BaseModel):
     engine: str = "langchain"   # langchain | crew
     used_crew: bool = False
     cache_hit: bool = False
+
+class IngestResponse(BaseModel):
+    file_name: str
+    chunks: int
+    total_chunks: int
