@@ -273,6 +273,11 @@ def get_kb_instance(db: AsyncSession) -> KnowledgeBase:
         _kb_instance._store = db
     return _kb_instance
 
+
+def get_cached_kb() -> KnowledgeBase | None:
+    """返回已缓存的 KB 实例（不要求 db session），启动初始化后可用。"""
+    return _kb_instance
+
 if __name__ == "__main__":
     import asyncio
     from rich import print as rprint
