@@ -1,19 +1,34 @@
 from typing import List
-from rank_bm25 import BM25Okapi
+
 import jieba
+from rank_bm25 import BM25Okapi
 
 
 def tokenize(text: str) -> List[str]:
     return [t for t in jieba.lcut(text) if t.strip()]
 
+
 class BM25Index:
-    def __init__(self)->None:
+    def __init__(self) -> None:
         self._corpus: List[str] = []
         self._bm25: BM25Okapi | None = None
+
     @property
-    def ready(self)->bool:
+    def ready(self) -> bool:
         return self._bm25 is not None
+
+    def rebuild(self, texts: List[str]) -> None:
+        """全量重建（启动从 PG 加载时用），禁止在已有语料上再 extend。"""
+        self._corpus = list(texts)
+        if not self._corpus:
+            self._bm25 = None
+            return
+        self._bm25 = BM25Okapi([tokenize(t) for t in self._corpus])
+
     def add_documents(self, texts: List[str]) -> None:
+        """追加语料后重建索引（ingest 热更新）。"""
+        if not texts:
+            return
         self._corpus.extend(texts)
         self._bm25 = BM25Okapi([tokenize(t) for t in self._corpus])
 

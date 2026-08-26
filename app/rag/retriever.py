@@ -48,12 +48,12 @@ async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None
     if not chunks:
         return ("未检索到相关知识，请尝试其他关键词。", [])
 
-    # 合并所有文档内容
     document_content = "\n\n".join([c.content for c in chunks])
-    print(f"document_content: {document_content}")
     chain = RAG_PROMPT | (llm or build_llm())
     answer = await ainvoke_with_retry(
         chain.ainvoke, {"context": document_content, "question": query, "history": history or []})
+    if hasattr(answer, "content"):
+        answer = answer.content
     sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
     return answer, sources
 def build_embedding()->DashScopeEmbeddings:
@@ -122,6 +122,10 @@ class KnowledgeBase:
     def bm25_ready(self) -> bool:
         return self._bm25.ready
 
+    @property
+    def chunk_count(self) -> int:
+        return len(self._documents)
+
     def _split_text(self, title: str, text: str) -> list[Document]:
         return split_text(title, text)
 
@@ -131,26 +135,24 @@ class KnowledgeBase:
         return query_vector
 
     async def build_index(self) -> None:
-        """启动时全量构建：从PG加载所有chunk，同时更新上层_documents和BM25"""
+        """启动时全量构建：从 PG 加载所有 chunk，rebuild BM25（不是 append）。"""
         from app.services.chunk_service import list_all_chunks
         all_chunks = await list_all_chunks(self._store)
-        # 1. 上层存业务对象（做映射表）
         self._documents = all_chunks
-        # 2. BM25存纯文本（做检索）
-        self._bm25.add_documents([c.content for c in all_chunks])
+        self._bm25.rebuild([c.content for c in all_chunks])
         print(f"✅ 全量索引构建完成：共 {len(all_chunks)} 个chunk")
 
-    async def ingest_file(self, path: Path) -> None:
-        """从文件路径加载文档并将其索引到数据库中。"""
+    async def ingest_file(self, path: Path, title: str | None = None) -> int:
+        """入库并用原文件名作 title；返回本次新增块数。"""
         from app.rag.document_embedding import save_file_to_db
         try:
-            new_chunks = await save_file_to_db(path, self._store) # 追加，不是覆盖
+            new_chunks = await save_file_to_db(path, self._store, title=title)
         except Exception as e:
-            # 外层持久化失败，直接抛出，不追加BM25
             print(f"❌ 持久化失败，跳过BM25更新: {e}")
             raise e
         self._documents.extend(new_chunks)
-        self._bm25.add_documents([c.content for c in new_chunks])  # 追加，不是覆盖
+        self._bm25.add_documents([c.content for c in new_chunks])
+        return len(new_chunks)
 
     async def search(self, query: str, top_k: int | None = None) -> list[Document]:
         """混合检索：向量 + BM25 -> RRF 融合 -> bge-reranker 重排。"""
@@ -243,11 +245,15 @@ class KnowledgeBase:
         return docs
 
 _kb_instance: KnowledgeBase | None = None
+
+
 def get_kb_instance(db: AsyncSession) -> KnowledgeBase:
-    """获取全局唯一的KnowledgeBase实例（单例模式，避免重复初始化）"""
+    """全局单例；每次请求刷新 db，避免 lifespan 里的 session 关闭后失效。"""
     global _kb_instance
     if _kb_instance is None:
         _kb_instance = KnowledgeBase(db)
+    else:
+        _kb_instance._store = db
     return _kb_instance
 
 if __name__ == "__main__":
@@ -261,7 +267,9 @@ if __name__ == "__main__":
             answer, sources = await aanswer_with_rag("七天无理由", kb)
             rprint("RRF",answer)
             rprint("sources:",sources)
-            return
+            answer2, sources2 = await aanswer_with_rag("你们老板叫什么", kb)
+            rprint("RRF", answer2)
+            rprint("sources:", sources2)
 
 
     asyncio.run(init())

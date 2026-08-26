@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 from sqlalchemy import String, ForeignKey, Text, DateTime, Index
@@ -12,7 +12,7 @@ class ChatSession(Base):
     __tablename__ = 'chat_sessions'
     session_id: Mapped[str]=mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), comment="会话创建时间"
+        DateTime, default=lambda: datetime.now(), comment="会话创建时间"
     )
     ended_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, comment="会话结束时间"
@@ -42,7 +42,7 @@ class ChatMessage(Base):
         Text, comment="消息内容"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), comment="消息创建时间"
+        DateTime, default=lambda: datetime.now(), comment="消息创建时间"
     )
 
     # 反向关联会话表

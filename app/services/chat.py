@@ -3,9 +3,9 @@ from datetime import time
 from enum import StrEnum
 
 from langchain.chat_models import init_chat_model
-from langchain_classic.chains.qa_generation.prompt import CHAT_PROMPT
 from langchain_core.language_models import BaseChatModel
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import Field, BaseModel
 
 from app.agents.tools import query_order
@@ -13,7 +13,7 @@ from app.config import settings
 from app.rag.retriever import aanswer_with_rag, get_kb_instance, KnowledgeBase
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.session_service import load_session_history, save_message, clear_session_history
+from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn
 
 _llm_cache: dict = {}
 class IntentEnum(StrEnum):
@@ -25,6 +25,13 @@ class IntentEnum(StrEnum):
 INTENT_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
      "你是意图分类器，只输出 JSON：{{\"intent\": \"knowledge|order|chat\", \"reason\": \"简短理由\"}}"),
+    MessagesPlaceholder("history"),
+    ("human", "{message}"),
+])
+
+CHAT_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", "你是二手交易平台智能客服，语气友好简洁…"),
+    MessagesPlaceholder("history"),
     ("human", "{message}"),
 ])
 
@@ -41,26 +48,43 @@ def get_llm()->BaseChatModel:
             model=settings.AIROBOT_LLM_MODEL,
             model_provider=settings.provider,
         )
-        return _llm_cache[key]
+    return _llm_cache[key]
 
-async def classify_intent(message: str) -> Classifier:
-    llm_struct = get_llm().with_structured_output(Classifier)
-    response = await llm_struct.ainvoke(INTENT_PROMPT.format(message=message))
-    print(response)
-    if response.intent:
-        return "chat"
-    return response.intent
+def _to_langchain_messages(history: list[dict]) -> list:
+    """将 {"role","content"} 字典列表转为 LangChain Message 对象列表"""
+    return [
+        HumanMessage(content=m["content"]) if m["role"] == "user"
+        else AIMessage(content=m["content"])
+        for m in history
+    ]
+
+async def classify_intent(message: str, history: list) -> IntentEnum:
+    try:
+        llm_struct = get_llm().with_structured_output(Classifier)
+        # 兼容：如果传入的仍是 dict，先转为 LangChain Message
+        lc_history = _to_langchain_messages(history) if history and isinstance(history[0], dict) else history
+        response = await llm_struct.ainvoke(INTENT_PROMPT.format_messages(message=message, history=lc_history))
+        print(response)
+        if not response.intent:
+            return IntentEnum.CHAT
+        return response.intent
+    except Exception as e:
+        print(f"[classify_intent] 解析失败，回退为 CHAT: {e}")
+        return IntentEnum.CHAT
 
 async def fallback_chat(message: str, session_id: str, kb: KnowledgeBase, db: AsyncSession) -> dict:
     history = await load_session_history(session_id, db)
-    intent = await classify_intent(message)
+    lc_history = _to_langchain_messages(history)
+    intent = await classify_intent(message, lc_history)
     if intent == "order":
         return { "reply": query_order(message), "intent": intent, "sources": [], "engine": "langchain"}
     if intent == "knowledge":
-        answer, sources = await aanswer_with_rag(message, kb, get_llm(), history)
+        answer, sources = await aanswer_with_rag(message, kb, get_llm(), lc_history)
         return { "reply": answer, "intent": intent, "sources": sources, "engine": "langchain"}
     chain = CHAT_PROMPT | get_llm()
-    reply = await ainvoke_with_retry(chain.ainvoke, {"message": message, "history": history})
+    reply = await ainvoke_with_retry(chain.ainvoke, {"message": message, "history": lc_history})
+    if hasattr(reply, "content"):
+        reply = reply.content
     return {"reply": reply, "intent": "chat", "sources": [], "engine": "langchain"}
 
 
@@ -80,7 +104,45 @@ async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
                  total_ms=round((time.perf_counter() - t_start) * 1000, 1))
 
     return result
+async def run(
+    message: str,
+    session_id: str,
+    kb: KnowledgeBase,
+    db: AsyncSession,
+    on_event=None,  # None=JSON；有回调=SSE
+) -> dict:
+    history = await load_session_history(session_id, db)
+    lc_history = _to_langchain_messages(history)
+    intent = await classify_intent(message, lc_history)
+    if on_event:
+        on_event({"type": "stage", "name": intent})
+    if intent == "order":
+        answer = query_order(message)
+        res = {"reply": answer, "intent": intent, "sources": [], "engine": "langchain"}
+    elif intent == "knowledge":
+        answer, sources = await aanswer_with_rag(message, kb, get_llm(), lc_history)
+        res = {"reply": answer, "intent": intent, "sources": sources, "engine": "langchain"}
+    else:
+        chain = CHAT_PROMPT | get_llm()
+        reply = await ainvoke_with_retry(chain.ainvoke, {"message": message, "history": lc_history})
+        if hasattr(reply, "content"):
+            reply = reply.content
+        res={"reply": reply, "intent": "chat", "sources": [], "engine": "langchain"}
+    if on_event:
+        on_event(res)
+
+    await save_turn(session_id, message, res["reply"], db)
+    return res
 
 if __name__ == "__main__":
-    res= asyncio.run(classify_intent("运费谁出"))
-    print(res)
+    from app.database import get_db, init_db
+
+    async def _test():
+        await init_db()
+        async for db in get_db():
+            kb = get_kb_instance(db)
+            res = await run("运费谁出", session_id="test-session", kb=kb, db=db)
+            print(res)
+            break
+
+    asyncio.run(_test())
