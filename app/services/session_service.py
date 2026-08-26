@@ -23,15 +23,17 @@ async def load_session_history(session_id: str, db: AsyncSession, max_turns: int
     session = await get_or_create_session(session_id, db)
     if not session:
         return []
+    # 子查询：先按时间倒序取最新 max_turns*2 条，再翻转为正序保证对话顺序
     stmt = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.asc())
+        .order_by(ChatMessage.created_at.desc())
     )
     if max_turns:
-        stmt = stmt.limit(max_turns *2)
+        stmt = stmt.limit(max_turns * 2)
     result = await db.execute(stmt)
     messages = result.scalars().all()
+    messages = list(reversed(messages))  # 翻回时间正序，保证对话从旧到新
     return [{"role": message.role, "content": message.content} for message in messages]
 
 async def save_message(
