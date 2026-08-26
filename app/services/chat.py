@@ -10,7 +10,7 @@ from pydantic import Field, BaseModel
 
 from app.agents.tools import query_order
 from app.config import settings
-from app.rag.retriever import aanswer_with_rag, get_kb_instance, KnowledgeBase
+from app.rag.retriever import aanswer_with_rag, get_kb_instance, KnowledgeBase, aanswer_with_rag_stream
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn
@@ -133,6 +133,37 @@ async def run(
 
     await save_turn(session_id, message, res["reply"], db)
     return res
+async def run_astream(
+    message: str,
+    session_id: str,
+    kb: KnowledgeBase,
+    db: AsyncSession,
+):
+    history = await load_session_history(session_id, db)
+    lc_history = _to_langchain_messages(history)
+    intent = await classify_intent(message, lc_history)
+    yield {"type": "stage", "stage": "intent", "msg": f"意图={intent}"}
+    yield {"type": "intent", "intent": str(intent)}
+    full_reply = ""
+    sources = []
+    if intent == "order":
+        full_reply = query_order(message)
+        yield {"type": "token","reply": full_reply, "intent": intent, "sources": [], "engine": "langchain"}
+    elif intent == "knowledge":
+        async for event in aanswer_with_rag_stream(message, kb, get_llm(), lc_history):
+            if event["type"] == "token"and event.get("content"):
+                full_reply+=event["content"]
+            yield event
+    else:
+        chain = CHAT_PROMPT | get_llm()
+        async for chunk in chain.astream({"message": message, "history": lc_history}):
+            token = chunk.content if hasattr(chunk, "content") else str(chunk)
+            if token:
+                full_reply += token
+                yield {"type": "token", "content": token}
+    await save_turn(session_id, message, full_reply, db)
+    yield {"type": "done", "reply": full_reply, "intent": intent, "sources": sources, "engine": "langchain"}
+
 
 if __name__ == "__main__":
     from app.database import get_db, init_db

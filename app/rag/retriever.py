@@ -56,6 +56,23 @@ async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None
         answer = answer.content
     sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
     return answer, sources
+
+async def aanswer_with_rag_stream(query: str, kb: KnowledgeBase, llm=None, history=None):
+    """检索同 aanswer_with_rag，生成环节用 astream 逐 token yield。"""
+    chunks = await kb.search(query)
+
+    if not chunks:
+        yield {"type": "token", "content": "未检索到相关知识，请尝试其他关键词。"}
+        return
+    document_content = "\n\n".join([c.content for c in chunks])
+    chain = RAG_PROMPT | (llm or build_llm())
+    sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
+    full_answer = ""
+    async for chunk in chain.astream({"context": document_content, "question": query, "history": history or []}):
+        token = chunk.content if hasattr(chunk, "content") else str(chunk)
+        full_answer += token
+        yield {"type": "token", "content": token, "sources": sources}
+
 def build_embedding()->DashScopeEmbeddings:
     # return OpenAIEmbeddings(
     #     model=settings.AIROBOT_EMBEDDING_MODEL,
