@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     embedding_base_url: str
     embedding_api_key: str
     embedding_model: str
-    USE_CREW: bool = True
+    use_crew: bool = True
     top_k: int
     chunk_size: int
     chunk_overlap: int
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     MILVUS_URI: str = "http://localhost:19530"
     COLLECTION_NAME: str = "customer_milvus_collection"
     DIM: int = 1024
-    CREW_TOOLS_READY: bool = True
+    crew_tools_ready: bool = True
     ratelimit_enabled: bool = True  # 开发期可改 False 关掉
     ratelimit_per_minute: int = 30  # 60 秒内最多 30 次
 

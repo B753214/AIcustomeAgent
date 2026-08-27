@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.semantic_cache import semantic_cache
 from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn, \
     get_sessions
+from app.services.tracing import traces
 
 _llm_cache: dict = {}
 class IntentEnum(StrEnum):
@@ -150,6 +151,12 @@ async def run(
     db: AsyncSession,
     on_event=None,  # None=JSON；有回调=SSE
 ) -> dict:
+    t_start = time.perf_counter()
+    entry = {
+        "message": message[:80],
+        "session_id": session_id,
+        "status": 200,
+    }
     history = await load_session_history(session_id, db)
     query_vector = None
     if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history:
@@ -158,6 +165,9 @@ async def run(
         if cached is not None:
             res = {**cached, "cache_hit": True}
             await save_turn(session_id, message, res["reply"], db)
+            entry.update(cache_hit=True, intent=res.get("intent"),
+                         cache_checked=True, total_ms=round((time.perf_counter() - t_start) * 1000, 1))
+            traces.record(entry)
             return res
 
     lc_history = _to_langchain_messages(history)
@@ -177,6 +187,15 @@ async def run(
             }
             _maybe_cache(query_vector, res, message)
             await save_turn(session_id, message, res["reply"], db)
+            entry.update(
+                intent=res.get("intent"),
+                engine=res.get("engine"),
+                cache_hit=False,
+                cache_checked=query_vector is not None,
+                sources=len(res.get("sources", [])),
+                total_ms=round((time.perf_counter() - t_start) * 1000, 1),
+            )
+            traces.record(entry)
             return res
         except Exception as e:
             print(f"[run_crew] 解析失败，回退为 CHAT: {e}")
@@ -201,6 +220,15 @@ async def run(
         on_event(res)
     _maybe_cache(query_vector, res, message)
     await save_turn(session_id, message, res["reply"], db)
+    entry.update(
+        intent=res.get("intent"),
+        engine=res.get("engine"),
+        cache_hit=res.get("cache_hit", False),
+        cache_checked=query_vector is not None,
+        sources=len(res.get("sources", [])),
+        total_ms=round((time.perf_counter() - t_start) * 1000, 1),
+    )
+    traces.record(entry)
     return res
 async def run_astream(
     message: str,

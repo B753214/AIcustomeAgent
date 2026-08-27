@@ -9,14 +9,17 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse, StreamingResponse, HTMLResponse
 
+from app.agents.tools import CREW_TOOLS_READY
 from app.config import PROJECT_ROOT, settings
 from app.database import engine, init_db, get_db
 from app.rag.milvus_store import ensure_collection, get_milvus_client
 from app.rag.retriever import aanswer_with_rag, get_kb_instance
-from app.schemas import ChatResponse, ChatRequest, IngestResponse
+from app.schemas import ChatResponse, ChatRequest, IngestResponse, StatsResponse
 from app.services.chat import chat, run, run_astream
 from app.services.chunk_service import document_exists_by_name
+from app.services.semantic_cache import semantic_cache
 from app.services.session_service import get_sessions, load_session_history, create_session as _create_session
+from app.services.tracing import traces
 
 SAMPLE_KB = PROJECT_ROOT / "data" / "knowledge_base.md"
 
@@ -59,6 +62,13 @@ async def rate_limit_middleware(request: Request, call_next):
         if request.url.path not in ("/api/v1/stats", "/api/v1/traces"):
             client_ip = _client_ip(request)
             if not limiter.allow(client_ip):
+                traces.record({
+                    "message": f"{request.method} {request.url.path}",
+                    "session_id": client_ip,
+                    "intent": "ratelimited",
+                    "status": 429,
+                    "total_ms": 0,
+                })
                 return JSONResponse(
                     status_code=429,
                     content={"detail": "请求过于频繁，请稍后再试。"},
@@ -188,6 +198,35 @@ async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
         gen(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},)
+
+@app.get("/api/v1/stats", response_model=StatsResponse)
+async def stats_ep(db: AsyncSession = Depends(get_db)):
+    kb = get_kb_instance(db)
+    cache = semantic_cache.stats()
+    rl = limiter.stats()
+    return StatsResponse(
+        total_chunks=kb.chunk_count,
+        llm_model=settings.AIROBOT_LLM_MODEL,
+        embedding_model=settings.AIROBOT_EMBEDDING_MODEL,
+        use_crew=settings.use_crew,
+        crew_available=CREW_TOOLS_READY,
+        hybrid_enabled=settings.hybrid_enabled,
+        bm25_ready=kb.bm25_ready,
+        rerank_enabled=settings.rerank_enabled,
+        cache_enabled=settings.cache_enabled,
+        cache_size=cache["size"],
+        cache_hits=cache["hits"],
+        cache_misses=cache["misses"],
+        cache_threshold=settings.cache_threshold,
+        ratelimit_enabled=settings.ratelimit_enabled,
+        ratelimit_per_minute=rl["limit_per_minute"],
+        ratelimit_blocked=rl["blocked"],
+    )
+
+@app.get("/api/v1/traces")
+def traces_ep(limit: int = 50):
+    return {"entries": traces.recent(limit), "summary": traces.summary()}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

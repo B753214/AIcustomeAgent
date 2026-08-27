@@ -31,7 +31,7 @@ class SlidingWindowLimiter:
     def stats(self)->dict:
         with self._lock:
             return {
-                 "window_sec": self.window_sec,
+                "window_sec": self.window_sec,
                 "limit_per_minute": self.limit,
                 "blocked": self.blocked,
                 "active_keys": len(self._hits),
