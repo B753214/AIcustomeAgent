@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     embedding_base_url: str
     embedding_api_key: str
     embedding_model: str
-    USE_CREW: bool = False
+    USE_CREW: bool = True
     top_k: int
     chunk_size: int
     chunk_overlap: int
@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     rerank_api_key: str = ""
     hybrid_fusion_top_k: int = 5
     memory_max_turns: int = 5
+    retry_attempts: int = 3
     retry_max_wait: int = 3
     POSTGRES_URI: str
     DEBUG: bool = True
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
     MILVUS_URI: str = "http://localhost:19530"
     COLLECTION_NAME: str = "customer_milvus_collection"
     DIM: int = 1024
+    CREW_TOOLS_READY: bool = True
 
 @lru_cache
 def get_settings()->Settings:

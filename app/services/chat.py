@@ -1,5 +1,5 @@
 import asyncio
-from datetime import time
+import time
 from enum import StrEnum
 
 from langchain.chat_models import init_chat_model
@@ -8,12 +8,21 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import Field, BaseModel
 
-from app.agents.tools import query_order
+from app.agents.crew import run_crew
+from app.agents.tools import query_order, CREW_TOOLS_READY
 from app.config import settings
-from app.rag.retriever import aanswer_with_rag, get_kb_instance, KnowledgeBase, aanswer_with_rag_stream
+from app.rag.retriever import (
+    aanswer_with_rag,
+    bind_kb_for_crew,
+    clear_kb_for_crew,
+    get_kb_instance,
+    KnowledgeBase,
+    aanswer_with_rag_stream,
+)
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn
+from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn, \
+    get_sessions
 
 _llm_cache: dict = {}
 class IntentEnum(StrEnum):
@@ -24,7 +33,7 @@ class IntentEnum(StrEnum):
 
 INTENT_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
-     "你是意图分类器，只输出 JSON：{{\"intent\": \"knowledge|order|chat\", \"reason\": \"简短理由\"}}"),
+     "你是意图分类器，只输出 JSON：{{\"intent\": \"knowledge|order|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}"),
     MessagesPlaceholder("history"),
     ("human", "{message}"),
 ])
@@ -37,6 +46,7 @@ CHAT_PROMPT = ChatPromptTemplate.from_messages([
 
 class Classifier(BaseModel):
     intent: IntentEnum = Field(IntentEnum.KNOWLEDGE, description="意图分类，可选值：knowledge（知识问答）/order（订单查询）/chat（闲聊）/unknown（未知）")
+    confidence: float = Field(description="0~1置信分数")
     reason: str=Field(default="", description="输出分类原因")
 
 def get_llm()->BaseChatModel:
@@ -63,7 +73,10 @@ async def classify_intent(message: str, history: list) -> IntentEnum:
         llm_struct = get_llm().with_structured_output(Classifier)
         # 兼容：如果传入的仍是 dict，先转为 LangChain Message
         lc_history = _to_langchain_messages(history) if history and isinstance(history[0], dict) else history
-        response = await llm_struct.ainvoke(INTENT_PROMPT.format_messages(message=message, history=lc_history))
+        response = await ainvoke_with_retry(
+            llm_struct.ainvoke,
+            INTENT_PROMPT.format_messages(message=message, history=lc_history),
+        )
         print(response)
         if not response.intent:
             return IntentEnum.CHAT
@@ -91,7 +104,7 @@ async def fallback_chat(message: str, session_id: str, kb: KnowledgeBase, db: As
 async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
     entry = {"message": message[:80], "session_id": session_id, "status": 200}
     t_start = time.perf_counter()
-    if not settings.llm_api_key:
+    if not settings.AIROBOT_LLM_API_KEY:
         # traces.record({**entry, "intent": "no-key", "total_ms": 0.0})
         return {"reply": "未配置 AIROBOT_LLM_API_KEY，请复制 .env.example 为 .env 并填入密钥。",
                 "intent": None, "sources": [], "engine": "langchain"}
@@ -104,6 +117,23 @@ async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
                  total_ms=round((time.perf_counter() - t_start) * 1000, 1))
 
     return result
+
+def _run_crew_in_thread(message: str, history_text: str, kb: KnowledgeBase) -> dict:
+    """在子线程跑 Crew，并注入 KB 供 search_knowledge 使用。"""
+    bind_kb_for_crew(kb)
+    try:
+        return run_crew(message, history_text)
+    finally:
+        clear_kb_for_crew()
+
+
+def _format_history_text(history: list[dict]) -> str:
+    lines = []
+    for m in history:
+        role = "用户" if m["role"] == "user" else "助手"
+        lines.append(f"{role}: {m['content']}")
+    return "\n".join(lines)
+
 async def run(
     message: str,
     session_id: str,
@@ -112,10 +142,30 @@ async def run(
     on_event=None,  # None=JSON；有回调=SSE
 ) -> dict:
     history = await load_session_history(session_id, db)
+    # result = await fallback_chat(message, session_id, kb, db)
     lc_history = _to_langchain_messages(history)
+    if settings.USE_CREW and CREW_TOOLS_READY:
+        try:
+            history_text = _format_history_text(history)
+            crew_result = await asyncio.to_thread(
+                _run_crew_in_thread, message, history_text, kb
+            )
+            res= {
+                "reply": crew_result["reply"],
+                "intent": crew_result.get("intent", "crew"),
+                "sources": crew_result.get("sources", []),
+                "engine": "crew",
+                "used_crew": True,
+            }
+            await save_turn(session_id, message, res["reply"], db)
+            return res
+        except Exception as e:
+            print(f"[run_crew] 解析失败，回退为 CHAT: {e}")
+
     intent = await classify_intent(message, lc_history)
     if on_event:
         on_event({"type": "stage", "name": intent})
+
     if intent == "order":
         answer = query_order(message)
         res = {"reply": answer, "intent": intent, "sources": [], "engine": "langchain"}
@@ -141,6 +191,37 @@ async def run_astream(
 ):
     history = await load_session_history(session_id, db)
     lc_history = _to_langchain_messages(history)
+    if settings.USE_CREW and CREW_TOOLS_READY:
+        try:
+            yield {"type": "stage", "stage": "crew", "msg": "Crew 多 Agent 处理中…"}
+            history_text = _format_history_text(history)
+            crew_result = await asyncio.to_thread(
+                _run_crew_in_thread, message, history_text, kb
+            )
+            reply = crew_result["reply"]
+            intent = crew_result.get("intent", "crew")
+            sources = crew_result.get("sources", [])
+            yield {"type": "intent", "intent": intent}
+            # Crew 无原生 stream：整段输出（最简单）
+            yield {"type": "token", "content": reply}
+            # 可选：伪流式，体验更像打字机（按 20 字一块）
+            # import re
+            # for chunk in re.findall(r".{1,20}", reply, flags=re.S):
+            #     yield {"type": "token", "content": chunk}
+            await save_turn(session_id, message, reply, db)
+            yield {
+                "type": "done",
+                "reply": reply,
+                "intent": intent,
+                "sources": sources,
+                "engine": "crew",
+                "used_crew": True,
+            }
+            return
+        except Exception as e:
+            print(f"[run_astream crew] 降级 P3: {e}")
+            yield {"type": "stage", "stage": "crew", "msg": f"Crew 失败，降级 langchain: {e}"}
+
     intent = await classify_intent(message, lc_history)
     yield {"type": "stage", "stage": "intent", "msg": f"意图={intent}"}
     yield {"type": "intent", "intent": str(intent)}
@@ -172,7 +253,9 @@ if __name__ == "__main__":
         await init_db()
         async for db in get_db():
             kb = get_kb_instance(db)
-            res = await run("运费谁出", session_id="test-session", kb=kb, db=db)
+            all_sessions = await get_sessions(db)
+            print("all_sessions::",all_sessions)
+            res = await run("运费谁出", session_id="1", kb=kb, db=db)
             print(res)
             break
 

@@ -1,5 +1,7 @@
 
 from __future__ import annotations
+import asyncio
+import threading
 import time
 from typing import List, Tuple
 
@@ -39,6 +41,29 @@ def build_llm():
             model_provider=settings.provider,
         )
 
+
+
+async def _answer_with_rag_fresh_db(
+    query: str, kb: KnowledgeBase, llm=None, history=None
+) -> Tuple[str, List[str]]:
+    """在独立 async session 中执行 RAG，供子线程 / asyncio.run 场景使用。"""
+    async for db in get_db():
+        kb._store = db
+        return await aanswer_with_rag(query, kb, llm=llm, history=history)
+    return ("知识库尚未初始化完成，请稍后再试。", [])
+
+
+def answer_with_rag(
+    query: str,
+    kb: KnowledgeBase | None = None,
+    llm=None,
+    history=None,
+) -> Tuple[str, List[str]]:
+    """同步 RAG（Crew 工具等子线程场景）；内部新建 event loop + PG session。"""
+    kb = kb or get_cached_kb()
+    if kb is None:
+        return ("知识库尚未初始化完成，请稍后再试。", [])
+    return asyncio.run(_answer_with_rag_fresh_db(query, kb, llm=llm, history=history))
 
 
 async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None) -> Tuple[str, List[str]]:
@@ -262,6 +287,16 @@ class KnowledgeBase:
         return docs
 
 _kb_instance: KnowledgeBase | None = None
+_thread_kb = threading.local()
+
+
+def bind_kb_for_crew(kb: KnowledgeBase) -> None:
+    """Crew 在子线程跑工具时注入当前请求的 KB（避免 get_cached_kb 为空）。"""
+    _thread_kb.kb = kb
+
+
+def clear_kb_for_crew() -> None:
+    _thread_kb.kb = None
 
 
 def get_kb_instance(db: AsyncSession) -> KnowledgeBase:
@@ -275,7 +310,10 @@ def get_kb_instance(db: AsyncSession) -> KnowledgeBase:
 
 
 def get_cached_kb() -> KnowledgeBase | None:
-    """返回已缓存的 KB 实例（不要求 db session），启动初始化后可用。"""
+    """优先 Crew 子线程注入的 KB，否则返回 lifespan/请求缓存的全局实例。"""
+    kb = getattr(_thread_kb, "kb", None)
+    if kb is not None:
+        return kb
     return _kb_instance
 
 if __name__ == "__main__":
