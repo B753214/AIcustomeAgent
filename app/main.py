@@ -1,21 +1,22 @@
+import json
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
-
+from app.services.ratelimit import limiter
 import uvicorn
-from fastapi import FastAPI, Depends, UploadFile, File, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, HTTPException,Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse, HTMLResponse
 
 from app.config import PROJECT_ROOT, settings
 from app.database import engine, init_db, get_db
 from app.rag.milvus_store import ensure_collection, get_milvus_client
 from app.rag.retriever import aanswer_with_rag, get_kb_instance
 from app.schemas import ChatResponse, ChatRequest, IngestResponse
-from app.services.chat import chat, run
+from app.services.chat import chat, run, run_astream
 from app.services.chunk_service import document_exists_by_name
-from app.services.session_service import get_sessions
+from app.services.session_service import get_sessions, load_session_history, create_session as _create_session
 
 SAMPLE_KB = PROJECT_ROOT / "data" / "knowledge_base.md"
 
@@ -40,9 +41,29 @@ async def lifespan(app: FastAPI):
     yield
     await engine.dispose()
 
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # 格式常为 "真实客户端, 代理1, 代理2" → 取第一个
+        return forwarded.split(",")[0].strip()
+    if request.headers.get("x-real-ip"):
+        return request.headers.get("x-real-ip")
+    return request.client.host if request.client else "unknown"
 
 app = FastAPI(title="智能客服", version=settings.APP_VERSION, lifespan=lifespan)
 
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    if settings.ratelimit_enabled and request.url.path.startswith("/api/v1"):
+        # 白名单：stats / traces 放行（你现在还没有这俩接口，先写上）
+        if request.url.path not in ("/api/v1/stats", "/api/v1/traces"):
+            client_ip = _client_ip(request)
+            if not limiter.allow(client_ip):
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "请求过于频繁，请稍后再试。"},
+                )
+    return await call_next(request)
 
 @app.get("/health")
 async def health():
@@ -85,13 +106,34 @@ async def chat_ep(req: ChatRequest, db: AsyncSession = Depends(get_db)):
 @app.post("/sessions")
 async def session_memory(db: AsyncSession = Depends(get_db)):
     session_list = await get_sessions(db)
-    return session_list
+    return [
+        {
+            "session_id": s.session_id,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+        }
+        for s in session_list
+    ]
+
+
+@app.get("/dashboard")
+async def dashboard():
+    html = (PROJECT_ROOT / "app" / "static" / "dashboard.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
 
 
 @app.get("/create_session")
-async def create_session(db: AsyncSession = Depends(get_db)):
-    session = await create_session(db)
-    return session
+async def create_session_ep(db: AsyncSession = Depends(get_db)):
+    import uuid
+    sid = str(uuid.uuid4())
+    session = await _create_session(sid, db)
+    return {"session_id": session.session_id}
+
+
+@app.get("/api/v1/sessions/{session_id}/history")
+async def session_history(session_id: str, db: AsyncSession = Depends(get_db)):
+    messages = await load_session_history(session_id, db)
+    return {"session_id": session_id, "messages": messages}
 
 
 @app.get("/retrieval/{query}")
@@ -130,10 +172,22 @@ async def ingest(file: UploadFile = File(...), db: AsyncSession = Depends(get_db
         chunks=n,
         total_chunks=kb.chunk_count,
     )
-# @app.post("/api/v1/chat/stream")
-# async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
-#     kb = get_kb_instance(db)
-#     return await chat(req.message, req.session_id, db, stream=True)
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+@app.post("/api/v1/chat/stream")
+async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
+    kb = get_kb_instance(db)
+
+    async def gen():
+        async for chunk in run_astream(req.message, req.session_id, kb, db):
+            yield _sse(chunk)
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

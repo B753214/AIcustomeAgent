@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     COLLECTION_NAME: str = "customer_milvus_collection"
     DIM: int = 1024
     CREW_TOOLS_READY: bool = True
+    ratelimit_enabled: bool = True  # 开发期可改 False 关掉
+    ratelimit_per_minute: int = 30  # 60 秒内最多 30 次
+
 
 @lru_cache
 def get_settings()->Settings:
