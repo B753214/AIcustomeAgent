@@ -171,7 +171,7 @@ async def run(
             return res
 
     lc_history = _to_langchain_messages(history)
-    if settings.USE_CREW and CREW_TOOLS_READY:
+    if settings.use_crew and CREW_TOOLS_READY:
         try:
             history_text = _format_history_text(history)
             crew_result = await asyncio.to_thread(
@@ -236,11 +236,49 @@ async def run_astream(
     kb: KnowledgeBase,
     db: AsyncSession,
 ):
+    t_start = time.perf_counter()
     history = await load_session_history(session_id, db)
     lc_history = _to_langchain_messages(history)
-    if settings.USE_CREW and CREW_TOOLS_READY:
+    query_vector = None
+
+    yield {"type": "stage", "stage": "rate_limit", "msg": "限流检查通过", "ms": 0, "ok": True}
+
+    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history:
+        yield {"type": "stage", "stage": "cache", "msg": "语义缓存查询中…", "ms": 0}
+        t_cache = time.perf_counter()
+        query_vector = await asyncio.to_thread(kb.embed_query, message)
+        cached = semantic_cache.get(query_vector, message)
+        cache_ms = round((time.perf_counter() - t_cache) * 1000, 1)
+        if cached is not None:
+            yield {"type": "stage", "stage": "cache", "msg": "语义缓存命中", "ms": cache_ms, "ok": True, "hit": True}
+            yield {"type": "intent", "intent": cached.get("intent", "chat")}
+            yield {"type": "token", "content": cached.get("reply", "")}
+            await save_turn(session_id, message, cached.get("reply", ""), db)
+            total_ms = round((time.perf_counter() - t_start) * 1000, 1)
+            traces.record({
+                "message": message[:80], "session_id": session_id, "status": 200,
+                "intent": cached.get("intent"), "engine": cached.get("engine", "langchain"),
+                "cache_hit": True, "cache_checked": True, "cache_lookup_ms": cache_ms,
+                "total_ms": total_ms,
+            })
+            yield {
+                "type": "done",
+                "reply": cached.get("reply", ""),
+                "intent": cached.get("intent"),
+                "sources": cached.get("sources", []),
+                "engine": cached.get("engine", "langchain"),
+                "cache_hit": True,
+                "total_ms": total_ms,
+            }
+            return
+        yield {"type": "stage", "stage": "cache", "msg": "语义缓存未命中", "ms": cache_ms, "ok": True, "hit": False}
+    else:
+        reason = "多轮会话" if history else "缓存未开启"
+        yield {"type": "stage", "stage": "cache", "msg": f"跳过语义缓存（{reason}）", "ms": 0, "skipped": True}
+
+    if settings.use_crew and CREW_TOOLS_READY:
         try:
-            yield {"type": "stage", "stage": "crew", "msg": "Crew 多 Agent 处理中…"}
+            yield {"type": "stage", "stage": "crew", "msg": "Crew 多 Agent 处理中…", "ok": True}
             history_text = _format_history_text(history)
             crew_result = await asyncio.to_thread(
                 _run_crew_in_thread, message, history_text, kb
@@ -249,48 +287,70 @@ async def run_astream(
             intent = crew_result.get("intent", "crew")
             sources = crew_result.get("sources", [])
             yield {"type": "intent", "intent": intent}
-            # Crew 无原生 stream：整段输出（最简单）
             yield {"type": "token", "content": reply}
-            # 可选：伪流式，体验更像打字机（按 20 字一块）
-            # import re
-            # for chunk in re.findall(r".{1,20}", reply, flags=re.S):
-            #     yield {"type": "token", "content": chunk}
-            await save_turn(session_id, message, reply, db)
-            yield {
-                "type": "done",
-                "reply": reply,
-                "intent": intent,
-                "sources": sources,
-                "engine": "crew",
-                "used_crew": True,
+            res = {
+                "reply": reply, "intent": intent, "sources": sources,
+                "engine": "crew", "used_crew": True, "cache_hit": False,
             }
+            _maybe_cache(query_vector, res, message)
+            await save_turn(session_id, message, reply, db)
+            total_ms = round((time.perf_counter() - t_start) * 1000, 1)
+            traces.record({
+                "message": message[:80], "session_id": session_id, "status": 200,
+                "intent": intent, "engine": "crew", "cache_hit": False,
+                "cache_checked": query_vector is not None,
+                "sources": len(sources), "total_ms": total_ms,
+            })
+            yield {**res, "type": "done", "total_ms": total_ms}
             return
         except Exception as e:
             print(f"[run_astream crew] 降级 P3: {e}")
-            yield {"type": "stage", "stage": "crew", "msg": f"Crew 失败，降级 langchain: {e}"}
+            yield {"type": "stage", "stage": "crew", "msg": f"Crew 失败，降级 langchain: {e}", "ok": False}
 
+    t_intent = time.perf_counter()
     intent = await classify_intent(message, lc_history)
-    yield {"type": "stage", "stage": "intent", "msg": f"意图={intent}"}
+    intent_ms = round((time.perf_counter() - t_intent) * 1000, 1)
+    yield {"type": "stage", "stage": "intent", "msg": f"意图识别为 {intent}", "ms": intent_ms, "ok": True}
     yield {"type": "intent", "intent": str(intent)}
+
     full_reply = ""
     sources = []
     if intent == "order":
+        yield {"type": "stage", "stage": "tool", "msg": "调用 query_order", "ok": True}
         full_reply = query_order(message)
-        yield {"type": "token","reply": full_reply, "intent": intent, "sources": [], "engine": "langchain"}
+        yield {"type": "token", "content": full_reply}
     elif intent == "knowledge":
+        yield {"type": "stage", "stage": "retrieval", "msg": "混合检索 + RAG 生成中…", "ok": True}
         async for event in aanswer_with_rag_stream(message, kb, get_llm(), lc_history):
-            if event["type"] == "token"and event.get("content"):
-                full_reply+=event["content"]
+            if event.get("sources"):
+                sources = event["sources"]
+            if event["type"] == "token" and event.get("content"):
+                full_reply += event["content"]
             yield event
     else:
+        yield {"type": "stage", "stage": "generate", "msg": "闲聊生成中…", "ok": True}
         chain = CHAT_PROMPT | get_llm()
         async for chunk in chain.astream({"message": message, "history": lc_history}):
             token = chunk.content if hasattr(chunk, "content") else str(chunk)
             if token:
                 full_reply += token
                 yield {"type": "token", "content": token}
+
+    res = {
+        "reply": full_reply, "intent": str(intent), "sources": sources,
+        "engine": "langchain", "cache_hit": False,
+    }
+    _maybe_cache(query_vector, res, message)
     await save_turn(session_id, message, full_reply, db)
-    yield {"type": "done", "reply": full_reply, "intent": intent, "sources": sources, "engine": "langchain"}
+    total_ms = round((time.perf_counter() - t_start) * 1000, 1)
+    traces.record({
+        "message": message[:80], "session_id": session_id, "status": 200,
+        "intent": str(intent), "engine": "langchain",
+        "cache_hit": False, "cache_checked": query_vector is not None,
+        "intent_ms": intent_ms, "sources": len(sources), "total_ms": total_ms,
+    })
+    yield {"type": "stage", "stage": "write", "msg": "写入会话记忆", "ok": True}
+    yield {"type": "done", **res, "total_ms": total_ms}
 
 
 if __name__ == "__main__":
