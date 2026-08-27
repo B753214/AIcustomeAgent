@@ -21,6 +21,8 @@ from app.rag.retriever import (
 )
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services.semantic_cache import semantic_cache
 from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn, \
     get_sessions
 
@@ -134,6 +136,13 @@ def _format_history_text(history: list[dict]) -> str:
         lines.append(f"{role}: {m['content']}")
     return "\n".join(lines)
 
+def _maybe_cache(query_vec, result: dict, message: str) -> None:
+    if query_vec is None:
+        return
+    if result.get("intent") == "order":
+        return
+    semantic_cache.put(query_vec,message, result)
+
 async def run(
     message: str,
     session_id: str,
@@ -142,7 +151,15 @@ async def run(
     on_event=None,  # None=JSON；有回调=SSE
 ) -> dict:
     history = await load_session_history(session_id, db)
-    # result = await fallback_chat(message, session_id, kb, db)
+    query_vector = None
+    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history:
+        query_vector = await asyncio.to_thread(kb.embed_query, message)
+        cached = semantic_cache.get(query_vector, message)
+        if cached is not None:
+            res = {**cached, "cache_hit": True}
+            await save_turn(session_id, message, res["reply"], db)
+            return res
+
     lc_history = _to_langchain_messages(history)
     if settings.USE_CREW and CREW_TOOLS_READY:
         try:
@@ -150,13 +167,15 @@ async def run(
             crew_result = await asyncio.to_thread(
                 _run_crew_in_thread, message, history_text, kb
             )
-            res= {
+            res = {
                 "reply": crew_result["reply"],
                 "intent": crew_result.get("intent", "crew"),
                 "sources": crew_result.get("sources", []),
                 "engine": "crew",
                 "used_crew": True,
+                "cache_hit": False,
             }
+            _maybe_cache(query_vector, res, message)
             await save_turn(session_id, message, res["reply"], db)
             return res
         except Exception as e:
@@ -168,19 +187,19 @@ async def run(
 
     if intent == "order":
         answer = query_order(message)
-        res = {"reply": answer, "intent": intent, "sources": [], "engine": "langchain"}
+        res = {"reply": answer, "intent": intent, "sources": [], "engine": "langchain", "cache_hit": False}
     elif intent == "knowledge":
         answer, sources = await aanswer_with_rag(message, kb, get_llm(), lc_history)
-        res = {"reply": answer, "intent": intent, "sources": sources, "engine": "langchain"}
+        res = {"reply": answer, "intent": intent, "sources": sources, "engine": "langchain", "cache_hit": False}
     else:
         chain = CHAT_PROMPT | get_llm()
         reply = await ainvoke_with_retry(chain.ainvoke, {"message": message, "history": lc_history})
         if hasattr(reply, "content"):
             reply = reply.content
-        res={"reply": reply, "intent": "chat", "sources": [], "engine": "langchain"}
+        res = {"reply": reply, "intent": "chat", "sources": [], "engine": "langchain", "cache_hit": False}
     if on_event:
         on_event(res)
-
+    _maybe_cache(query_vector, res, message)
     await save_turn(session_id, message, res["reply"], db)
     return res
 async def run_astream(

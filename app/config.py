@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     ratelimit_enabled: bool = True  # 开发期可改 False 关掉
     ratelimit_per_minute: int = 30  # 60 秒内最多 30 次
 
+    # 缓存配置
+    cache_enabled: bool = True
+    cache_threshold: float = 0.75  # 向量相似度下限
+    cache_lexical_threshold: float = 0.5  # 词面重叠下限
+    max_entries_cache: int = 1000
 
 @lru_cache
 def get_settings()->Settings:
