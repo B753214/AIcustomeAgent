@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: build（语法门禁）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 安装核心依赖
+        run: pip install -r requirements.txt
+      - name: 语法检查
+        run: python -m compileall -q app eval scripts tests
+  test:
+    name: test（离线单测）
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      # 假值即可，单测不打真实 API / 不连库
+      AIROBOT_LLM_BASE_URL: https://example.com/v1
+      AIROBOT_LLM_API_KEY: ci-dummy
+      AIROBOT_LLM_MODEL: qwen-plus
+      AIROBOT_EMBEDDING_BASE_URL: https://example.com/v1
+      AIROBOT_EMBEDDING_API_KEY: ci-dummy
+      AIROBOT_EMBEDDING_MODEL: text-embedding-v4
+      embedding_base_url: https://example.com/v1
+      embedding_api_key: ci-dummy
+      embedding_model: text-embedding-v4
+      top_k: "5"
+      chunk_size: "500"
+      chunk_overlap: "50"
+      POSTGRES_URI: postgresql+asyncpg://user:pass@localhost:5432/ci
+      DEBUG: "false"
+      ratelimit_enabled: "false"
+      cache_enabled: "false"
+      api_key_enabled: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: 安装依赖
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: 离线单测
+        run: python -m pytest tests/ -v

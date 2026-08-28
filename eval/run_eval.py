@@ -356,13 +356,14 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="只评测前 N 条（0=全部）")
     parser.add_argument("--no-ragas", action="store_true", help="跳过 RAGAS 指标")
     parser.add_argument("--out", default=None, help="报告输出路径")
+    print("args:", parser)
     args = parser.parse_args()
 
     if not settings.AIROBOT_LLM_API_KEY or not settings.AIROBOT_EMBEDDING_API_KEY:
         print("未配置 AIROBOT_LLM_API_KEY / AIROBOT_EMBEDDING_API_KEY，无法评测。")
         sys.exit(1)
-
-    asyncio.run(async_main(args))
+    print("args:", args)
+    # asyncio.run(async_main(args))
 
 
 if __name__ == "__main__":

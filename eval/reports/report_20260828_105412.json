@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "timestamp": "2026-08-28 10:54:12",
+    "dataset": "D:\\python\\customeAgent\\AICustomeRobort\\eval\\dataset\\qa.jsonl",
+    "total": 5,
+    "llm_model": "qwen3-max",
+    "embedding_model": "text-embedding-v3",
+    "top_k": 5,
+    "elapsed_sec": 12.5,
+    "ragas": true
+  },
+  "summary": {
+    "avg": {
+      "judge_score": 4.8,
+      "baseline_hit_rate": 1.0,
+      "faithfulness": 0.9333,
+      "answer_relevancy": 0.8896,
+      "context_precision": 0.8667,
+      "context_recall": 1.0
+    },
+    "judge_buckets": [
+      {
+        "bucket": 1,
+        "count": 0
+      },
+      {
+        "bucket": 2,
+        "count": 0
+      },
+      {
+        "bucket": 3,
+        "count": 0
+      },
+      {
+        "bucket": 4,
+        "count": 1
+      },
+      {
+        "bucket": 5,
+        "count": 4
+      }
+    ],
+    "worst_cases": [
+      {
+        "id": "kb-005",
+        "category": "发布商品",
+        "question": "发布商品要收费吗？",
+        "judge_score": 4,
+        "judge_reason": "回答正确但缺少交易成功后收取1%服务费的关键信息。"
+      },
+      {
+        "id": "kb-001",
+        "category": "发布商品",
+        "question": "怎么发布商品？",
+        "judge_score": 5,
+        "judge_reason": "助手回答完全覆盖标准答案的所有关键步骤和要求，表述清晰准确。"
+      },
+      {
+        "id": "kb-002",
+        "category": "发布商品",
+        "question": "发布商品需要填写哪些信息？",
+        "judge_score": 5,
+        "judge_reason": "助手回答完全正确且完整，涵盖了标准答案中的所有关键信息。"
+      },
+      {
+        "id": "kb-003",
+        "category": "发布商品",
+        "question": "发布商品对商品描述有什么要求？",
+        "judge_score": 5,
+        "judge_reason": "助手回答完全正确且完整，准确传达了商品必须真实存在并如实描述成色与瑕疵的要求。"
+      },
+      {
+        "id": "kb-004",
+        "category": "发布商品",
+        "question": "商品发布成功后什么时候上架？",
+        "judge_score": 5,
+        "judge_reason": "助手回答与标准答案内容一致，表述清晰完整。"
+      }
+    ]
+  },
+  "by_category": {
+    "发布商品": {
+      "count": 5,
+      "judge_avg": 4.8
+    }
+  },
+  "samples": [
+    {
+      "id": "kb-001",
+      "category": "发布商品",
+      "question": "怎么发布商品？",
+      "judge_score": 5,
+      "judge_reason": "助手回答完全覆盖标准答案的所有关键步骤和要求，表述清晰准确。",
+      "hit": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.93845147415727,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    {
+      "id": "kb-002",
+      "category": "发布商品",
+      "question": "发布商品需要填写哪些信息？",
+      "judge_score": 5,
+      "judge_reason": "助手回答完全正确且完整，涵盖了标准答案中的所有关键信息。",
+      "hit": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.8279131200970373,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    {
+      "id": "kb-003",
+      "category": "发布商品",
+      "question": "发布商品对商品描述有什么要求？",
+      "judge_score": 5,
+      "judge_reason": "助手回答完全正确且完整，准确传达了商品必须真实存在并如实描述成色与瑕疵的要求。",
+      "hit": true,
+      "faithfulness": 0.6666666666666666,
+      "answer_relevancy": 0.8762999068647085,
+      "context_precision": 0.8333333332916666,
+      "context_recall": 1.0
+    },
+    {
+      "id": "kb-004",
+      "category": "发布商品",
+      "question": "商品发布成功后什么时候上架？",
+      "judge_score": 5,
+      "judge_reason": "助手回答与标准答案内容一致，表述清晰完整。",
+      "hit": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.8472971074653297,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0
+    },
+    {
+      "id": "kb-005",
+      "category": "发布商品",
+      "question": "发布商品要收费吗？",
+      "judge_score": 4,
+      "judge_reason": "回答正确但缺少交易成功后收取1%服务费的关键信息。",
+      "hit": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.957875256510204,
+      "context_precision": 0.49999999995,
+      "context_recall": 1.0
+    }
+  ]
+}
