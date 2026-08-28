@@ -8,3 +8,11 @@ __pycache__/
 .DS_Store
 .env
 .env.*
+!.env.example
+eval/reports/
+volumes/
+plan/
+tests/
+scripts/
+*.md
+!data/**

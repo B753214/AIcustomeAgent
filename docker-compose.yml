@@ -1,6 +1,30 @@
-version: '3.8'
-
+# 一键部署：docker compose up -d --build
+# 访问：http://localhost:8000/dashboard  |  health: http://localhost:8000/health
 services:
+  api:
+    build: .
+    image: aicustomer:latest
+    container_name: aicustomer-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # 容器内 localhost 是容器自身，须用 compose 服务名
+      POSTGRES_URI: postgresql+asyncpg://postgres:123456@postgres:5432/postgres
+      MILVUS_URI: http://milvus-standalone:19530
+      DEBUG: "false"
+      rerank_enabled: "false"
+      use_crew: "false"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:16
     container_name: postgres
@@ -12,12 +36,18 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
+
   milvus-standalone:
     container_name: milvus-standalone
     image: milvusdb/milvus:v3.0.0
     restart: unless-stopped
-    command: [ "milvus", "run", "standalone" ]
+    command: ["milvus", "run", "standalone"]
     security_opt:
       - seccomp:unconfined
     environment:
@@ -25,15 +55,17 @@ services:
       ETCD_DATA_DIR: /var/lib/milvus/etcd
       COMMON_STORAGETYPE: local
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/milvus:/var/lib/milvus
+      - milvus_data:/var/lib/milvus
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9091/healthz" ]
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
-      start_period: 60s
+      start_period: 90s
       timeout: 20s
-      retries: 3
+      retries: 5
     ports:
       - "19530:19530"
       - "9091:9091"
+
 volumes:
   postgres_data:
+  milvus_data:
