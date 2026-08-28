@@ -13,7 +13,12 @@ class Document(Base):
     file_name: Mapped[str] = mapped_column(String(512), comment="文件名")
     content_sha256: Mapped[str] = mapped_column(String(64), comment="文件内容的sha256值")
     chunk_count: Mapped[int] = mapped_column(comment="文件内容的chunk数量")
-    create_time: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), comment="创建时间")
+    # PG 列为 TIMESTAMP WITHOUT TIME ZONE，须用 naive datetime
+    create_time: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        comment="创建时间",
+    )
 
 class Chunk(Base):
     __tablename__ = "chunk"
@@ -22,7 +27,11 @@ class Chunk(Base):
     chunk_index: Mapped[int] = mapped_column(comment="chunk的索引")
     title: Mapped[str] = mapped_column(String(512), comment="chunk的标题")
     content: Mapped[str] = mapped_column(Text, comment="chunk的内容")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), comment="创建时间")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        comment="创建时间",
+    )
 
     __table_args__ = (
         UniqueConstraint("document_id", "chunk_index", name="uq_chunk_doc_index"),

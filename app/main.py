@@ -2,6 +2,8 @@ import json
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+from app.services.auth import verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException,Request
@@ -107,7 +109,7 @@ async def health():
 
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
-async def chat_ep(req: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat_ep(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
     kb = get_kb_instance(db)
     result = await run(req.message, req.session_id, kb, db)
     return ChatResponse(**result)
@@ -153,8 +155,8 @@ async def retrieval(query: str, db: AsyncSession = Depends(get_db)):
     return {"reply": answer, "sources": sources}
 
 
-@app.post("/api/v1/ingest", response_model=IngestResponse)
-async def ingest(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+@app.post("/api/v1/ingest", response_model=IngestResponse, )
+async def ingest(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
     kb = get_kb_instance(db)
     api_key = settings.AIROBOT_EMBEDDING_API_KEY or settings.embedding_api_key
     if not api_key:
@@ -187,7 +189,7 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 @app.post("/api/v1/chat/stream")
-async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
     kb = get_kb_instance(db)
 
     async def gen():

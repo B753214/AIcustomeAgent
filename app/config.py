@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     cache_lexical_threshold: float = 0.5  # 词面重叠下限
     max_entries_cache: int = 1000
 
+    api_key_enabled: bool = False  # 开发默认关
+    service_api_key: str = ""  # 服务端要求的 Key
+
 @lru_cache
 def get_settings()->Settings:
     return Settings()

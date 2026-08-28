@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能客服控制台</title>
+<style>
+:root{
+  --bg:#0d1117;--card:#161b27;--card2:#1c2333;--line:#273349;
+  --fg:#e6edf7;--muted:#8ba0c4;--accent:#4f8cff;--ok:#34d399;
+  --warn:#fbbf24;--err:#f87171;--chip:#232c40;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:"Segoe UI","Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.page-body{display:flex;flex-direction:column;flex:1;min-height:0}
+
+/* ── Header ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--card);flex-shrink:0}
+header .left{display:flex;align-items:center;gap:12px}
+header h1{font-size:18px;font-weight:700}
+header h1 .dot{color:var(--ok)}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.status-dot.ok{background:var(--ok)} .status-dot.err{background:var(--err)}
+header .right{display:flex;align-items:center;gap:10px}
+header .meta{color:var(--muted);font-size:12px}
+.btn{background:var(--accent);border:none;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap}
+.btn:hover{filter:brightness(1.1)} .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.btn.ghost:hover{color:var(--fg);border-color:var(--muted)}
+.btn.danger{background:#5f1e1e} .btn.danger:hover{background:#7f2e2e}
+.btn.sm{padding:5px 10px;font-size:11px}
+
+/* ── Main layout ── */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ── Left sidebar ── */
+.sidebar-left{width:220px;border-right:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-left .section{padding:12px}
+.sidebar-left .section-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:600}
+.session-input{width:100%;background:#0f1522;border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px 8px;font-size:12px;outline:none;margin-bottom:8px}
+.session-input:focus{border-color:var(--accent)}
+.session-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.session-list{flex:1;overflow-y:auto;padding:0 12px 12px}
+.session-item{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;color:var(--muted);margin-bottom:4px;transition:.15s;border:1px solid transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-item:hover{background:var(--card2);color:var(--fg);border-color:var(--line)}
+.session-item.active{background:var(--chip);color:var(--fg);border-color:var(--accent)}
+.health-info{padding:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.8}
+.health-info .label{color:var(--muted);margin-right:4px}
+.health-info .val{color:var(--fg);font-family:Consolas,monospace;font-size:11px}
+.api-key-row{display:flex;gap:6px;align-items:center}
+.api-key-row .session-input{margin-bottom:0;flex:1;font-family:Consolas,monospace}
+.api-key-hint{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5}
+.api-key-hint.warn{color:var(--warn)}
+
+/* ── Center chat ── */
+.chat-center{flex:1;display:flex;flex-direction:column;min-width:0}
+.chat-body{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:75%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.ai.typing::after{content:"▍";color:var(--accent);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:0}}
+.msg .meta{font-size:10px;color:var(--muted);margin-top:4px;opacity:.7}
+.msg.user .meta{text-align:right}
+.chat-sugs{display:flex;gap:8px;padding:0 20px 8px;flex-wrap:wrap}
+.sug{background:var(--chip);border:1px solid var(--line);color:var(--muted);border-radius:14px;padding:4px 12px;font-size:12px;cursor:pointer;transition:.15s}
+.sug:hover{color:var(--fg);border-color:var(--accent)}
+.chat-input-bar{display:flex;gap:8px;padding:10px 20px;border-top:1px solid var(--line);background:var(--card);flex-shrink:0}
+.chat-input-bar textarea{flex:1;background:#0f1522;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:9px 12px;font-size:13px;outline:none;resize:none;height:40px;font-family:inherit;line-height:1.5}
+.chat-input-bar textarea:focus{border-color:var(--accent)}
+
+/* ── Right sidebar ── */
+.sidebar-right{width:280px;border-left:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.panel{padding:14px;border-bottom:1px solid var(--line)}
+.panel-title{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel-title .tag{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── Pipeline steps ── */
+.pstep{position:relative;display:flex;gap:10px;padding:0 0 14px 0}
+.pstep::before{content:"";position:absolute;left:11px;top:24px;bottom:0;width:2px;background:var(--line)}
+.pstep:last-child::before{display:none}
+.pstep .icon{width:24px;height:24px;border-radius:50%;background:var(--chip);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;z-index:1;transition:.2s}
+.pstep.ok .icon{background:#14532d;border-color:var(--ok)}
+.pstep.err .icon{background:#5f1e1e;border-color:var(--err)}
+.pstep.run .icon{background:#1e3a5f;border-color:var(--accent);animation:pulse 1.2s infinite}
+.pstep.skip{opacity:.45}
+.pstep.wait{opacity:.35}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(79,140,255,.15)}}
+.pstep .body{flex:1;min-width:0}
+.pstep .title{font-size:12px;font-weight:600;display:flex;align-items:baseline;gap:6px}
+.pstep .ms{font-family:Consolas,monospace;font-size:10px;color:var(--accent)}
+.pstep .desc{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.pstep.ok .title{color:var(--ok)} .pstep.err .title{color:var(--err)} .pstep.run .title{color:var(--accent)}
+.pipe-state{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── Sources ── */
+.source-tag{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--muted);margin:2px 4px 2px 0;cursor:default;transition:.15s}
+.source-tag:hover{border-color:var(--accent);color:var(--fg)}
+.sources-empty{color:var(--muted);font-size:12px;font-style:italic}
+
+/* ── Upload ── */
+.upload-zone{border:2px dashed var(--line);border-radius:10px;padding:20px;text-align:center;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);color:var(--fg);background:rgba(79,140,255,.05)}
+.upload-result{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.6}
+.upload-result .ok{color:var(--ok)} .upload-result .err{color:var(--err)}
+
+/* ── Stats strip ── */
+.stats-strip{display:flex;gap:10px;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--card);flex-shrink:0;overflow-x:auto}
+.stat-card{min-width:110px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex-shrink:0}
+.stat-card .k{font-size:10px;color:var(--muted);margin-bottom:4px}
+.stat-card .v{font-size:16px;font-weight:700;font-family:Consolas,monospace}
+.stat-card .v.ok{color:var(--ok)} .stat-card .v.warn{color:var(--warn)} .stat-card .v.err{color:var(--err)} .stat-card .v.acc{color:var(--accent)}
+
+/* ── Traces panel ── */
+.traces-panel{border-top:1px solid var(--line);background:var(--card);flex-shrink:0;max-height:220px;display:flex;flex-direction:column}
+.traces-head{display:flex;align-items:center;justify-content:space-between;padding:8px 20px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line)}
+.traces-head span{color:var(--muted);font-weight:400;font-size:11px}
+.traces-table-wrap{overflow:auto;flex:1}
+.traces-table{width:100%;border-collapse:collapse;font-size:11px}
+.traces-table th{color:var(--muted);text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--card)}
+.traces-table td{padding:6px 10px;border-bottom:1px solid #1f2839;white-space:nowrap}
+.traces-table tr:hover td{background:#1a2130}
+.chip{display:inline-block;background:var(--chip);border-radius:6px;padding:1px 6px;font-size:10px}
+.chip.knowledge{color:#93c5fd} .chip.order{color:#fcd34d} .chip.chat{color:#a7f3d0} .chip.crew{color:#c4b5fd} .chip.ratelimited{color:#fca5a5}
+
+/* ── Responsive ── */
+@media(max-width:1100px){.sidebar-right{width:240px}}
+@media(max-width:900px){.sidebar-left{width:180px}.sidebar-right{display:none}}
+@media(max-width:700px){.sidebar-left{display:none}}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="left">
+    <h1>🤖 智能客服<span class="dot">控制台</span></h1>
+    <span id="healthBadge"><span class="status-dot" id="healthDot"></span><span id="healthText" style="font-size:12px;color:var(--muted)">检测中…</span></span>
+  </div>
+  <div class="right">
+    <span class="meta" id="modelInfo">-</span>
+    <button class="btn ghost sm" onclick="refreshHealth()">刷新状态</button>
+  </div>
+</header>
+
+<div class="stats-strip" id="statsStrip">
+  <div class="stat-card"><div class="k">知识库块</div><div class="v acc" id="s-chunks">-</div></div>
+  <div class="stat-card"><div class="k">BM25</div><div class="v" id="s-bm25">-</div></div>
+  <div class="stat-card"><div class="k">缓存命中</div><div class="v" id="s-hit">-</div></div>
+  <div class="stat-card"><div class="k">P95延迟</div><div class="v" id="s-p95">-</div></div>
+  <div class="stat-card"><div class="k">请求数</div><div class="v" id="s-total">-</div></div>
+  <div class="stat-card"><div class="k">限流拦截</div><div class="v" id="s-blocked">-</div></div>
+  <div class="stat-card"><div class="k">Crew</div><div class="v small" id="s-crew">-</div></div>
+  <div class="stat-card"><div class="k">刷新</div><div class="v" style="font-size:11px" id="s-at">-</div></div>
+</div>
+
+<div class="page-body">
+<div class="main">
+
+<!-- ── Left sidebar: Sessions ── -->
+<div class="sidebar-left">
+  <div class="section">
+    <div class="section-title">会话管理</div>
+    <input id="sessionInput" class="session-input" value="default" placeholder="Session ID" spellcheck="false">
+    <div class="session-actions">
+      <button class="btn sm" onclick="newSession()">新建会话</button>
+      <button class="btn ghost sm" onclick="clearChat()">清空聊天</button>
+    </div>
+  </div>
+  <div class="section" style="border-top:1px solid var(--line);padding-top:12px">
+    <div class="section-title">API 鉴权</div>
+    <div class="api-key-row">
+      <input id="apiKeyInput" class="session-input" type="password" placeholder="X-API-Key" spellcheck="false" autocomplete="off">
+      <button class="btn ghost sm" type="button" id="apiKeyToggle" title="显示/隐藏">👁</button>
+    </div>
+    <div class="api-key-hint" id="apiKeyHint">服务端开启鉴权时必填；留空则不携带 Key</div>
+  </div>
+  <div class="section-title" style="padding:0 12px">历史会话</div>
+  <div class="session-list" id="sessionList"></div>
+  <div class="health-info" id="healthDetail">
+    <div><span class="label">LLM:</span><span class="val" id="hLlm">-</span></div>
+    <div><span class="label">Embed:</span><span class="val" id="hEmb">-</span></div>
+    <div><span class="label">PG:</span><span class="val" id="hPg">-</span></div>
+    <div><span class="label">Milvus:</span><span class="val" id="hMilvus">-</span></div>
+  </div>
+</div>
+
+<!-- ── Center: Chat ── -->
+<div class="chat-center">
+  <div class="chat-body" id="chatBody">
+    <div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">
+      👋 你好！我是二手交易平台智能客服，有什么可以帮你的？
+    </div>
+  </div>
+  <div class="chat-sugs" id="chatSugs"></div>
+  <div class="chat-input-bar">
+    <textarea id="chatInput" placeholder="输入问题，Enter 发送，Shift+Enter 换行…" rows="1"></textarea>
+    <button class="btn" id="sendBtn" onclick="sendChat()">发送</button>
+  </div>
+</div>
+
+<!-- ── Right sidebar: Pipeline + Sources + Upload ── -->
+<div class="sidebar-right">
+  <div class="panel" style="flex:1">
+    <div class="panel-title">🛰️ 全链路可视化 <span class="pipe-state" id="pipeState">就绪</span></div>
+    <div id="pipeline"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📚 来源引用 <span class="tag" id="sourceCount"></span></div>
+    <div id="sources"><span class="sources-empty">等待对话…</span></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📄 知识库上传</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      拖拽文件到此处，或点击选择<br>
+      <span style="font-size:11px">支持 PDF / DOCX / MD / TXT</span>
+    </div>
+    <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.md,.txt,.markdown" onchange="uploadFile(this.files[0])">
+    <div class="upload-result" id="uploadResult"></div>
+  </div>
+</div>
+
+</div><!-- .main -->
+
+<div class="traces-panel">
+  <div class="traces-head">
+    📡 实时请求监控
+    <span id="traceHint">3 秒自动刷新 · /api/v1/traces</span>
+  </div>
+  <div class="traces-table-wrap">
+    <table class="traces-table">
+      <thead><tr>
+        <th>时间</th><th>问题</th><th>会话</th><th>意图</th><th>引擎</th>
+        <th>缓存</th><th>耗时</th><th>状态</th>
+      </tr></thead>
+      <tbody id="traceRows"><tr><td colspan="8" style="color:var(--muted);text-align:center;padding:16px">暂无请求记录</td></tr></tbody>
+    </table>
+  </div>
+</div>
+</div><!-- .page-body -->
+
+<script>
+/* ── Constants ── */
+const API_KEY_STORAGE = "dashboard_api_key";
+const SUGS = ["七天无理由退货怎么操作？", "查询订单 202608090001 的物流", "你好，简单介绍下你们平台", "运费谁承担？"];
+const STAGES = [
+  {key: "rate_limit", icon: "🛡️", name: "限流检查"},
+  {key: "cache", icon: "💾", name: "语义缓存"},
+  {key: "crew", icon: "🤖", name: "Crew Agent"},
+  {key: "intent", icon: "🎯", name: "意图识别"},
+  {key: "retrieve", icon: "🔍", name: "知识检索"},
+  {key: "generate", icon: "✨", name: "生成回答"},
+  {key: "save", icon: "💾", name: "记忆写入"},
+  {key: "error", icon: "⚠️", name: "异常"}
+];
+
+/* ── State ── */
+let sending = false;
+let tStart = 0;
+const pipeState = {};
+STAGES.forEach(s => pipeState[s.key] = {status: "wait", ms: null, desc: ""});
+
+/* ── Init ── */
+const chatBody = document.getElementById("chatBody");
+const chatInput = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+const sessionInput = document.getElementById("sessionInput");
+const apiKeyInput = document.getElementById("apiKeyInput");
+
+loadApiKey();
+apiKeyInput.addEventListener("change", saveApiKey);
+apiKeyInput.addEventListener("blur", saveApiKey);
+document.getElementById("apiKeyToggle").addEventListener("click", () => {
+  const show = apiKeyInput.type === "password";
+  apiKeyInput.type = show ? "text" : "password";
+  document.getElementById("apiKeyToggle").textContent = show ? "🙈" : "👁";
+});
+
+document.getElementById("chatSugs").innerHTML = SUGS.map(s =>
+  `<span class="sug" onclick="useSug(this)">${esc(s)}</span>`
+).join("");
+
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "40px";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + "px";
+});
+
+// Upload drag & drop
+const uploadZone = document.getElementById("uploadZone");
+uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("dragover"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("dragover"));
+uploadZone.addEventListener("drop", e => {
+  e.preventDefault(); uploadZone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+});
+
+resetPipeline();
+refreshHealth();
+refreshMetrics();
+setInterval(refreshHealth, 10000);
+setInterval(refreshMetrics, 3000);
+loadSessions();
+
+/* ── API Key ── */
+function loadApiKey() {
+  const saved = sessionStorage.getItem(API_KEY_STORAGE) || "";
+  apiKeyInput.value = saved;
+  updateApiKeyHint();
+}
+
+function saveApiKey() {
+  sessionStorage.setItem(API_KEY_STORAGE, apiKeyInput.value.trim());
+  updateApiKeyHint();
+}
+
+function getApiKey() {
+  return (apiKeyInput.value || sessionStorage.getItem(API_KEY_STORAGE) || "").trim();
+}
+
+function apiHeaders(extra = {}) {
+  const headers = {...extra};
+  const key = getApiKey();
+  if (key) headers["X-API-Key"] = key;
+  return headers;
+}
+
+function updateApiKeyHint() {
+  const hint = document.getElementById("apiKeyHint");
+  if (!hint) return;
+  if (getApiKey()) {
+    hint.textContent = "已保存到当前标签页 sessionStorage";
+    hint.className = "api-key-hint";
+  } else {
+    hint.textContent = "服务端开启鉴权时必填；留空则不携带 Key";
+    hint.className = "api-key-hint warn";
+  }
+}
+
+function formatHttpError(j, status) {
+  const detail = j?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail) && detail.length) return detail.map(d => d.msg || JSON.stringify(d)).join("; ");
+  return "HTTP " + status;
+}
+
+/* ── Chat ── */
+function sendChat() {
+  const text = chatInput.value.trim();
+  if (!text || sending) return;
+  const sid = sessionInput.value.trim() || "default";
+
+  // Clear welcome message if present
+  const welcome = chatBody.querySelector("div[style]");
+  if (welcome && !welcome.classList.contains("msg")) welcome.remove();
+
+  addMsg("user", text);
+  chatInput.value = "";
+  chatInput.style.height = "40px";
+  resetPipeline();
+  setPipeState("处理中…");
+  document.getElementById("sources").innerHTML = '<span class="sources-empty">检索中…</span>';
+  document.getElementById("sourceCount").textContent = "";
+
+  sending = true;
+  sendBtn.disabled = true;
+  const bubble = addMsg("ai", "");
+  bubble.classList.add("typing");
+  tStart = performance.now();
+
+  saveApiKey();
+  fetch("/api/v1/chat/stream", {
+    method: "POST",
+    headers: apiHeaders({"Content-Type": "application/json"}),
+    body: JSON.stringify({message: text, session_id: sid})
+  }).then(resp => {
+    if (!resp.ok) {
+      return resp.json().catch(() => ({})).then(j => {
+        const msg = resp.status === 401
+          ? "无效或缺失 API Key，请在左侧「API 鉴权」填写正确 Key"
+          : formatHttpError(j, resp.status);
+        bubble.textContent = "⚠️ " + msg;
+        bubble.classList.remove("typing");
+        setPipeState(resp.status === 401 ? "鉴权失败" : "请求失败");
+        markStage("error", "err", null, "HTTP " + resp.status);
+      });
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    return readStream(reader, decoder, buf, bubble);
+  }).catch(err => {
+    bubble.textContent = "⚠️ 网络错误：" + err.message;
+    bubble.classList.remove("typing");
+    setPipeState("连接失败");
+  }).finally(() => {
+    sending = false;
+    sendBtn.disabled = false;
+    bubble.classList.remove("typing");
+    if (!bubble.textContent.trim()) bubble.textContent = "（无输出）";
+    scrollChat();
+    loadSessions();
+  });
+}
+
+function readStream(reader, decoder, buf, bubble) {
+  return reader.read().then(({done, value}) => {
+    if (done) { if (buf.trim()) processSSE(buf, bubble); return; }
+    buf += decoder.decode(value, {stream: true});
+    const parts = buf.split("\n\n");
+    buf = parts.pop();
+    for (const part of parts) { if (part.trim()) processSSE(part, bubble); }
+    return readStream(reader, decoder, buf, bubble);
+  });
+}
+
+function processSSE(raw, bubble) {
+  const line = raw.split("\n").find(l => l.startsWith("data:"));
+  if (!line) return;
+  let ev;
+  try { ev = JSON.parse(line.slice(5).trim()); } catch { return; }
+
+  if (ev.type === "stage") {
+    const intent = ev.name || ev.intent || "";
+    if (intent) {
+      markStage("intent", "ok", elapsed(), `意图: ${intent}`);
+      if (intent === "knowledge") {
+        markStage("retrieve", "run", null, "检索知识库…");
+      } else if (intent === "order") {
+        markStage("retrieve", "skip", null, "订单查询，跳过检索");
+      } else {
+        markStage("retrieve", "skip", null, "闲聊，跳过检索");
+      }
+    } else if (ev.stage) {
+      const stageMap = {
+        rate_limit: "rate_limit", cache: "cache", crew: "crew",
+        intent: "intent", retrieval: "retrieve", retrieve: "retrieve",
+        tool: "generate", generate: "generate", write: "save", error: "error"
+      };
+      const key = stageMap[ev.stage] || ev.stage;
+      let status = "run";
+      if (ev.ok === true) status = "ok";
+      else if (ev.ok === false || ev.stage === "error") status = "err";
+      else if (ev.skipped || ev.hit === false) status = "skip";
+      if (ev.hit === true) status = "ok";
+      markStage(key, status, ev.ms != null ? ev.ms : elapsed(), ev.msg || ev.stage);
+    }
+  } else if (ev.type === "intent") {
+    markStage("intent", "ok", elapsed(), `意图: ${ev.intent}`);
+  } else if (ev.type === "token") {
+    // 兼容 content 和 reply 两种字段名
+    const text = ev.content || ev.reply || "";
+    // First token → mark retrieve done, start generate
+    if (pipeState.generate.status === "wait") {
+      markStage("retrieve", "ok", elapsed(), "检索完成");
+      markStage("generate", "run", null, "生成中…");
+    }
+    bubble.textContent += text;
+    scrollChat();
+  } else if (ev.type === "done") {
+    const totalMs = ev.total_ms || Math.round(performance.now() - tStart);
+    markStage("generate", "ok", elapsed(), "生成完成");
+    markStage("save", "ok", null, "已保存");
+    const hitLabel = ev.cache_hit ? " · 缓存命中" : "";
+    setPipeState(`完成 · ${totalMs}ms${hitLabel}`);
+
+    const sources = ev.sources || [];
+    renderSources(sources);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const intentLabel = {knowledge: "知识问答", order: "订单查询", chat: "闲聊", crew: "Crew"};
+    const crewLabel = ev.used_crew ? " · crew" : "";
+    meta.textContent = `${intentLabel[ev.intent] || ev.intent || "-"} · ${ev.engine || "langchain"}${crewLabel} · ${totalMs}ms${hitLabel}`;
+    bubble.appendChild(meta);
+    refreshMetrics();
+  }
+}
+
+/* ── Pipeline visualization ── */
+function resetPipeline() {
+  STAGES.forEach(s => pipeState[s.key] = {status: "wait", ms: null, desc: ""});
+  setPipeState("就绪");
+  renderPipeline();
+}
+
+function markStage(key, status, ms, desc) {
+  if (!pipeState[key]) return;
+  if (status === "skip" && pipeState[key].status === "ok") return;
+  pipeState[key] = {status, ms: ms != null ? ms : pipeState[key].ms, desc: desc || pipeState[key].desc};
+  renderPipeline();
+}
+
+function setPipeState(text) {
+  document.getElementById("pipeState").textContent = text;
+}
+
+function renderPipeline() {
+  const el = document.getElementById("pipeline");
+  el.innerHTML = STAGES.map(s => {
+    const st = pipeState[s.key];
+    const msHtml = st.ms != null ? `<span class="ms">${st.ms}ms</span>` : "";
+    return `<div class="pstep ${st.status}">
+      <div class="icon">${s.icon}</div>
+      <div class="body">
+        <div class="title">${s.name} ${msHtml}</div>
+        ${st.desc ? `<div class="desc">${esc(st.desc)}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function elapsed() {
+  return Math.round(performance.now() - tStart);
+}
+
+/* ── Sources ── */
+function renderSources(sources) {
+  const el = document.getElementById("sources");
+  const countEl = document.getElementById("sourceCount");
+  if (!sources || !sources.length) {
+    el.innerHTML = '<span class="sources-empty">无引用来源</span>';
+    countEl.textContent = "";
+    return;
+  }
+  countEl.textContent = `${sources.length} 条`;
+  el.innerHTML = sources.map(s => `<span class="source-tag" title="${esc(s)}">${esc(s)}</span>`).join("");
+}
+
+/* ── Messages ── */
+function addMsg(role, text) {
+  const el = document.createElement("div");
+  el.className = "msg " + role;
+  el.textContent = text || "";
+  chatBody.appendChild(el);
+  scrollChat();
+  return el;
+}
+
+function scrollChat() {
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function clearChat() {
+  chatBody.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">聊天已清空，输入新问题开始对话吧 ✨</div>`;
+  resetPipeline();
+  document.getElementById("sources").innerHTML = '<span class="sources-empty">等待对话…</span>';
+  document.getElementById("sourceCount").textContent = "";
+}
+
+function useSug(el) {
+  chatInput.value = el.textContent;
+  sendChat();
+}
+
+/* ── Sessions ── */
+function newSession() {
+  const id = crypto.randomUUID ? crypto.randomUUID() : uuidFallback();
+  sessionInput.value = id;
+  clearChat();
+}
+
+function uuidFallback() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function loadSessions() {
+  fetch("/sessions", {method: "POST"})
+    .then(r => r.ok ? r.json() : [])
+    .then(sessions => {
+      const list = document.getElementById("sessionList");
+      const current = sessionInput.value.trim();
+      if (!sessions || !sessions.length) {
+        list.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:8px">暂无历史会话</div>';
+        return;
+      }
+      list.innerHTML = sessions.map(s => {
+        const id = s.session_id;
+        const active = id === current ? " active" : "";
+        const time = s.created_at ? new Date(s.created_at).toLocaleString("zh-CN", {month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+        return `<div class="session-item${active}" onclick="switchSession('${esc(id)}')" title="${esc(id)}">${time} ${esc(id.slice(0, 8))}…</div>`;
+      }).join("");
+    }).catch(() => {});
+}
+
+function switchSession(id) {
+  sessionInput.value = id;
+  chatBody.innerHTML = "";
+  resetPipeline();
+  document.getElementById("sources").innerHTML = '<span class="sources-empty">等待对话…</span>';
+  document.getElementById("sourceCount").textContent = "";
+  // 加载该会话的历史消息
+  fetch(`/api/v1/sessions/${encodeURIComponent(id)}/history`)
+    .then(r => r.ok ? r.json() : {messages: []})
+    .then(data => {
+      const msgs = data.messages || [];
+      if (!msgs.length) {
+        chatBody.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0">该会话暂无消息记录</div>`;
+        return;
+      }
+      msgs.forEach(m => {
+        const el = document.createElement("div");
+        el.className = "msg " + (m.role === "user" ? "user" : "ai");
+        el.textContent = m.content;
+        chatBody.appendChild(el);
+      });
+      scrollChat();
+    }).catch(() => {
+      chatBody.innerHTML = `<div style="text-align:center;color:var(--err);font-size:13px;padding:40px 0">加载历史消息失败</div>`;
+    });
+  loadSessions();
+}
+
+/* ── Stats & Traces ── */
+function fmtTs(t) {
+  if (!t) return "-";
+  const d = new Date(t * 1000);
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function fmtMs(v) {
+  if (v == null) return "-";
+  return v < 1000 ? `${v}ms` : `${(v / 1000).toFixed(1)}s`;
+}
+
+function intentChip(k) {
+  return `<span class="chip ${esc(k || "")}">${esc(k || "-")}</span>`;
+}
+
+function refreshMetrics() {
+  Promise.all([
+    fetch("/api/v1/stats").then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch("/api/v1/traces?limit=20").then(r => r.ok ? r.json() : null).catch(() => null)
+  ]).then(([stats, tracesData]) => {
+    const summary = tracesData?.summary || {};
+    const set = (id, text, cls) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = "v" + (cls ? " " + cls : "");
+    };
+    if (stats) {
+      set("s-chunks", stats.total_chunks ?? "-", "acc");
+      set("s-bm25", stats.bm25_ready ? "就绪" : "未就绪", stats.bm25_ready ? "ok" : "warn");
+      set("s-crew", stats.use_crew && stats.crew_available ? "开" : "关", stats.use_crew ? "ok" : "");
+    }
+    const hitRate = summary.cache_hit_rate != null ? Math.round(summary.cache_hit_rate * 100) + "%" : "-";
+    set("s-hit", hitRate, summary.cache_hit_rate > 0.3 ? "ok" : "");
+    set("s-p95", fmtMs(summary.p95_ms), summary.p95_ms > 3000 ? "warn" : "ok");
+    set("s-total", summary.total ?? 0, "");
+    const blocked = summary.blocked ?? stats?.ratelimit_blocked ?? 0;
+    set("s-blocked", blocked, blocked > 0 ? "err" : "ok");
+    set("s-at", fmtTs(Date.now() / 1000).slice(0, 8), "");
+
+    const rows = document.getElementById("traceRows");
+    const entries = tracesData?.entries || [];
+    if (!entries.length) {
+      rows.innerHTML = '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:16px">暂无请求——发送一条 chat 后这里会出现记录</td></tr>';
+      return;
+    }
+    rows.innerHTML = entries.map(e => {
+      const cache = e.cache_checked
+        ? (e.cache_hit ? '<span style="color:var(--ok)">命中</span>' : '<span style="color:var(--muted)">未中</span>')
+        : "-";
+      const status = e.status === 429
+        ? '<span style="color:var(--err)">429</span>'
+        : '<span style="color:var(--ok)">200</span>';
+      return `<tr>
+        <td class="mono">${fmtTs(e.ts)}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${esc(e.message || "")}">${esc(e.message || "-")}</td>
+        <td class="mono">${esc((e.session_id || "-").slice(0, 12))}</td>
+        <td>${intentChip(e.intent)}</td>
+        <td>${esc(e.engine || "-")}</td>
+        <td>${cache}</td>
+        <td class="mono">${fmtMs(e.total_ms)}</td>
+        <td>${status}</td>
+      </tr>`;
+    }).join("");
+  });
+}
+
+/* ── Health ── */
+function refreshHealth() {
+  fetch("/health").then(r => r.json()).then(h => {
+    const dot = document.getElementById("healthDot");
+    const text = document.getElementById("healthText");
+    const ok = h.status === "healthy";
+    dot.className = "status-dot " + (ok ? "ok" : "err");
+    text.textContent = ok ? "在线" : "离线";
+    document.getElementById("modelInfo").textContent = `LLM: ${h.llm_model || "-"}`;
+    document.getElementById("hLlm").textContent = h.llm_model || "-";
+    document.getElementById("hEmb").textContent = h.embedding_model || "-";
+    document.getElementById("hPg").textContent = h.postgres || "-";
+    document.getElementById("hPg").style.color = h.postgres === "ok" ? "var(--ok)" : "var(--err)";
+    document.getElementById("hMilvus").textContent = h.milvus || "-";
+    document.getElementById("hMilvus").style.color = h.milvus === "ok" ? "var(--ok)" : "var(--err)";
+  }).catch(() => {
+    document.getElementById("healthDot").className = "status-dot err";
+    document.getElementById("healthText").textContent = "离线";
+  });
+}
+
+/* ── Upload ── */
+function uploadFile(file) {
+  if (!file) return;
+  saveApiKey();
+  const result = document.getElementById("uploadResult");
+  result.innerHTML = `<span>上传中: ${esc(file.name)}…</span>`;
+  const form = new FormData();
+  form.append("file", file);
+  fetch("/api/v1/ingest", {method: "POST", headers: apiHeaders(), body: form})
+    .then(r => {
+      if (!r.ok) return r.json().catch(() => ({})).then(j => {
+        const msg = r.status === 401
+          ? "无效或缺失 API Key，请在左侧「API 鉴权」填写"
+          : formatHttpError(j, r.status);
+        throw new Error(msg);
+      });
+      return r.json();
+    })
+    .then(d => {
+      result.innerHTML = `<span class="ok">✅ ${esc(d.file_name)} — 新增 ${d.chunks} 块，总计 ${d.total_chunks} 块</span>`;
+    })
+    .catch(err => {
+      result.innerHTML = `<span class="err">❌ ${esc(err.message)}</span>`;
+    });
+  document.getElementById("fileInput").value = "";
+}
+
+/* ── Utils ── */
+function esc(s) {
+  if (!s) return "";
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
