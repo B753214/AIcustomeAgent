@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     embedding_base_url: str
     embedding_api_key: str
     embedding_model: str
-    use_crew: bool = True
+    use_crew: bool = False
     top_k: int
     chunk_size: int
     chunk_overlap: int

@@ -8,6 +8,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import Field, BaseModel
 
+from app.agents.alarm import is_alarm_message
+from app.agents.alarm.runner import run_alarm_agent, run_alarm_agent_stream
 from app.agents.crew import run_crew
 from app.agents.tools import query_order, CREW_TOOLS_READY
 from app.config import settings
@@ -29,6 +31,7 @@ from app.services.tracing import traces
 
 _llm_cache: dict = {}
 class IntentEnum(StrEnum):
+    ALARM = "alarm"
     KNOWLEDGE = "knowledge"  # 知识问答
     ORDER = "order"          # 订单查询
     CHAT = "chat"            # 闲聊
@@ -36,7 +39,7 @@ class IntentEnum(StrEnum):
 
 INTENT_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
-     "你是意图分类器，只输出 JSON：{{\"intent\": \"knowledge|order|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}"),
+     "你是意图分类器，只输出 JSON：{{\"intent\": \"alarm|knowledge|order|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}"),
     MessagesPlaceholder("history"),
     ("human", "{message}"),
 ])
@@ -48,7 +51,7 @@ CHAT_PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 class Classifier(BaseModel):
-    intent: IntentEnum = Field(IntentEnum.KNOWLEDGE, description="意图分类，可选值：knowledge（知识问答）/order（订单查询）/chat（闲聊）/unknown（未知）")
+    intent: IntentEnum = Field(IntentEnum.KNOWLEDGE, description="意图分类，可选值：alarm（监控告警排查）/knowledge（知识问答）/order（订单查询）/chat（闲聊）/unknown（未知）")
     confidence: float = Field(description="0~1置信分数")
     reason: str=Field(default="", description="输出分类原因")
 
@@ -140,7 +143,7 @@ def _format_history_text(history: list[dict]) -> str:
 def _maybe_cache(query_vec, result: dict, message: str) -> None:
     if query_vec is None:
         return
-    if result.get("intent") == "order":
+    if result.get("intent") == "order" or result.get("intent") == "alarm":
         return
     semantic_cache.put(query_vec,message, result)
 
@@ -159,7 +162,8 @@ async def run(
     }
     history = await load_session_history(session_id, db)
     query_vector = None
-    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history:
+    is_alarm = is_alarm_message(message)
+    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history and not is_alarm:
         query_vector = await asyncio.to_thread(kb.embed_query, message)
         cached = semantic_cache.get(query_vector, message)
         if cached is not None:
@@ -169,6 +173,19 @@ async def run(
                          cache_checked=True, total_ms=round((time.perf_counter() - t_start) * 1000, 1))
             traces.record(entry)
             return res
+    if is_alarm:
+        res = await run_alarm_agent(message)
+        await save_turn(session_id, message, res["reply"], db)
+        entry.update(
+            intent=res.get("intent", "alarm"),
+            engine=res.get("engine", "alarm"),
+            cache_hit=False,
+            cache_checked=False,
+            sources=len(res.get("sources") or []),
+            total_ms=round((time.perf_counter() - t_start) * 1000, 1),
+        )
+        traces.record(entry)
+        return res
 
     lc_history = _to_langchain_messages(history)
     if settings.use_crew and CREW_TOOLS_READY:
@@ -199,12 +216,13 @@ async def run(
             return res
         except Exception as e:
             print(f"[run_crew] 解析失败，回退为 CHAT: {e}")
-
     intent = await classify_intent(message, lc_history)
     if on_event:
         on_event({"type": "stage", "name": intent})
 
-    if intent == "order":
+    if intent == IntentEnum.ALARM or intent == "alarm":
+        res = await run_alarm_agent(message)
+    elif intent == "order":
         answer = query_order(message)
         res = {"reply": answer, "intent": intent, "sources": [], "engine": "langchain", "cache_hit": False}
     elif intent == "knowledge":
@@ -242,8 +260,8 @@ async def run_astream(
     query_vector = None
 
     yield {"type": "stage", "stage": "rate_limit", "msg": "限流检查通过", "ms": 0, "ok": True}
-
-    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history:
+    is_alarm = is_alarm_message(message)
+    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history and not is_alarm:
         yield {"type": "stage", "stage": "cache", "msg": "语义缓存查询中…", "ms": 0}
         t_cache = time.perf_counter()
         query_vector = await asyncio.to_thread(kb.embed_query, message)
@@ -275,6 +293,44 @@ async def run_astream(
     else:
         reason = "多轮会话" if history else "缓存未开启"
         yield {"type": "stage", "stage": "cache", "msg": f"跳过语义缓存（{reason}）", "ms": 0, "skipped": True}
+
+    if is_alarm:
+        yield {"type": "intent", "intent": "alarm"}
+        full_reply = ""
+        sources: list = []
+        meta = None
+        async for ev in run_alarm_agent_stream(message):
+            if ev.get("type") == "token" and ev.get("content"):
+                full_reply += ev["content"]
+                if ev.get("sources"):
+                    sources = ev["sources"]
+                yield ev
+            elif ev.get("type") == "stage":
+                meta = ev.get("meta") or meta
+                yield ev
+            elif ev.get("type") == "done":
+                full_reply = ev.get("reply") or full_reply
+                sources = ev.get("sources") or sources
+                meta = ev.get("meta") or meta
+        await save_turn(session_id, message, full_reply, db)
+        total_ms = round((time.perf_counter() - t_start) * 1000, 1)
+        traces.record({
+            "message": message[:80], "session_id": session_id, "status": 200,
+            "intent": "alarm", "engine": "alarm", "cache_hit": False,
+            "cache_checked": False,
+            "sources": len(sources), "total_ms": total_ms,
+        })
+        yield {
+            "type": "done",
+            "reply": full_reply,
+            "intent": "alarm",
+            "sources": sources,
+            "engine": "alarm",
+            "cache_hit": False,
+            "meta": meta,
+            "total_ms": total_ms,
+        }
+        return
 
     if settings.use_crew and CREW_TOOLS_READY:
         try:
@@ -312,10 +368,24 @@ async def run_astream(
     intent_ms = round((time.perf_counter() - t_intent) * 1000, 1)
     yield {"type": "stage", "stage": "intent", "msg": f"意图识别为 {intent}", "ms": intent_ms, "ok": True}
     yield {"type": "intent", "intent": str(intent)}
-
     full_reply = ""
     sources = []
-    if intent == "order":
+    engine = "langchain"
+    if intent == IntentEnum.ALARM or intent == "alarm":
+        engine = "alarm"
+        yield {"type": "stage", "stage": "alarm", "msg": "意图识别为监控告警", "ok": True}
+        async for ev in run_alarm_agent_stream(message):
+            if ev.get("type") == "token" and ev.get("content"):
+                full_reply += ev["content"]
+                if ev.get("sources"):
+                    sources = ev["sources"]
+                yield ev
+            elif ev.get("type") == "stage":
+                yield ev
+            elif ev.get("type") == "done":
+                full_reply = ev.get("reply") or full_reply
+                sources = ev.get("sources") or sources
+    elif intent == "order":
         yield {"type": "stage", "stage": "tool", "msg": "调用 query_order", "ok": True}
         full_reply = query_order(message)
         yield {"type": "token", "content": full_reply}
@@ -337,15 +407,18 @@ async def run_astream(
                 yield {"type": "token", "content": token}
 
     res = {
-        "reply": full_reply, "intent": str(intent), "sources": sources,
-        "engine": "langchain", "cache_hit": False,
+        "reply": full_reply,
+        "intent": "alarm" if engine == "alarm" else str(intent),
+        "sources": sources,
+        "engine": engine,
+        "cache_hit": False,
     }
     _maybe_cache(query_vector, res, message)
     await save_turn(session_id, message, full_reply, db)
     total_ms = round((time.perf_counter() - t_start) * 1000, 1)
     traces.record({
         "message": message[:80], "session_id": session_id, "status": 200,
-        "intent": str(intent), "engine": "langchain",
+        "intent": res["intent"], "engine": engine,
         "cache_hit": False, "cache_checked": query_vector is not None,
         "intent_ms": intent_ms, "sources": len(sources), "total_ms": total_ms,
     })
