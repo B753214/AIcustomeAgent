@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     api_key_enabled: bool = False  # 开发默认关
     service_api_key: str = ""  # 服务端要求的 Key
 
+    # 监控告警配置
+    alarm_mcp_enabled: bool = True
+    alarm_mcp_host: str = "pre-mcp.alibaba-inc.com"
+    alarm_mcp_path: str = "/info-plate-mcp/mcp"
+    alarm_mcp_token: str = ""  # .env: ALARM_MCP_TOKEN=...
+    alarm_mcp_timeout_sec: int = 15
+    alarm_mcp_verify_ssl: bool = False
+
 @lru_cache
 def get_settings()->Settings:
     return Settings()

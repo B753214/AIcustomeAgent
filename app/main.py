@@ -3,6 +3,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from app.agents.alarm import run_alarm_agent_stream
 from app.services.auth import verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
@@ -229,6 +230,45 @@ async def stats_ep(db: AsyncSession = Depends(get_db)):
 def traces_ep(limit: int = 50):
     return {"entries": traces.recent(limit), "summary": traces.summary()}
 
+@app.post("/api/analyze")
+async def api_analyze(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="无效 JSON")
+    content = (body.get("content") or body.get("url") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="请提供 content 或 url 参数")
+    async def gen():
+        try:
+            async for ev in run_alarm_agent_stream(content):
+                et = ev.get("type")
+                if et == "stage":
+                    yield _sse({"type": "progress", "message": ev.get("msg") or ""})
+                elif et == "token":
+                    yield _sse({"type": "chunk", "content": ev.get("content") or ""})
+                elif et == "done":
+                    yield _sse({
+                        "type": "done",
+                        "report": ev.get("reply") or "",
+                        "meta": ev.get("meta") or {},
+                    })
+                else:
+                    yield _sse(ev)
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            yield _sse({"type": "error", "message": str(e)})
+            yield "data: [DONE]\n\n"
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*",  # 工作台跨端口时需要；若已有全局 CORS 可去掉
+        }
+    )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
