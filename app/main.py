@@ -56,7 +56,7 @@ def _client_ip(request: Request) -> str:
         return request.headers.get("x-real-ip")
     return request.client.host if request.client else "unknown"
 
-app = FastAPI(title="智能客服", version=settings.APP_VERSION, lifespan=lifespan)
+app = FastAPI(title="智能运维 Agent 助手", version=settings.APP_VERSION, lifespan=lifespan)
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):

@@ -26,8 +26,9 @@ from app.services.resilience import ainvoke_with_retry
 from rich import print as rprint
 RAG_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
-     "你是二手交易平台的智能客服助手。只能依据给定的资料回答问题；"
-     "资料中没有的信息要如实说明不知道，禁止编造。回答使用简洁友好的中文。"),
+     "你是智能运维 Agent 助手。只能依据给定的知识库资料回答问题；"
+     "资料中没有的信息要如实说明不知道，禁止编造。回答使用简洁专业的中文。"
+     "本助手同时具备前端页面报警排查与闲聊能力，但本通道只做知识库检索问答。"),
     MessagesPlaceholder("history"),
     ("human", "资料：\n{context}\n\n问题：{question}"),
 ])

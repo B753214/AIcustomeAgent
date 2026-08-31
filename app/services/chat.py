@@ -10,8 +10,9 @@ from pydantic import Field, BaseModel
 
 from app.agents.alarm import is_alarm_message
 from app.agents.alarm.runner import run_alarm_agent, run_alarm_agent_stream
+from app.agents.chat_react import iter_chat_react, run_chat_react
 from app.agents.crew import run_crew
-from app.agents.tools import query_order, CREW_TOOLS_READY
+from app.agents.tools import CREW_TOOLS_READY
 from app.config import settings
 from app.rag.retriever import (
     aanswer_with_rag,
@@ -39,26 +40,31 @@ class IntentEnum(StrEnum):
 
 INTENT_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
-     "你是意图分类器，只输出 JSON："
-     "{{\"intent\": \"alarm|knowledge|order|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}。"
+     "你是智能运维 Agent 助手的意图分类器，只输出 JSON："
+     "{{\"intent\": \"alarm|knowledge|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}。"
+     "本系统能力：排查前端页面报警、RAG 检索知识库、闲聊（闲聊侧可调工具查活动/订单）。"
      "规则："
-     "1) 同时含告警字段（如【指标】/【配置ID】）与 info-plate 监控链接 → alarm；"
-     "2) 明确查订单号/物流状态 → order；"
-     "3) 退货/售后/运费/规则等平台知识（无具体订单号）→ knowledge；"
-     "4) 打招呼闲聊 → chat。"
-     "不要把「怎么申请退货」判成 order。"),
+     "1) 前端/页面监控告警：同时含告警字段（【指标】/【配置ID】等）与 info-plate 监控链接 → alarm；"
+     "2) 问概念、排障手册、平台/技术文档、如何配置等知识（无完整告警链接）→ knowledge（走 RAG）；"
+     "3) 打招呼、闲聊、问助手能做什么、查活动/优惠、查订单/物流 → chat；"
+     "不要把纯知识问题判成 alarm；不要把告警原文判成 knowledge。"),
     MessagesPlaceholder("history"),
     ("human", "{message}"),
 ])
 
 CHAT_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", "你是二手交易平台智能客服，语气友好简洁…"),
+    ("system",
+     "你是智能运维 Agent 助手，可协助前端页面报警排查、知识库问答与闲聊。"
+     "当前是闲聊降级通道：语气专业简洁，不要编造监控数据或文档中没有的知识。"),
     MessagesPlaceholder("history"),
     ("human", "{message}"),
 ])
 
 class Classifier(BaseModel):
-    intent: IntentEnum = Field(IntentEnum.KNOWLEDGE, description="意图分类，可选值：alarm（监控告警排查）/knowledge（知识问答）/order（订单查询）/chat（闲聊）/unknown（未知）")
+    intent: IntentEnum = Field(
+        IntentEnum.KNOWLEDGE,
+        description="alarm=前端页面报警排查；knowledge=RAG 知识库；chat=闲聊（可含活动/订单工具）；order=兼容旧值按 chat 处理；unknown=未知",
+    )
     confidence: float = Field(description="0~1置信分数")
     reason: str=Field(default="", description="输出分类原因")
 
@@ -72,6 +78,11 @@ def get_llm()->BaseChatModel:
             model_provider=settings.provider,
         )
     return _llm_cache[key]
+
+def _use_chat_tools(intent) -> bool:
+    """查订单不再走独立 Agent，与闲聊共用 Tool-calling。"""
+    return intent in (IntentEnum.CHAT, IntentEnum.ORDER, "chat", "order", IntentEnum.UNKNOWN, "unknown")
+
 
 def _to_langchain_messages(history: list[dict]) -> list:
     """将 {"role","content"} 字典列表转为 LangChain Message 对象列表"""
@@ -102,8 +113,8 @@ async def fallback_chat(message: str, session_id: str, kb: KnowledgeBase, db: As
     history = await load_session_history(session_id, db)
     lc_history = _to_langchain_messages(history)
     intent = await classify_intent(message, lc_history)
-    if intent == "order":
-        return { "reply": query_order(message), "intent": intent, "sources": [], "engine": "langchain"}
+    if _use_chat_tools(intent):
+        return await run_chat_react(message, lc_history)
     if intent == "knowledge":
         answer, sources = await aanswer_with_rag(message, kb, get_llm(), lc_history)
         return { "reply": answer, "intent": intent, "sources": sources, "engine": "langchain"}
@@ -231,18 +242,11 @@ async def run(
 
     if intent == IntentEnum.ALARM or intent == "alarm":
         res = await run_alarm_agent(message)
-    elif intent == "order":
-        answer = query_order(message)
-        res = {"reply": answer, "intent": intent, "sources": [], "engine": "langchain", "cache_hit": False}
     elif intent == "knowledge":
         answer, sources = await aanswer_with_rag(message, kb, get_llm(), lc_history)
         res = {"reply": answer, "intent": intent, "sources": sources, "engine": "langchain", "cache_hit": False}
     else:
-        chain = CHAT_PROMPT | get_llm()
-        reply = await ainvoke_with_retry(chain.ainvoke, {"message": message, "history": lc_history})
-        if hasattr(reply, "content"):
-            reply = reply.content
-        res = {"reply": reply, "intent": "chat", "sources": [], "engine": "langchain", "cache_hit": False}
+        res = await run_chat_react(message, lc_history)
     if on_event:
         on_event(res)
     _maybe_cache(query_vector, res, message)
@@ -395,10 +399,6 @@ async def run_astream(
             elif ev.get("type") == "done":
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
-    elif intent == "order":
-        yield {"type": "stage", "stage": "tool", "msg": "调用 query_order", "ok": True}
-        full_reply = query_order(message)
-        yield {"type": "token", "content": full_reply}
     elif intent == "knowledge":
         yield {"type": "stage", "stage": "retrieval", "msg": "混合检索 + RAG 生成中…", "ok": True}
         async for event in aanswer_with_rag_stream(message, kb, get_llm(), lc_history):
@@ -408,13 +408,18 @@ async def run_astream(
                 full_reply += event["content"]
             yield event
     else:
-        yield {"type": "stage", "stage": "generate", "msg": "闲聊生成中…", "ok": True}
-        chain = CHAT_PROMPT | get_llm()
-        async for chunk in chain.astream({"message": message, "history": lc_history}):
-            token = chunk.content if hasattr(chunk, "content") else str(chunk)
-            if token:
-                full_reply += token
-                yield {"type": "token", "content": token}
+        engine = "chat_react"
+        async for ev in iter_chat_react(message, lc_history):
+            et = ev.get("type")
+            if et == "stage":
+                yield ev
+            elif et == "token":
+                full_reply += ev.get("content") or ""
+                yield ev
+            elif et == "result":
+                full_reply = ev.get("reply") or full_reply
+                intent = ev.get("intent") or intent
+                engine = ev.get("engine") or engine
 
     res = {
         "reply": full_reply,
