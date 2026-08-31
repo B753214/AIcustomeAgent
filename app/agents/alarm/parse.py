@@ -37,6 +37,8 @@ def parse_alarm_message(text: str) -> dict:
         "execTime": get("执行时间"),
         "owners": get("负责人"),
         "detailUrl": detail_url_match.group(0) if detail_url_match else "",
+        # 显式分类（有则 classify 直接用，不再按指标名推断）
+        "alarmType": get("类型") or get("报警类型") or get("分类") or get("Skill") or get("skill"),
     }
 
 

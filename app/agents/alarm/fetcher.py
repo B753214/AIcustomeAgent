@@ -1,11 +1,13 @@
-"""经 MCP 拉取监控配置 / 明细；失败返回 None（正文降级）。"""
+"""MonitorFetcher：MCP → Browser → None（正文降级）。"""
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from app.agents.alarm.mcp import McpClient
 from app.config import settings
+
+ProgressCb = Callable[[str], Awaitable[None] | None]
 
 
 def _tool_text(result: dict) -> str | None:
@@ -28,7 +30,6 @@ def _unwrap_market_config(parsed: Any) -> dict:
             return datas[0] if datas and isinstance(datas[0], dict) else {}
         if isinstance(datas, dict):
             return datas
-    # 有的接口再包一层 data
     data = parsed.get("data")
     if isinstance(data, dict):
         return _unwrap_market_config(data) or data
@@ -75,14 +76,23 @@ def _build_monitor_rate(market_config: dict, detail_data: Any) -> dict:
     return rate
 
 
-async def fetch_monitor_data(
+async def _emit(on_progress: ProgressCb | None, message: str) -> None:
+    if not on_progress:
+        return
+    import inspect
+
+    result = on_progress(message)
+    if inspect.isawaitable(result):
+        await result
+
+
+async def _fetch_via_mcp(
     *,
     market_config_id: str,
-    biz_type: str | None = None,
-    start_time: str | None = None,
-    end_time: str | None = None,
+    biz_type: str | None,
+    start_time: str | None,
+    end_time: str | None,
 ) -> dict | None:
-    """成功返回含 monitorRate/monitorDetail/channel；失败返回 None。"""
     if not settings.alarm_mcp_enabled or not settings.alarm_mcp_token:
         return None
 
@@ -130,3 +140,44 @@ async def fetch_monitor_data(
     except Exception as err:
         print(f"[MCP] fetch failed: {err}")
         return None
+
+
+async def fetch_monitor_data(
+    *,
+    market_config_id: str,
+    biz_type: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    raw_url: str | None = None,
+    on_progress: ProgressCb | None = None,
+) -> dict | None:
+    """固定链路：MCP → Browser → None。成功返回含 monitorRate/monitorDetail/channel。"""
+    await _emit(on_progress, "正在经 MCP 拉取监控数据…")
+    res = await _fetch_via_mcp(
+        market_config_id=market_config_id,
+        biz_type=biz_type,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    if res:
+        return res
+    print("[FETCH] MCP 不可用或失败")
+
+    if settings.alarm_browser_enabled and (raw_url or "").strip():
+        await _emit(on_progress, "MCP 不可用，切换到浏览器获取...")
+        print("[FETCH] 回退到浏览器...")
+        try:
+            from app.agents.alarm.browser import fetch_via_browser
+
+            return await fetch_via_browser(
+                raw_url=raw_url or "",
+                market_config_id=market_config_id,
+                biz_type=biz_type,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        except Exception as err:
+            print(f"[FETCH] browser failed: {err}")
+            return None
+
+    return None

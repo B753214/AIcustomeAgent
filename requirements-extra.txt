@@ -3,3 +3,7 @@ crewai>=0.90
 
 # ==================== 可选：语义重排 ====================
 sentence-transformers>=3.0
+
+# ==================== 可选：告警浏览器降级（Day8）====================
+# 安装后还需执行: playwright install chromium
+playwright>=1.40

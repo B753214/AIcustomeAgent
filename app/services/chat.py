@@ -39,7 +39,14 @@ class IntentEnum(StrEnum):
 
 INTENT_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
-     "你是意图分类器，只输出 JSON：{{\"intent\": \"alarm|knowledge|order|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}"),
+     "你是意图分类器，只输出 JSON："
+     "{{\"intent\": \"alarm|knowledge|order|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}。"
+     "规则："
+     "1) 同时含告警字段（如【指标】/【配置ID】）与 info-plate 监控链接 → alarm；"
+     "2) 明确查订单号/物流状态 → order；"
+     "3) 退货/售后/运费/规则等平台知识（无具体订单号）→ knowledge；"
+     "4) 打招呼闲聊 → chat。"
+     "不要把「怎么申请退货」判成 order。"),
     MessagesPlaceholder("history"),
     ("human", "{message}"),
 ])
@@ -173,7 +180,9 @@ async def run(
                          cache_checked=True, total_ms=round((time.perf_counter() - t_start) * 1000, 1))
             traces.record(entry)
             return res
-    if is_alarm:
+    # use_crew 且工具就绪时交给 Crew（走 investigate_alarm）；否则启发式直达 alarm
+    _crew_ok = settings.use_crew and CREW_TOOLS_READY
+    if is_alarm and not _crew_ok:
         res = await run_alarm_agent(message)
         await save_turn(session_id, message, res["reply"], db)
         entry.update(
@@ -188,7 +197,7 @@ async def run(
         return res
 
     lc_history = _to_langchain_messages(history)
-    if settings.use_crew and CREW_TOOLS_READY:
+    if _crew_ok:
         try:
             history_text = _format_history_text(history)
             crew_result = await asyncio.to_thread(
@@ -294,7 +303,8 @@ async def run_astream(
         reason = "多轮会话" if history else "缓存未开启"
         yield {"type": "stage", "stage": "cache", "msg": f"跳过语义缓存（{reason}）", "ms": 0, "skipped": True}
 
-    if is_alarm:
+    _crew_ok = settings.use_crew and CREW_TOOLS_READY
+    if is_alarm and not _crew_ok:
         yield {"type": "intent", "intent": "alarm"}
         full_reply = ""
         sources: list = []
@@ -332,7 +342,7 @@ async def run_astream(
         }
         return
 
-    if settings.use_crew and CREW_TOOLS_READY:
+    if _crew_ok:
         try:
             yield {"type": "stage", "stage": "crew", "msg": "Crew 多 Agent 处理中…", "ok": True}
             history_text = _format_history_text(history)

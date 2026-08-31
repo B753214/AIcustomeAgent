@@ -1,5 +1,7 @@
+import asyncio
 import re
 
+from app.agents.alarm import run_alarm_agent
 from app.rag.retriever import answer_with_rag
 
 _last_rag_sources: list[str] = []
@@ -39,15 +41,28 @@ def after_sale_rule() -> str:
     return ("售后规则：签收 7 天内可申请无理由退货（需不影响二次销售）；"
             "商品破损或与描述不符的，运费由卖家承担；请上传凭证由 AI 质检确认。")
 
+def investigate_alarm(message: str) -> str:
+    """排查监控告警 / info-plate 链接，输出 RCA（结论/证据/建议）。
+
+    Args:
+        message: 告警原文或含监控 URL 的用户消息。
+    """
+    try:
+        res = asyncio.run(run_alarm_agent(message))
+        return res.get("reply") or str(res)
+    except Exception as e:
+        return f"告警排查失败：{e}"
 search_knowledge_tool = None
 query_order_tool = None
 after_sale_rule_tool = None
 CREW_TOOLS_READY = False
+investigate_alarm_tool = None
 try:
     from crewai.tools import tool
     search_knowledge_tool = tool("search_knowledge")(search_knowledge)
     query_order_tool = tool("query_order")(query_order)
     after_sale_rule_tool = tool("after_sale_rule")(after_sale_rule)
+    investigate_alarm_tool = tool("investigate_alarm")(investigate_alarm)
     CREW_TOOLS_READY = True
 except ImportError:
     CREW_TOOLS_READY = False

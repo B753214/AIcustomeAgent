@@ -35,6 +35,7 @@
 | **语义缓存** | 首轮问题按余弦+词面双门限命中复用，毫秒级响应 | `app/services/semantic_cache.py` |
 | **稳定性** | tenacity 指数退避重试 + 滑动窗口限流 | `app/services/resilience.py` / `ratelimit.py` |
 | **可视化控制台** | 内置单页 Dashboard，实时监控全链路耗时 | `app/static/dashboard.html` |
+| **告警排查** | info-plate 告警 RCA：MCP → 浏览器 → 正文；SSE `/api/analyze`；Crew Tool `investigate_alarm` | `app/agents/alarm/` |
 
 ---
 
@@ -116,8 +117,11 @@ python -m venv .venv
 # 核心依赖
 pip install -r requirements.txt
 
-# 可选：多智能体 + 重排
+# 可选：多智能体 + 重排 + 告警浏览器降级（Playwright）
 pip install -r requirements-extra.txt
+
+# 启用浏览器降级时再装 Chromium
+playwright install chromium
 ```
 
 ### 2. 配置环境变量
@@ -162,7 +166,11 @@ AIROBOT_MILVUS_URI=http://localhost:19530
 
 ### 3. 启动服务
 
+Windows 若因控制台编码（emoji/中文）启动失败，先设置 UTF-8：
+
 ```powershell
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -273,6 +281,20 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 
 浏览器访问，实时展示全链路耗时与状态。
 
+### `POST /api/analyze` — 告警分析（SSE）
+
+供独立工作台对接。请求体提供 `content` 或 `url`（info-plate 链接，或自然语言如 `configId=11664 最近1小时`）。
+
+```json
+{ "content": "https://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=11664&bizType=30" }
+```
+
+事件类型：`progress` / `chunk` / `done`（含 `report`、`meta`）/ `error`，结束为 `data: [DONE]`。
+
+拉数顺序固定：**MCP → Playwright 浏览器 → 告警正文降级**（无需再配 fetch mode）。浏览器登录也可调 `GET/POST /login`。
+
+> 钉钉推送与 React 工作台静态托管不在本仓库；前端自行将 API baseURL 指向本服务即可。
+
 ---
 
 ## 配置说明
@@ -287,7 +309,13 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 | `AIROBOT_EMBEDDING_MODEL` | str | — | 向量模型名称 |
 | `POSTGRES_URI` | str | — | PostgreSQL 连接字符串 |
 | `AIROBOT_MILVUS_URI` | str | `http://localhost:19530` | Milvus 地址 |
-| `AIROBOT_USE_CREW` | bool | `true` | 是否启用 CrewAI 多智能体 |
+| `AIROBOT_USE_CREW` | bool | `false` | 是否启用 CrewAI（含 `investigate_alarm`）；需已装 `requirements-extra.txt` |
+| `ALARM_MCP_ENABLED` | bool | `true` | 告警是否先走 MCP |
+| `ALARM_MCP_TOKEN` | str | — | info-plate MCP token；空则跳过 MCP |
+| `ALARM_BROWSER_ENABLED` | bool | `true` | MCP 失败后是否 Playwright 降级 |
+| `ALARM_INFO_PLATE_USER` / `PASSWORD` | str | — | 浏览器登录账号 |
+| `ALARM_REPORT_FORMAT` | str | `markdown` | `markdown` \| `rca` |
+| `ALARM_SKIP_WHEN_ZERO_COUNT` | bool | `true` | 监控 count=0 时跳过 LLM |
 | `AIROBOT_TOP_K` | int | — | 检索召回条数 |
 | `AIROBOT_CHUNK_SIZE` | int | — | 文档分块大小 |
 | `AIROBOT_CHUNK_OVERLAP` | int | — | 分块重叠大小 |
@@ -312,7 +340,8 @@ AICustomeRobort/
 │   ├── database.py          # SQLAlchemy async 引擎
 │   ├── agents/
 │   │   ├── crew.py          # CrewAI 双 Agent 编排
-│   │   └── tools.py         # 工具集（RAG/订单/售后）
+│   │   ├── tools.py         # 工具集（RAG/订单/售后/investigate_alarm）
+│   │   └── alarm/           # 告警 Agent（detect/fetch/playbook/RCA/SSE）
 │   ├── rag/
 │   │   ├── loader.py        # PDF/DOCX/MD 文档解析
 │   │   ├── retriever.py     # RAG 检索+生成主链路
@@ -353,7 +382,13 @@ AICustomeRobort/
 项目支持内存存储（`InMemoryVectorStore`），数据仅在运行期间有效，重启会丢失。
 
 **Q：crewai 没装会怎样？**
-自动降级到 LangChain 内置路由，功能完全一致，只是少了多智能体编排。
+自动降级到 LangChain 内置路由；告警在 `USE_CREW=false` 时也可经启发式/旁路进入 `alarm` Agent，不依赖 Crew。
+
+**Q：告警浏览器降级报错 / 找不到 chromium？**
+先 `pip install -r requirements-extra.txt`，再执行 `playwright install chromium`。也可设 `ALARM_BROWSER_ENABLED=false`，仅用 MCP + 正文。
+
+**Q：还需要部署 car_robot（Node）吗？**
+排查链路（chat 告警旁路 + `/api/analyze`）已在本仓库 Python 内闭环，可不部署 Node。钉钉 Webhook / 原 React 工作台仍可用原 `car_robot` 或独立前端。
 
 **Q：如何接入真实订单系统？**
 修改 `app/agents/tools.py` 中的 `query_order` 函数，改为 HTTP 调用真实订单服务。

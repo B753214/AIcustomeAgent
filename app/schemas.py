@@ -12,9 +12,10 @@ class ChatResponse(BaseModel):
     reply: str
     intent: Optional[str] = None
     sources: list = []
-    engine: str = "langchain"   # langchain | crew
+    engine: str = "langchain"   # langchain | crew | alarm
     used_crew: bool = False
     cache_hit: bool = False
+    meta: dict = {}
 
 class IngestResponse(BaseModel):
     file_name: str

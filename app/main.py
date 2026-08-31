@@ -135,6 +135,30 @@ async def dashboard():
     return HTMLResponse(html)
 
 
+@app.post("/login")
+@app.get("/login")
+async def alarm_browser_login():
+    """触发 info-plate 浏览器登录（Day8；SMS/扫码见 Day11）。"""
+    if not settings.alarm_browser_enabled:
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "alarm_browser_enabled=false"},
+        )
+    try:
+        from app.agents.alarm.browser import ensure_logged_in
+
+        ok = await ensure_logged_in()
+        return {
+            "ok": ok,
+            "message": "登录成功" if ok else "登录失败（检查账号/密码，或需 SMS/扫码）",
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": str(e)},
+        )
+
+
 @app.get("/create_session")
 async def create_session_ep(db: AsyncSession = Depends(get_db)):
     import uuid
@@ -239,26 +263,70 @@ async def api_analyze(request: Request):
     content = (body.get("content") or body.get("url") or "").strip()
     if not content:
         raise HTTPException(status_code=400, detail="请提供 content 或 url 参数")
+
     async def gen():
+        from app.agents.alarm.chat_intent import iter_resolve_analyze_url
+        from app.agents.alarm.parse import extract_monitor_url
+
         try:
-            async for ev in run_alarm_agent_stream(content):
+            yield _sse({"type": "progress", "message": "开始分析..."})
+            analyze_input = content
+            raw_url = extract_monitor_url(content)
+            if not raw_url:
+                yield _sse({"type": "progress", "message": "正在理解你的问题..."})
+                resolved_url = None
+                chat_reply = None
+                async for ev in iter_resolve_analyze_url(content):
+                    et = ev.get("type")
+                    if et == "token":
+                        yield _sse({"type": "chunk", "content": ev.get("content") or ""})
+                    elif et == "error":
+                        yield _sse(
+                            {
+                                "type": "error",
+                                "message": ev.get("message") or "AI 回复失败",
+                            }
+                        )
+                        yield "data: [DONE]\n\n"
+                        return
+                    elif et == "result":
+                        resolved_url = ev.get("url")
+                        chat_reply = ev.get("chat_reply")
+                if resolved_url:
+                    analyze_input = resolved_url
+                    yield _sse(
+                        {
+                            "type": "progress",
+                            "message": "已识别监控参数，开始获取数据...",
+                        }
+                    )
+                else:
+                    yield _sse({"type": "done", "report": chat_reply or ""})
+                    yield "data: [DONE]\n\n"
+                    return
+
+            async for ev in run_alarm_agent_stream(analyze_input):
                 et = ev.get("type")
                 if et == "stage":
                     yield _sse({"type": "progress", "message": ev.get("msg") or ""})
                 elif et == "token":
                     yield _sse({"type": "chunk", "content": ev.get("content") or ""})
                 elif et == "done":
-                    yield _sse({
+                    payload = {
                         "type": "done",
                         "report": ev.get("reply") or "",
                         "meta": ev.get("meta") or {},
-                    })
+                    }
+                    if ev.get("skip"):
+                        payload["skip"] = True
+                    yield _sse(payload)
                 else:
                     yield _sse(ev)
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield _sse({"type": "error", "message": str(e)})
             yield "data: [DONE]\n\n"
+
     return StreamingResponse(
         gen(),
         media_type="text/event-stream",
@@ -267,7 +335,7 @@ async def api_analyze(request: Request):
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
             "Access-Control-Allow-Origin": "*",  # 工作台跨端口时需要；若已有全局 CORS 可去掉
-        }
+        },
     )
 
 if __name__ == "__main__":
