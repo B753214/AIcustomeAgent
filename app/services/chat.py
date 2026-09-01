@@ -42,11 +42,11 @@ INTENT_PROMPT = ChatPromptTemplate.from_messages([
     ("system",
      "你是智能运维 Agent 助手的意图分类器，只输出 JSON："
      "{{\"intent\": \"alarm|knowledge|chat|unknown\", \"confidence\": 0.7, \"reason\": \"简短理由\"}}。"
-     "本系统能力：排查前端页面报警、RAG 检索知识库、闲聊（闲聊侧可调工具查活动/订单）。"
+     "本系统能力：排查前端页面报警、RAG 检索知识库、闲聊（闲聊侧可调工具查订单/天气）。"
      "规则："
      "1) 前端/页面监控告警：同时含告警字段（【指标】/【配置ID】等）与 info-plate 监控链接 → alarm；"
      "2) 问概念、排障手册、平台/技术文档、如何配置等知识（无完整告警链接）→ knowledge（走 RAG）；"
-     "3) 打招呼、闲聊、问助手能做什么、查活动/优惠、查订单/物流 → chat；"
+     "3) 打招呼、闲聊、问助手能做什么、查订单/物流、查天气 → chat；"
      "不要把纯知识问题判成 alarm；不要把告警原文判成 knowledge。"),
     MessagesPlaceholder("history"),
     ("human", "{message}"),
@@ -63,7 +63,7 @@ CHAT_PROMPT = ChatPromptTemplate.from_messages([
 class Classifier(BaseModel):
     intent: IntentEnum = Field(
         IntentEnum.KNOWLEDGE,
-        description="alarm=前端页面报警排查；knowledge=RAG 知识库；chat=闲聊（可含活动/订单工具）；order=兼容旧值按 chat 处理；unknown=未知",
+        description="alarm=前端页面报警排查；knowledge=RAG 知识库；chat=闲聊（可含订单/天气工具）；order=兼容旧值按 chat 处理；unknown=未知",
     )
     confidence: float = Field(description="0~1置信分数")
     reason: str=Field(default="", description="输出分类原因")

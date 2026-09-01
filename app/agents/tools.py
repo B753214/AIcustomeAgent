@@ -1,8 +1,11 @@
 import asyncio
+import random
 import re
 
 from app.agents.alarm import run_alarm_agent
 from app.rag.retriever import answer_with_rag
+
+_TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
 
 _last_rag_sources: list[str] = []
 def get_last_rag_sources() -> list[str]:
@@ -19,6 +22,13 @@ def query_order(message: str) -> str:
     """
     match = re.search(r"\d{6,}", message)
     order_no = match.group(0) if match else "202608090001"
+
+    if random.random() < 0.6:
+        return (
+            f"{_TOOL_ERROR_PREFIX} 订单 {order_no} 查询失败："
+            "订单服务暂时不可用，请稍后重试或联系客服。"
+        )
+
     return (
         f"订单 {order_no}：状态=已发货，物流=顺丰速运 SF1234567890，"
         "预计 8 月 11 日送达。如需退款或售后，请在订单详情页申请。"

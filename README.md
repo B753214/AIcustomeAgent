@@ -31,7 +31,8 @@
 | **RAG 知识库** | PDF/DOCX/MD/TXT 解析 → 分块 → 向量 + BM25 双路检索 → 重排 → 生成 | `app/rag/` |
 | **多智能体** | CrewAI 双 Agent（意图识别官 → 客服执行员），失败自动降级 | `app/agents/crew.py` |
 | **会话记忆** | PostgreSQL 持久化多轮对话，支持上下文追问 | `app/services/session_service.py` |
-| **SSE 流式** | 逐步输出 token，支持 Crew 伪流式和 LangChain 真流式 | `app/main.py` |
+| **SSE 流式** | 闲聊：`astream_events` 推 tool stage + LLM token；RAG/告警亦支持流式 | `app/agents/chat_react.py` / `app/main.py` |
+| **闲聊 Agent** | 手写 LangGraph `StateGraph`（`call_model` ⇄ `call_tools`）；工具：订单 / 本地天气 / 可选高德 MCP | `app/agents/chat_graph.py` |
 | **语义缓存** | 首轮问题按余弦+词面双门限命中复用，毫秒级响应 | `app/services/semantic_cache.py` |
 | **稳定性** | tenacity 指数退避重试 + 滑动窗口限流 | `app/services/resilience.py` / `ratelimit.py` |
 | **可视化控制台** | 内置单页 Dashboard，实时监控全链路耗时 | `app/static/dashboard.html` |
@@ -57,7 +58,8 @@ FastAPI (app/main.py)
   │          └─ after_sale_rule（售后规则）
   │
   └─ 降级 → LangChain 内置路由
-        ├─ 意图分类 → RAG/闲聊/订单
+        ├─ 意图分类 → knowledge / chat（含订单·天气工具）/ alarm
+        ├─ chat → 手写 StateGraph（chat_graph）+ 可选高德 MCP
         └─ 语义缓存 → 重试 → 限流
         │
         └─ RAG 链路：
@@ -68,6 +70,16 @@ FastAPI (app/main.py)
             └─ 持久化：PostgreSQL 会话 + Milvus 向量
 ```
 
+**闲聊链路（Chat-SG，已替代预置 `create_agent`）：**
+
+```
+intent=chat
+  → run_chat_react / iter_chat_react
+  → StateGraph: call_model ⇄ call_tools → END
+  → 本地工具：query_order、query_weather
+  → 可选：AMAP_MCP_ENABLED + Key → maps_*（langchain-mcp-adapters）
+  → SSE：stage(tool) + on_chat_model_stream token + result
+```
 **一次对话时序（非流式）：**
 
 ```
@@ -87,8 +99,9 @@ FastAPI (app/main.py)
 | Web 框架 | FastAPI + uvicorn + Pydantic | 异步接口、自动 OpenAPI 文档 |
 | 数据库 | PostgreSQL + SQLAlchemy（asyncpg） | 会话持久化 |
 | 向量库 | Milvus（pymilvus） | 向量 ANN 检索 |
-| LLM 编排 | LangChain（LCEL） | 意图路由、RAG 链路 |
+| LLM 编排 | LangChain + **LangGraph** | 意图/RAG；闲聊手写 StateGraph |
 | 多智能体 | CrewAI（Agent/Task/Crew） | 可选，未安装自动降级 |
+| MCP（可选） | langchain-mcp-adapters | 高德地图工具；`AMAP_MCP_ENABLED` |
 | 文档解析 | pypdf + python-docx | PDF / Word 解析 |
 | 检索 | jieba + rank_bm25 | BM25 中文词面检索 |
 | 稳定性 | tenacity | 指数退避重试 |
@@ -316,6 +329,9 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 | `ALARM_INFO_PLATE_USER` / `PASSWORD` | str | — | 浏览器登录账号 |
 | `ALARM_REPORT_FORMAT` | str | `markdown` | `markdown` \| `rca` |
 | `ALARM_SKIP_WHEN_ZERO_COUNT` | bool | `true` | 监控 count=0 时跳过 LLM |
+| `AMAP_MCP_ENABLED` | bool | `false` | 闲聊是否加载高德 MCP 工具 |
+| `AMAP_MAPS_API_KEY` | str | — | 高德 Key（仅 `.env`，勿提交仓库） |
+| `AMAP_MCP_URL` | str | `https://mcp.amap.com/mcp` | 高德 MCP 地址 |
 | `AIROBOT_TOP_K` | int | — | 检索召回条数 |
 | `AIROBOT_CHUNK_SIZE` | int | — | 文档分块大小 |
 | `AIROBOT_CHUNK_OVERLAP` | int | — | 分块重叠大小 |
@@ -339,6 +355,10 @@ AICustomeRobort/
 │   ├── schemas.py           # 请求/响应 Pydantic 模型
 │   ├── database.py          # SQLAlchemy async 引擎
 │   ├── agents/
+│   │   ├── chat_graph.py    # 闲聊手写 StateGraph（主循环）
+│   │   ├── chat_react.py    # 闲聊入口 run_/iter_（SSE token）
+│   │   ├── weather.py       # 本地天气工具
+│   │   ├── amap_mcp.py      # 可选高德 MCP tools
 │   │   ├── crew.py          # CrewAI 双 Agent 编排
 │   │   ├── tools.py         # 工具集（RAG/订单/售后/investigate_alarm）
 │   │   └── alarm/           # 告警 Agent（detect/fetch/playbook/RCA/SSE）

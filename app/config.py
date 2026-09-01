@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     alarm_skip_when_zero_count: bool = True
     alarm_report_format: str = "markdown"  # rca | markdown
 
+    #高德mcp
+    amap_mcp_enabled: bool = False
+    amap_maps_api_key: str = ""
+    amap_mcp_url: str = "https://mcp.amap.com/mcp"
+    weather_api_key: str = ""
+
 @lru_cache
 def get_settings()->Settings:
     return Settings()

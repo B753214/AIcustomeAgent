@@ -26,7 +26,12 @@
 | [计划总表.md](./计划总表.md) | 看阶段周期和验收 |
 | [任务清单.md](./任务清单.md) | 开发看板 T-001…（跟做时由我勾，不必自己管） |
 | [架构与数据模型.md](./架构与数据模型.md) | 写库表、对接口字段时查阅 |
-| [告警Agent合并.md](./告警Agent合并.md) | **P6 后扩展**：合并 car_robot 告警能力 + CrewAI Tool；说「开始 Alarm-Day1」 |
+| [告警Agent合并.md](./告警Agent合并.md) | **已完成**：car_robot 告警核心迁入 Python；说「开始 Alarm-Day1」已过 |
+| [改动计划表.md](./改动计划表.md) | 闲聊 Chat-SG（已完成）+ 告警 Replan |
+| [闲聊LangGraph.md](./闲聊LangGraph.md) | 闲聊预置 create_agent（过渡，已废弃） |
+| [闲聊StateGraph.md](./闲聊StateGraph.md) | **闲聊手写 StateGraph（已完成 Day1–8）** |
+| [闲聊ReAct查活动.md](./闲聊ReAct查活动.md) | 线 A 明细 |
+| [告警PlanExecuteReplan.md](./告警PlanExecuteReplan.md) | 线 B 明细 |
 
 ---
 
