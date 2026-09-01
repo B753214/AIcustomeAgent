@@ -73,10 +73,12 @@ class Settings(BaseSettings):
     alarm_info_plate_password: str = ""
     alarm_browser_timeout_sec: int = 120
     alarm_browser_headless: bool = True
+    alarm_info_plate_base_url: str = "https://info-plate.fc.alibaba-inc.com"
 
     # Day9：报告形态
     alarm_skip_when_zero_count: bool = True
     alarm_report_format: str = "markdown"  # rca | markdown
+    alarm_mock_enabled: bool = False
 
     #高德mcp
     amap_mcp_enabled: bool = False

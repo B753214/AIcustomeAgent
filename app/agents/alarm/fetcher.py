@@ -48,6 +48,19 @@ def _detail_list(detail_data: Any) -> list:
     return []
 
 
+def merge_monitor_details(*parts: Any) -> Any:
+    """合并多页 monitorDetail 的 list；优先保留 dict 形态（含 list 字段）。"""
+    merged: list = []
+    for part in parts:
+        merged.extend(_detail_list(part))
+    for part in parts:
+        if isinstance(part, dict):
+            out = dict(part)
+            out["list"] = merged
+            return out
+    return merged
+
+
 def _build_monitor_rate(market_config: dict, detail_data: Any) -> dict:
     """补齐 Node 版 MCP 缺少的 monitorRate。"""
     name = (
@@ -136,6 +149,8 @@ async def _fetch_via_mcp(
             "marketConfig": market_config,
             "monitorRate": monitor_rate,
             "monitorDetail": detail_data,
+            # MCP 本轮无 page；补页须走浏览器
+            "pagination": "browser_only",
         }
     except Exception as err:
         print(f"[MCP] fetch failed: {err}")
@@ -150,6 +165,8 @@ async def fetch_monitor_data(
     end_time: str | None = None,
     raw_url: str | None = None,
     on_progress: ProgressCb | None = None,
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict | None:
     """固定链路：MCP → Browser → None。成功返回含 monitorRate/monitorDetail/channel。"""
     await _emit(on_progress, "正在经 MCP 拉取监控数据…")
@@ -175,6 +192,8 @@ async def fetch_monitor_data(
                 biz_type=biz_type,
                 start_time=start_time,
                 end_time=end_time,
+                page=page,
+                page_size=page_size,
             )
         except Exception as err:
             print(f"[FETCH] browser failed: {err}")

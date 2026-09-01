@@ -343,3 +343,6 @@ async def run_alarm_agent_stream(message: str) -> AsyncIterator[dict]:
     if (settings.alarm_report_format or "").lower() != "rca":
         yield {"type": "token", "content": reply, "sources": sources}
     yield {"type": "done", **_result_dict(reply, parsed, cls, sources, fetch_meta)}
+
+if __name__ == "__main__":
+    run_alarm_agent("")

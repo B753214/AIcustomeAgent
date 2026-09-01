@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from app.config import PROJECT_ROOT, settings
 
-_INFO_PLATE_BASE = "https://info-plate.fc.alibaba-inc.com"
+_INFO_PLATE_BASE = (settings.alarm_info_plate_base_url or "https://info-plate.fc.alibaba-inc.com").rstrip("/")
 _API_BASE = f"{_INFO_PLATE_BASE}/api"
 
 _DETAIL_COLUMNS = [
@@ -21,7 +21,7 @@ _DETAIL_COLUMNS = [
 
 _playwright = None
 _context = None
-_page = None
+_page: Any | None = None
 _logged_in = False
 _lock = asyncio.Lock()
 
@@ -138,6 +138,10 @@ async def _ensure_logged_in_unlocked() -> bool:
             return True
 
         account = await page.query_selector("input#account")
+        if account is None:
+            print("[LOGIN] 检测到登录页面，但未找到账号输入框，登录流程异常")
+            _logged_in = False
+            return False
         if account:
             await page.fill("input#account", user)
             await page.fill("input#password", password)
@@ -229,12 +233,17 @@ async def fetch_via_browser(
     biz_type: str | None = None,
     start_time: str | None = None,
     end_time: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
 ) -> dict | None:
-    """成功返回 {channel, monitorRate, monitorDetail, marketConfig}；失败 None。"""
+    """成功返回 {channel, monitorRate, monitorDetail, marketConfig, page, pageSize, pagination}；失败 None。"""
     if not settings.alarm_browser_enabled:
         return None
     if not (raw_url or "").strip() or not market_config_id:
         return None
+
+    page_no = max(1, int(page or 1))
+    size = max(1, int(page_size or 50))
 
     async with _lock:
         try:
@@ -244,7 +253,7 @@ async def fetch_via_browser(
                 return None
 
             assert _page is not None
-            page = _page
+            page = _page  # Playwright Page；分页用 page_no / size
             timeout_ms = settings.alarm_browser_timeout_sec * 1000
 
             # 保证在 info-plate 域（cookie）
@@ -354,8 +363,8 @@ async def fetch_via_browser(
                     "conditions": conditions,
                     "tableId": table_id,
                     "orderByKey": "time",
-                    "page": 1,
-                    "pageSize": 50,
+                    "page": page_no,
+                    "pageSize": size,
                 }
                 detail_url = f"{_API_BASE}/ability/monitorDetail?_={ts + 2}"
                 detail_json = await page.evaluate(
@@ -385,6 +394,9 @@ async def fetch_via_browser(
                 "monitorRate": rate_data,
                 "monitorDetail": detail_data,
                 "marketConfig": market_config or {},
+                "page": page_no,
+                "pageSize": size,
+                "pagination": "browser",
             }
         except Exception as e:
             print(f"[BROWSER] fetch failed: {e}")
