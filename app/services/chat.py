@@ -142,11 +142,11 @@ async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
 
     return result
 
-def _run_crew_in_thread(message: str, history_text: str, kb: KnowledgeBase) -> dict:
-    """在子线程跑 Crew，并注入 KB 供 search_knowledge 使用。"""
+async def _run_crew_with_kb(message: str, history_text: str, kb: KnowledgeBase) -> dict:
+    """注入 KB 后异步跑 Crew（供 search_knowledge 使用）。"""
     bind_kb_for_crew(kb)
     try:
-        return run_crew(message, history_text)
+        return await run_crew(message, history_text)
     finally:
         clear_kb_for_crew()
 
@@ -211,9 +211,7 @@ async def run(
     if _crew_ok:
         try:
             history_text = _format_history_text(history)
-            crew_result = await asyncio.to_thread(
-                _run_crew_in_thread, message, history_text, kb
-            )
+            crew_result = await _run_crew_with_kb(message, history_text, kb)
             res = {
                 "reply": crew_result["reply"],
                 "intent": crew_result.get("intent", "crew"),
@@ -350,9 +348,7 @@ async def run_astream(
         try:
             yield {"type": "stage", "stage": "crew", "msg": "Crew 多 Agent 处理中…", "ok": True}
             history_text = _format_history_text(history)
-            crew_result = await asyncio.to_thread(
-                _run_crew_in_thread, message, history_text, kb
-            )
+            crew_result = await _run_crew_with_kb(message, history_text, kb)
             reply = crew_result["reply"]
             intent = crew_result.get("intent", "crew")
             sources = crew_result.get("sources", [])

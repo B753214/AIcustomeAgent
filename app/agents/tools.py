@@ -3,6 +3,7 @@ import random
 import re
 
 from app.agents.alarm import run_alarm_agent
+from app.agents.weather import query_weather
 from app.rag.retriever import answer_with_rag
 
 _TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
@@ -67,12 +68,14 @@ query_order_tool = None
 after_sale_rule_tool = None
 CREW_TOOLS_READY = False
 investigate_alarm_tool = None
+query_weather_tool = None
 try:
     from crewai.tools import tool
     search_knowledge_tool = tool("search_knowledge")(search_knowledge)
     query_order_tool = tool("query_order")(query_order)
     after_sale_rule_tool = tool("after_sale_rule")(after_sale_rule)
     investigate_alarm_tool = tool("investigate_alarm")(investigate_alarm)
+    query_weather_tool = tool("query_weather")(query_weather)
     CREW_TOOLS_READY = True
 except ImportError:
     CREW_TOOLS_READY = False

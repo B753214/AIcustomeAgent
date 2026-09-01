@@ -29,7 +29,7 @@
 |------|------|----------|
 | **意图路由** | LLM 分类为 knowledge / order / chat，自动选择处理链路 | `app/services/chat.py` |
 | **RAG 知识库** | PDF/DOCX/MD/TXT 解析 → 分块 → 向量 + BM25 双路检索 → 重排 → 生成 | `app/rag/` |
-| **多智能体** | CrewAI 双 Agent（意图识别官 → 客服执行员），失败自动降级 | `app/agents/crew.py` |
+| **多智能体** | CrewAI 双 Agent；工具：RAG/订单/天气/售后/告警 + 可选高德（Crew 包装）；失败降级 LangChain | `app/agents/crew.py` |
 | **会话记忆** | PostgreSQL 持久化多轮对话，支持上下文追问 | `app/services/session_service.py` |
 | **SSE 流式** | 闲聊：`astream_events` 推 tool stage + LLM token；RAG/告警亦支持流式 | `app/agents/chat_react.py` / `app/main.py` |
 | **闲聊 Agent** | 手写 LangGraph `StateGraph`（`call_model` ⇄ `call_tools`）；工具：订单 / 本地天气 / 可选高德 MCP | `app/agents/chat_graph.py` |
@@ -50,12 +50,13 @@ FastAPI (app/main.py)
   │  ── 限流中间件（滑动窗口，按 IP）
   │  ── 请求日志中间件
   │
-  ├─ CrewAI 可用 → 双 Agent 顺序执行（独立线程）
+  ├─ CrewAI 可用 → 双 Agent（kickoff_async；订单/天气/可选高德/告警工具）
   │     ├─ 意图识别官 → 意图 JSON
   │     └─ 客服执行员 → 调用工具 → 生成答复
   │          ├─ search_knowledge（RAG）
-  │          ├─ query_order（订单查询）
-  │          └─ after_sale_rule（售后规则）
+  │          ├─ query_order / query_weather / maps_*（可选）
+  │          ├─ after_sale_rule
+  │          └─ investigate_alarm
   │
   └─ 降级 → LangChain 内置路由
         ├─ 意图分类 → knowledge / chat（含订单·天气工具）/ alarm
@@ -322,7 +323,7 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 | `AIROBOT_EMBEDDING_MODEL` | str | — | 向量模型名称 |
 | `POSTGRES_URI` | str | — | PostgreSQL 连接字符串 |
 | `AIROBOT_MILVUS_URI` | str | `http://localhost:19530` | Milvus 地址 |
-| `AIROBOT_USE_CREW` | bool | `false` | 是否启用 CrewAI（含 `investigate_alarm`）；需已装 `requirements-extra.txt` |
+| `AIROBOT_USE_CREW` | bool | `false` | 启用 CrewAI（订单/天气/可选高德/`investigate_alarm`）；需 `requirements-extra.txt` |
 | `ALARM_MCP_ENABLED` | bool | `true` | 告警是否先走 MCP |
 | `ALARM_MCP_TOKEN` | str | — | info-plate MCP token；空则跳过 MCP |
 | `ALARM_BROWSER_ENABLED` | bool | `true` | MCP 失败后是否 Playwright 降级 |
@@ -358,9 +359,9 @@ AICustomeRobort/
 │   │   ├── chat_graph.py    # 闲聊手写 StateGraph（主循环）
 │   │   ├── chat_react.py    # 闲聊入口 run_/iter_（SSE token）
 │   │   ├── weather.py       # 本地天气工具
-│   │   ├── amap_mcp.py      # 可选高德 MCP tools
-│   │   ├── crew.py          # CrewAI 双 Agent 编排
-│   │   ├── tools.py         # 工具集（RAG/订单/售后/investigate_alarm）
+│   │   ├── amap_mcp.py      # 高德 MCP：LC tools + Crew 同步壳
+│   │   ├── crew.py          # CrewAI（kickoff_async；对齐闲聊工具）
+│   │   ├── tools.py         # Crew 工具集（RAG/订单/天气/售后/告警）
 │   │   └── alarm/           # 告警 Agent（detect/fetch/playbook/RCA/SSE）
 │   ├── rag/
 │   │   ├── loader.py        # PDF/DOCX/MD 文档解析
