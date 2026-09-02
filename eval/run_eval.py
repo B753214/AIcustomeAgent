@@ -363,7 +363,7 @@ def main() -> None:
         print("未配置 AIROBOT_LLM_API_KEY / AIROBOT_EMBEDDING_API_KEY，无法评测。")
         sys.exit(1)
     print("args:", args)
-    # asyncio.run(async_main(args))
+    asyncio.run(async_main(args))
 
 
 if __name__ == "__main__":

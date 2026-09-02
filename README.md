@@ -115,8 +115,8 @@ intent=chat
 ### 前置条件
 
 - Python **3.10 - 3.12**
-- PostgreSQL 数据库
-- Milvus 向量库（可选，不用则默认用内存存储）
+- PostgreSQL 数据库（异步驱动 `asyncpg`）
+- Milvus 向量库（当前实现通过 `MILVUS_URI` 连接；本地可用 `docker compose up -d`）
 - 一个 OpenAI 兼容的 LLM 服务（DashScope / Ollama / DeepSeek）
 
 ### 1. 克隆 & 安装依赖
@@ -144,7 +144,7 @@ playwright install chromium
 Copy-Item .env.example .env
 ```
 
-按实际情况编辑 `.env`，关键配置项：
+按实际情况编辑 `.env`。**变量名须与 `app/config.py` 字段一致**（无默认值的项启动前必须填齐）。最小关键项：
 
 ```ini
 # 大模型（必选）
@@ -152,17 +152,30 @@ AIROBOT_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AIROBOT_LLM_API_KEY=your-api-key
 AIROBOT_LLM_MODEL=qwen-plus
 
-# 向量模型（必选）
+# 向量模型（必选；AIROBOT_EMBEDDING_* 与 embedding_* 两套都要填）
 AIROBOT_EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AIROBOT_EMBEDDING_API_KEY=your-api-key
 AIROBOT_EMBEDDING_MODEL=text-embedding-v4
+embedding_base_url=https://dashscope.aliyuncs.com/compatible-mode/v1
+embedding_api_key=your-api-key
+embedding_model=text-embedding-v4
 
-# PostgreSQL（必选）
-POSTGRES_URI=postgresql://user:password@localhost:5432/airobot
+# PostgreSQL（必选，须带 +asyncpg）
+POSTGRES_URI=postgresql+asyncpg://postgres:123456@127.0.0.1:5432/postgres
 
-# Milvus（可选，默认用内存存储）
-AIROBOT_MILVUS_URI=http://localhost:19530
+# Milvus（字段名是 MILVUS_URI，不是 AIROBOT_MILVUS_URI）
+MILVUS_URI=http://localhost:19530
+
+# RAG 分块（必填）
+TOP_K=5
+CHUNK_SIZE=400
+CHUNK_OVERLAP=80
+
+# Crew（字段名是 USE_CREW，不是 AIROBOT_USE_CREW）
+USE_CREW=false
 ```
+
+完整模板见 [`.env.example`](./.env.example)。
 
 > **本地 Ollama 示例（免费离线）：**
 > ```ini
@@ -172,6 +185,9 @@ AIROBOT_MILVUS_URI=http://localhost:19530
 > AIROBOT_EMBEDDING_BASE_URL=http://localhost:11434/v1
 > AIROBOT_EMBEDDING_API_KEY=ollama
 > AIROBOT_EMBEDDING_MODEL=nomic-embed-text
+> embedding_base_url=http://localhost:11434/v1
+> embedding_api_key=ollama
+> embedding_model=nomic-embed-text
 > ```
 > ```powershell
 > ollama pull qwen2.5:1.5b
@@ -180,13 +196,15 @@ AIROBOT_MILVUS_URI=http://localhost:19530
 
 ### 3. 启动服务
 
-Windows 若因控制台编码（emoji/中文）启动失败，先设置 UTF-8：
+须在仓库根目录 `AICustomeRobort` 下执行。Windows 若因控制台编码（emoji/中文）启动失败，先设置 UTF-8：
 
 ```powershell
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+等价：`python -m app.main`（无 reload）。Docker：`docker compose up -d --build`。
 
 ### 4. 验证
 
@@ -321,40 +339,46 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 
 ## 配置说明
 
+环境变量名与 `app/config.py` 字段一一对应（大小写不敏感）。下表为常用项；完整模板见 `.env.example`。
+
 | 变量 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `AIROBOT_LLM_BASE_URL` | str | — | 大模型 API 地址 |
-| `AIROBOT_LLM_API_KEY` | str | — | 大模型 API Key |
-| `AIROBOT_LLM_MODEL` | str | — | 大模型名称 |
-| `AIROBOT_EMBEDDING_BASE_URL` | str | — | 向量模型 API 地址 |
-| `AIROBOT_EMBEDDING_API_KEY` | str | — | 向量模型 API Key |
-| `AIROBOT_EMBEDDING_MODEL` | str | — | 向量模型名称 |
-| `POSTGRES_URI` | str | — | PostgreSQL 连接字符串 |
-| `AIROBOT_MILVUS_URI` | str | `http://localhost:19530` | Milvus 地址 |
-| `AIROBOT_USE_CREW` | bool | `false` | 启用 CrewAI（订单/天气/可选高德/`investigate_alarm`）；需 `requirements-extra.txt` |
+| `AIROBOT_LLM_BASE_URL` | str | — | 大模型 API 地址（必填） |
+| `AIROBOT_LLM_API_KEY` | str | — | 大模型 API Key（必填） |
+| `AIROBOT_LLM_MODEL` | str | — | 大模型名称（必填） |
+| `AIROBOT_EMBEDDING_BASE_URL` | str | — | 向量模型 API 地址（必填） |
+| `AIROBOT_EMBEDDING_API_KEY` | str | — | 向量模型 API Key（必填） |
+| `AIROBOT_EMBEDDING_MODEL` | str | — | 向量模型名称（必填） |
+| `embedding_base_url` / `embedding_api_key` / `embedding_model` | str | — | 兼容字段，当前与上面两套都必填 |
+| `POSTGRES_URI` | str | — | 须用 `postgresql+asyncpg://...`（必填） |
+| `MILVUS_URI` | str | `http://localhost:19530` | Milvus 地址（**不是** `AIROBOT_MILVUS_URI`） |
+| `COLLECTION_NAME` | str | `customer_milvus_collection` | Milvus collection 名 |
+| `USE_CREW` | bool | `false` | 启用 CrewAI（**不是** `AIROBOT_USE_CREW`）；需 `requirements-extra.txt` |
+| `TOP_K` | int | — | 检索召回条数（必填） |
+| `CHUNK_SIZE` | int | — | 文档分块大小（必填） |
+| `CHUNK_OVERLAP` | int | — | 分块重叠大小（必填） |
+| `MEMORY_MAX_TURNS` | int | `5` | 会话记忆轮数 |
+| `RETRY_ATTEMPTS` | int | `3` | 重试次数 |
+| `RETRY_MAX_WAIT` | int | `3` | 最大退避秒数 |
+| `RATELIMIT_ENABLED` | bool | `true` | 是否启用限流 |
+| `RATELIMIT_PER_MINUTE` | int | `30` | 每分钟最大请求数 |
+| `CACHE_ENABLED` | bool | `true` | 是否启用语义缓存 |
+| `CACHE_THRESHOLD` | float | `0.75` | 缓存余弦相似度阈值 |
+| `CACHE_LEXICAL_THRESHOLD` | float | `0.5` | 缓存词面重叠阈值 |
 | `ALARM_MCP_ENABLED` | bool | `true` | 告警是否先走 MCP |
 | `ALARM_MCP_TOKEN` | str | — | info-plate MCP token；空则跳过 MCP |
 | `ALARM_BROWSER_ENABLED` | bool | `true` | MCP 失败后是否 Playwright 降级 |
-| `ALARM_INFO_PLATE_USER` / `PASSWORD` | str | — | 浏览器登录账号 |
+| `ALARM_INFO_PLATE_USER` / `ALARM_INFO_PLATE_PASSWORD` | str | — | 浏览器登录账号 |
 | `ALARM_REPORT_FORMAT` | str | `markdown` | `markdown` \| `rca` |
 | `ALARM_SKIP_WHEN_ZERO_COUNT` | bool | `true` | 监控 count=0 时跳过 LLM |
-| `ALARM_REPLAN_ENABLED` | bool | `false` | 启用 Replan（补页 / 换 playbook）；默认关 |
+| `ALARM_REPLAN_ENABLED` | bool | `false` | 启用 Replan（补页 / 换 playbook） |
 | `ALARM_DETAIL_PAGE_SIZE` | int | `20` | 明细每页条数 |
 | `ALARM_REPLAN_MAX_PAGES` | int | `2` | 最多拉取页数（含第 1 页） |
 | `ALARM_REPLAN_MAX_PLAYBOOK_SWITCH` | int | `1` | 单轮最多换 playbook 次数 |
 | `AMAP_MCP_ENABLED` | bool | `false` | 闲聊是否加载高德 MCP 工具 |
 | `AMAP_MAPS_API_KEY` | str | — | 高德 Key（仅 `.env`，勿提交仓库） |
 | `AMAP_MCP_URL` | str | `https://mcp.amap.com/mcp` | 高德 MCP 地址 |
-| `AIROBOT_TOP_K` | int | — | 检索召回条数 |
-| `AIROBOT_CHUNK_SIZE` | int | — | 文档分块大小 |
-| `AIROBOT_CHUNK_OVERLAP` | int | — | 分块重叠大小 |
-| `AIROBOT_RETRY_ATTEMPTS` | int | `3` | 重试次数 |
-| `AIROBOT_RETRY_MAX_WAIT` | int | `3` | 最大退避秒数 |
-| `AIROBOT_RATELIMIT_ENABLED` | bool | `true` | 是否启用限流 |
-| `AIROBOT_RATELIMIT_PER_MINUTE` | int | `30` | 每分钟最大请求数 |
-| `AIROBOT_CACHE_ENABLED` | bool | `true` | 是否启用语义缓存 |
-| `AIROBOT_CACHE_THRESHOLD` | float | `0.75` | 缓存余弦相似度阈值 |
-| `AIROBOT_CACHE_LEXICAL_THRESHOLD` | float | `0.5` | 缓存词面重叠阈值 |
+| `WEATHER_API_KEY` | str | — | 本地天气工具 Key |
 
 ---
 
@@ -397,7 +421,7 @@ AICustomeRobort/
 ├── .env.example             # 环境变量模板
 ├── docker-compose.yml       # Docker 部署编排
 ├── requirements.txt         # 核心依赖
-├── requirements-extra.txt  # 可选：CrewAI + 重排
+├── requirements-extra.txt  # 可选：CrewAI + 重排 + Playwright
 └── requirements-dev.txt    # 开发/测试依赖
 ```
 
@@ -409,10 +433,13 @@ AICustomeRobort/
 能。服务可启动，`/health` 正常，但对话接口会返回"未配置 AIROBOT_LLM_API_KEY"提示。
 
 **Q：没有 PostgreSQL 怎么办？**
-可临时用 SQLite 替代，修改 `POSTGRES_URI=sqlite+aiosqlite:///./airobot.db`，但生产推荐 PostgreSQL。
+当前默认链路依赖 `postgresql+asyncpg://...`。若改 SQLite，需自行安装 `aiosqlite` 并把 `POSTGRES_URI` 改成 `sqlite+aiosqlite:///./airobot.db`；生产仍推荐 PostgreSQL。
 
 **Q：没有 Milvus 怎么办？**
-项目支持内存存储（`InMemoryVectorStore`），数据仅在运行期间有效，重启会丢失。
+当前代码通过 `MILVUS_URI` 连接 Milvus，**不会**自动降级到内存向量库。本地可用 `docker compose up -d` 拉起 postgres + milvus，或自备 Milvus 实例。注意环境变量名是 `MILVUS_URI`，写 `AIROBOT_MILVUS_URI` 会被忽略。
+
+**Q：为什么 Crew / TOP_K 配了不生效？**
+请用 `USE_CREW`、`TOP_K`、`CHUNK_SIZE`、`CHUNK_OVERLAP`。`AIROBOT_USE_CREW`、`AIROBOT_TOP_K` 等带错误前缀的名字不会映射到 `Settings` 字段。
 
 **Q：crewai 没装会怎样？**
 自动降级到 LangChain 内置路由；告警在 `USE_CREW=false` 时也可经启发式/旁路进入 `alarm` Agent，不依赖 Crew。

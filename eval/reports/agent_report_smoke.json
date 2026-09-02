@@ -1,0 +1,459 @@
+{
+  "meta": {
+    "timestamp": "2026-09-02T19:53:14+08:00",
+    "dataset": "D:\\python\\customeAgent\\AICustomeRobort\\eval\\dataset\\agent_cases.jsonl",
+    "runs": 5,
+    "repeats": 1
+  },
+  "overall": {
+    "cases": 5,
+    "passed": 5,
+    "pass_rate": 1.0,
+    "hard_failures": 0,
+    "avg_score": 100.0,
+    "intent_accuracy": 1.0,
+    "tool_precision": null,
+    "tool_recall": null,
+    "tool_f1": null,
+    "latency_p50_ms": 0.03,
+    "latency_p95_ms": 6.55
+  },
+  "by_agent": {
+    "alarm_rule": {
+      "cases": 5,
+      "passed": 5,
+      "pass_rate": 1.0,
+      "hard_failures": 0,
+      "avg_score": 100.0,
+      "intent_accuracy": 1.0,
+      "tool_precision": null,
+      "tool_recall": null,
+      "tool_f1": null,
+      "latency_p50_ms": 0.03,
+      "latency_p95_ms": 6.55
+    }
+  },
+  "failures": [],
+  "samples": [
+    {
+      "case": {
+        "id": "alarm-rule-001",
+        "agent": "alarm_rule",
+        "category": "bff",
+        "input": "P1 【指标】：填单BFF失败\n【配置ID】：11664\n【命中规则】：失败次数超阈\nhttps://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=11664&bizType=30",
+        "expected": {
+          "exact": {
+            "intent": "alarm",
+            "detected_type": "alarm",
+            "is_alarm": true,
+            "parsed.configId": "11664",
+            "parsed.indicator": "填单BFF失败",
+            "parsed.level": "P1",
+            "skill_key": "bff"
+          },
+          "hard_checks": [
+            "intent",
+            "parsed.configId",
+            "skill_key"
+          ]
+        }
+      },
+      "repeat": 1,
+      "actual": {
+        "intent": "alarm",
+        "detected_type": "alarm",
+        "is_alarm": true,
+        "parsed": {
+          "level": "P1",
+          "indicator": "填单BFF失败",
+          "business": "",
+          "configId": "11664",
+          "cp": "",
+          "current": 0,
+          "yesterdayValue": 0,
+          "chainRatio": "",
+          "lastWeekValue": 0,
+          "yearRatio": "",
+          "hitRule": "失败次数超阈",
+          "ruleDetail": "",
+          "timeRange": "",
+          "execTime": "",
+          "owners": "",
+          "detailUrl": "https://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=11664&bizType=30",
+          "alarmType": ""
+        },
+        "skill_key": "bff",
+        "skill_type": "BFF错误",
+        "reply": "",
+        "tools": [],
+        "sources": [],
+        "latency_ms": 6.55
+      },
+      "grading": {
+        "score": 100.0,
+        "passed": true,
+        "hard_failed": false,
+        "pass_threshold": 80.0,
+        "checks": [
+          {
+            "name": "exact:intent",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='alarm', actual='alarm'"
+          },
+          {
+            "name": "exact:detected_type",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='alarm', actual='alarm'"
+          },
+          {
+            "name": "exact:is_alarm",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected=True, actual=True"
+          },
+          {
+            "name": "exact:parsed.configId",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='11664', actual='11664'"
+          },
+          {
+            "name": "exact:parsed.indicator",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='填单BFF失败', actual='填单BFF失败'"
+          },
+          {
+            "name": "exact:parsed.level",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='P1', actual='P1'"
+          },
+          {
+            "name": "exact:skill_key",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='bff', actual='bff'"
+          }
+        ]
+      }
+    },
+    {
+      "case": {
+        "id": "alarm-rule-002",
+        "agent": "alarm_rule",
+        "category": "render",
+        "input": "P2 【指标】：页面白屏\n【配置ID】：20001\nhttps://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=20001&bizType=30",
+        "expected": {
+          "exact": {
+            "intent": "alarm",
+            "parsed.configId": "20001",
+            "parsed.indicator": "页面白屏",
+            "skill_key": "render"
+          },
+          "hard_checks": [
+            "intent",
+            "skill_key"
+          ]
+        }
+      },
+      "repeat": 1,
+      "actual": {
+        "intent": "alarm",
+        "detected_type": "alarm",
+        "is_alarm": true,
+        "parsed": {
+          "level": "P2",
+          "indicator": "页面白屏",
+          "business": "",
+          "configId": "20001",
+          "cp": "",
+          "current": 0,
+          "yesterdayValue": 0,
+          "chainRatio": "",
+          "lastWeekValue": 0,
+          "yearRatio": "",
+          "hitRule": "",
+          "ruleDetail": "",
+          "timeRange": "",
+          "execTime": "",
+          "owners": "",
+          "detailUrl": "https://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=20001&bizType=30",
+          "alarmType": ""
+        },
+        "skill_key": "render",
+        "skill_type": "渲染异常",
+        "reply": "",
+        "tools": [],
+        "sources": [],
+        "latency_ms": 0.04
+      },
+      "grading": {
+        "score": 100.0,
+        "passed": true,
+        "hard_failed": false,
+        "pass_threshold": 80.0,
+        "checks": [
+          {
+            "name": "exact:intent",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='alarm', actual='alarm'"
+          },
+          {
+            "name": "exact:parsed.configId",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='20001', actual='20001'"
+          },
+          {
+            "name": "exact:parsed.indicator",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='页面白屏', actual='页面白屏'"
+          },
+          {
+            "name": "exact:skill_key",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='render', actual='render'"
+          }
+        ]
+      }
+    },
+    {
+      "case": {
+        "id": "alarm-rule-003",
+        "agent": "alarm_rule",
+        "category": "ajx",
+        "input": "P1 【指标】：AJX报错监控\n【配置ID】：30001\nhttps://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=30001&bizType=30",
+        "expected": {
+          "exact": {
+            "intent": "alarm",
+            "skill_key": "ajx"
+          },
+          "hard_checks": [
+            "intent",
+            "skill_key"
+          ]
+        }
+      },
+      "repeat": 1,
+      "actual": {
+        "intent": "alarm",
+        "detected_type": "alarm",
+        "is_alarm": true,
+        "parsed": {
+          "level": "P1",
+          "indicator": "AJX报错监控",
+          "business": "",
+          "configId": "30001",
+          "cp": "",
+          "current": 0,
+          "yesterdayValue": 0,
+          "chainRatio": "",
+          "lastWeekValue": 0,
+          "yearRatio": "",
+          "hitRule": "",
+          "ruleDetail": "",
+          "timeRange": "",
+          "execTime": "",
+          "owners": "",
+          "detailUrl": "https://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=30001&bizType=30",
+          "alarmType": ""
+        },
+        "skill_key": "ajx",
+        "skill_type": "AJX报错",
+        "reply": "",
+        "tools": [],
+        "sources": [],
+        "latency_ms": 0.03
+      },
+      "grading": {
+        "score": 100.0,
+        "passed": true,
+        "hard_failed": false,
+        "pass_threshold": 80.0,
+        "checks": [
+          {
+            "name": "exact:intent",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='alarm', actual='alarm'"
+          },
+          {
+            "name": "exact:skill_key",
+            "passed": true,
+            "weight": 2.0,
+            "hard": true,
+            "detail": "expected='ajx', actual='ajx'"
+          }
+        ]
+      }
+    },
+    {
+      "case": {
+        "id": "alarm-rule-004",
+        "agent": "alarm_rule",
+        "category": "field-only",
+        "input": "P1 【指标】：页面白屏\n【配置ID】：11664",
+        "expected": {
+          "exact": {
+            "detected_type": "alarm",
+            "is_alarm": false,
+            "parsed.configId": "11664",
+            "skill_key": "render"
+          }
+        }
+      },
+      "repeat": 1,
+      "actual": {
+        "intent": "alarm",
+        "detected_type": "alarm",
+        "is_alarm": false,
+        "parsed": {
+          "level": "P1",
+          "indicator": "页面白屏",
+          "business": "",
+          "configId": "11664",
+          "cp": "",
+          "current": 0,
+          "yesterdayValue": 0,
+          "chainRatio": "",
+          "lastWeekValue": 0,
+          "yearRatio": "",
+          "hitRule": "",
+          "ruleDetail": "",
+          "timeRange": "",
+          "execTime": "",
+          "owners": "",
+          "detailUrl": "",
+          "alarmType": ""
+        },
+        "skill_key": "render",
+        "skill_type": "渲染异常",
+        "reply": "",
+        "tools": [],
+        "sources": [],
+        "latency_ms": 0.03
+      },
+      "grading": {
+        "score": 100.0,
+        "passed": true,
+        "hard_failed": false,
+        "pass_threshold": 80.0,
+        "checks": [
+          {
+            "name": "exact:detected_type",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='alarm', actual='alarm'"
+          },
+          {
+            "name": "exact:is_alarm",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected=False, actual=False"
+          },
+          {
+            "name": "exact:parsed.configId",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='11664', actual='11664'"
+          },
+          {
+            "name": "exact:skill_key",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='render', actual='render'"
+          }
+        ]
+      }
+    },
+    {
+      "case": {
+        "id": "alarm-rule-005",
+        "agent": "alarm_rule",
+        "category": "url-only",
+        "input": "https://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=11664&bizType=30",
+        "expected": {
+          "exact": {
+            "detected_type": "url",
+            "is_alarm": false
+          }
+        }
+      },
+      "repeat": 1,
+      "actual": {
+        "intent": "url",
+        "detected_type": "url",
+        "is_alarm": false,
+        "parsed": {
+          "level": "",
+          "indicator": "",
+          "business": "",
+          "configId": "",
+          "cp": "",
+          "current": 0,
+          "yesterdayValue": 0,
+          "chainRatio": "",
+          "lastWeekValue": 0,
+          "yearRatio": "",
+          "hitRule": "",
+          "ruleDetail": "",
+          "timeRange": "",
+          "execTime": "",
+          "owners": "",
+          "detailUrl": "https://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=11664&bizType=30",
+          "alarmType": ""
+        },
+        "skill_key": "precise",
+        "skill_type": "精准报警",
+        "reply": "",
+        "tools": [],
+        "sources": [],
+        "latency_ms": 0.03
+      },
+      "grading": {
+        "score": 100.0,
+        "passed": true,
+        "hard_failed": false,
+        "pass_threshold": 80.0,
+        "checks": [
+          {
+            "name": "exact:detected_type",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected='url', actual='url'"
+          },
+          {
+            "name": "exact:is_alarm",
+            "passed": true,
+            "weight": 2.0,
+            "hard": false,
+            "detail": "expected=False, actual=False"
+          }
+        ]
+      }
+    }
+  ]
+}
