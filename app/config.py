@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     alarm_report_format: str = "markdown"  # rca | markdown
     alarm_mock_enabled: bool = False
 
+    # Alarm-PER：Replan（补页 / 换 playbook）
+    alarm_replan_enabled: bool = False
+    alarm_detail_page_size: int = 20
+    alarm_replan_max_pages: int = 2
+    alarm_replan_max_playbook_switch: int = 1
+
     #高德mcp
     amap_mcp_enabled: bool = False
     amap_maps_api_key: str = ""

@@ -147,3 +147,76 @@ def should_switch_playbook(
     if not _hint_trusted(hint_key, blob):
         return None
     return hint_key
+
+def replan_rules_conflict(
+    *,
+    want_fetch_page2: bool,
+    switch_hint_key: str | None,
+) -> bool:
+    return want_fetch_page2 and bool(switch_hint_key)
+
+def parse_llm_replan_choice(raw: str, *, allowed_switch_key: str | None = None) -> str | None:
+    """合法返回 'fetch_page2' | 'switch_playbook' | 'switch_playbook:bff' | 'finish'；否则 None。"""
+    text = (raw or "").strip()
+    if not text:
+        return None
+    text = text.strip("`\"'")
+    first = text.lower().split()[0].strip("`\"'.,;:")
+    if not first:
+        return None
+    if first in ("fetch_page2", "finish"):
+        return first
+    if first == "switch_playbook":
+        key = (allowed_switch_key or "").strip()
+        return f"switch_playbook:{key}" if key else None
+    if first.startswith("switch_playbook:"):
+        key = first.split(":", 1)[-1].strip()
+        if not key:
+            return None
+        # 只允许规则给出的 hint_key
+        if allowed_switch_key and key != allowed_switch_key.strip():
+            return None
+        return f"switch_playbook:{key}"
+    return None
+
+
+async def llm_pick_replan_action(
+    *,
+    skill_key: str,
+    hint_key: str,
+    error_analysis: dict | None = None,
+    monitor_rate: dict | None = None,
+) -> str | None:
+    """规则冲突时 LLM 三选一；失败返回 None（回退规则：先补页）。"""
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from app.agents.alarm.runner import _build_llm
+
+    ea = error_analysis or {}
+    rate = monitor_rate or {}
+    top = ea.get("topErrorsRaw") or []
+
+    user = f"""当前 playbook: {skill_key}
+明细暗示类型: {hint_key}
+失败次数: {rate.get("count")}
+明细条数: {ea.get("total")}
+Top 错误: {top[:3]}
+
+请只输出以下之一（不要解释）:
+fetch_page2
+switch_playbook
+finish"""
+
+    try:
+        resp = await _build_llm().ainvoke([
+            SystemMessage(content=(
+                "你是告警 Replan 仲裁。补第2页可能获得更完整证据；"
+                "换 playbook 可能让排查方向更准确；finish 表示当前证据已够用。"
+                "禁止 markdown，只输出一个词。"
+            )),
+            HumanMessage(content=user),
+        ])
+        raw = resp.content if hasattr(resp, "content") else str(resp)
+        return parse_llm_replan_choice(raw, allowed_switch_key=hint_key)
+    except Exception:
+        return None
