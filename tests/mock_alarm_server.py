@@ -140,7 +140,7 @@ code{background:#f0f0f0;padding:1px 6px;border-radius:3px}
 <script>
 (async () => {
   const API = '/api/ability/monitorDetail';
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 20;
   let current = 1, total = 0, totalPages = 1;
 
   async function load(page) {
