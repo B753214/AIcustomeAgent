@@ -8,3 +8,5 @@ __pycache__/
 .DS_Store
 .env
 .env.*
+.browser_profile/
+.idea/
