@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     memory_max_turns: int = 5
     retry_attempts: int = 3
     retry_max_wait: int = 3
+    # 闲聊 Graph 单次工具调用上限（秒）；超时返回 [TOOL_ERROR]
+    tool_timeout_sec: float = 30
     POSTGRES_URI: str
     DEBUG: bool = True
     APP_VERSION: str = "0.1.0"

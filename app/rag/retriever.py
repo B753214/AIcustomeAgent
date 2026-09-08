@@ -18,6 +18,7 @@ from app.models import Chunk
 
 from app.rag.fusion import reciprocal_rank_fusion
 from app.rag.lexical import BM25Index
+from app.rag.structural_splitter import split_pdf_text
 from pathlib import Path
 from app.rag.milvus_store import search_vectors
 from app.rag.reranker import Reranker
@@ -125,6 +126,15 @@ def build_markdown_splitter() -> MarkdownHeaderTextSplitter:
     )
 def split_text(title: str, text: str) -> list[Document]:
     """按标题和内容切分文本，返回包含标题和内容的列表。"""
+    if title.lower().endswith(".pdf"):
+        return split_pdf_text(
+            title,
+            text,
+            chunk_size=settings.pdf_chunk_size,
+            chunk_overlap=settings.pdf_chunk_overlap,
+            max_section_chars=settings.pdf_section_max_chars,
+            min_section_chars=settings.pdf_section_min_chars,
+        )
     splitter = build_splitter()
 
     if not (title.endswith(".md") or title.endswith(".markdown")):
@@ -212,6 +222,7 @@ class KnowledgeBase:
         top_k = top_k or settings.top_k
         detail = {"vector_ms": 0.0, "vector_hits": 0, "bm25_ms": 0.0, "bm25_hits": 0,
                   "fusion_ms": 0.0, "fused": 0, "rerank_ms": 0.0, "rerank_enabled": False,
+                  "rerank_error": None,
                   "hybrid": bool(self._bm25.ready and settings.hybrid_enabled)}
         if not self._bm25.ready or not settings.hybrid_enabled:
             t0 = time.perf_counter()
@@ -247,17 +258,23 @@ class KnowledgeBase:
 
         if settings.rerank_enabled and self._reranker.ready:
             t0 = time.perf_counter()
-            print(f"start reranking !!!!{len(docs)} docs")
-            docs = self._reranker.rerank(query, docs, top_k)
+            docs, applied, error = self._reranker.rerank_with_status(query, docs, top_k)
             detail["rerank_ms"] = round((time.perf_counter() - t0) * 1000, 1)
-            detail["rerank_enabled"] = True
-            print(f"end reranking !!!!{len(docs)} docs")
+            detail["rerank_enabled"] = applied
+            detail["rerank_error"] = error
         return docs[:top_k]
+
+    def rerank_documents(
+        self, query: str, docs: list[Chunk], top_k: int
+    ) -> tuple[list[Chunk], bool, str | None]:
+        """重排给定候选，并显式返回是否真正调用成功。"""
+        return self._reranker.rerank_with_status(query, docs, top_k)
 
     async def search_vector(self, query: str, top_k: int | None = None) -> list[Chunk]:
         """纯向量检索（对照用）。"""
+        top_k = top_k or settings.top_k
         query_vector = self.embed_query(query)
-        related_chunks = search_vectors(query_vector)
+        related_chunks = search_vectors(query_vector, top_k=top_k)
         chunk_ids = [chunk["chunk_id"] for chunk in related_chunks]
         chunk_texts = await get_chunks_by_ids(chunk_ids, self._store)
         return chunk_texts
@@ -267,20 +284,25 @@ class KnowledgeBase:
         # 🔑 关键：用下标映射上层的_documents（不是BM25内部的_corpus）
         return [self._documents[i] for i in indices if i < len(self._documents)]
 
-    async def search_hybrid(self, query: str, top_k: int | None = None) -> list[Chunk]:
+    async def search_hybrid(
+        self,
+        query: str,
+        top_k: int | None = None,
+        vector_top_k: int | None = None,
+        bm25_top_k: int | None = None,
+    ) -> list[Chunk]:
         """RRF 融合（不含重排），供评测脚本与对照实验使用。"""
         top_k = top_k or settings.top_k
         if not self._bm25.ready or not settings.hybrid_enabled:
             return await self.search_vector(query, top_k)
-        vector_docs = await self.search_vector(query, settings.hybrid_vector_top_k)
-        from rich import print as rprint
-        rprint("vectors::",vector_docs)
-        bm25_docs = self.search_bm25(query, settings.hybrid_bm25_top_k)
-        rprint("BM25:",bm25_docs)
+        vector_docs = await self.search_vector(
+            query, vector_top_k or settings.hybrid_vector_top_k
+        )
+        bm25_docs = self.search_bm25(query, bm25_top_k or settings.hybrid_bm25_top_k)
         fused_ids = reciprocal_rank_fusion(
             [[d.id for d in vector_docs],
              [d.id for d in bm25_docs]],
-            top_k=settings.hybrid_fusion_top_k,
+            top_k=top_k,
         )
         chunk_map = {c.id: c for c in vector_docs + bm25_docs}
         docs = [chunk_map[cid] for cid in fused_ids if cid in chunk_map]

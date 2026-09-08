@@ -15,6 +15,11 @@ from langgraph.graph.message import add_messages
 
 from app.agents.tools import query_order
 from app.agents.weather import query_weather
+from app.agents.tool_validation import (
+    QueryOrderArgs,
+    QueryWeatherArgs,
+    validate_tool_args,
+)
 from app.config import settings
 
 TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
@@ -115,6 +120,7 @@ def _chat_tools() -> list:
                 "查询订单状态与物流。参数 message 为用户原话或订单号（6 位以上数字）。"
                 f"失败时返回以 {TOOL_ERROR_PREFIX} 开头的说明。"
             ),
+            args_schema=QueryOrderArgs,
             handle_tool_error=True,
         ),
         StructuredTool.from_function(
@@ -125,6 +131,7 @@ def _chat_tools() -> list:
                 "如 beijing、杭州、116.40,39.90。"
                 f"失败时返回以 {TOOL_ERROR_PREFIX} 开头的说明，必须据此回复用户。"
             ),
+            args_schema=QueryWeatherArgs,
             handle_tool_error=True,
         ),
         *_extra_tools,
@@ -184,8 +191,12 @@ async def call_tools(state: ChatState) -> dict:
         if tool is None:
             content = f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
         else:
-            # MCP 工具仅支持 async，统一 ainvoke；外层 wait_for 防挂死
-            content = await _ainvoke_tool_with_timeout(tool, args, name)
+            cleaned, err = validate_tool_args(tool, name, args)
+            if err is not None:
+                content = err
+            else:
+                # MCP 工具仅支持 async，统一 ainvoke；外层 wait_for 防挂死
+                content = await _ainvoke_tool_with_timeout(tool, cleaned or {}, name)
 
         _bump_fail_count(counts, name, content)
         outs.append(ToolMessage(content=content, tool_call_id=tid, name=name))
