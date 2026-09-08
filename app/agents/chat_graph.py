@@ -1,6 +1,7 @@
 """闲聊手写 StateGraph：call_model / call_tools + 失败熔断。"""
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
 from collections.abc import Callable
@@ -146,6 +147,24 @@ def _bump_fail_count(counts: dict[str, int], name: str, content: str) -> None:
         counts[name] = 0
 
 
+async def _ainvoke_tool_with_timeout(tool: Any, args: dict, name: str) -> str:
+    """统一 ainvoke + 超时；超时/异常都变成 [TOOL_ERROR] 观察结果。"""
+    timeout = float(settings.tool_timeout_sec)
+    try:
+        if timeout > 0:
+            content = await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
+        else:
+            content = await tool.ainvoke(args)
+        return str(content)
+    except asyncio.TimeoutError:
+        return (
+            f"{TOOL_ERROR_PREFIX} 工具 {name} 执行超时"
+            f"（>{timeout:g}s），请稍后重试或换一种问法。"
+        )
+    except Exception as e:
+        return f"{TOOL_ERROR_PREFIX} 工具 {name} 异常: {e}"
+
+
 async def call_tools(state: ChatState) -> dict:
     last = state["messages"][-1]
     tool_calls = getattr(last, "tool_calls", None) or []
@@ -165,12 +184,8 @@ async def call_tools(state: ChatState) -> dict:
         if tool is None:
             content = f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
         else:
-            try:
-                # MCP 工具仅支持 async，统一 ainvoke（本地 StructuredTool 也可）
-                content = await tool.ainvoke(args)
-            except Exception as e:
-                content = f"{TOOL_ERROR_PREFIX} 工具 {name} 异常: {e}"
-            content = str(content)
+            # MCP 工具仅支持 async，统一 ainvoke；外层 wait_for 防挂死
+            content = await _ainvoke_tool_with_timeout(tool, args, name)
 
         _bump_fail_count(counts, name, content)
         outs.append(ToolMessage(content=content, tool_call_id=tid, name=name))
