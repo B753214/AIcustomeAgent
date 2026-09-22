@@ -1,0 +1,1866 @@
+{
+  "source": "D:\\python\\customeAgent\\AICustomeRobort\\knowledge",
+  "apply": true,
+  "before": {
+    "postgres": {
+      "documents": 55,
+      "chunks": 580,
+      "items": [
+        {
+          "id": "97ec0e82-38df-4dac-92f2-33d3710ae597",
+          "file_name": "AJX+Scheme.pdf",
+          "content_sha256": "87a1ea01d39105d0cfe40fe51e4aa294a5e3fcbcafe8a13ff168932c76012933",
+          "chunk_count": 2
+        },
+        {
+          "id": "31edae7a-baaf-486e-9285-9be5ac6341c1",
+          "file_name": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+          "content_sha256": "1ca5c04c2615942fd205a9783fd461a9c539f0845f821a614e3141e2270e9426",
+          "chunk_count": 3
+        },
+        {
+          "id": "03b7ac85-b17e-4b86-9949-fe3b464ad4cc",
+          "file_name": "AJX+动效的前世今生.pdf",
+          "content_sha256": "d5cbb8f0008fc73435c8f72becfab2fb483357b6069e3ffb41bb08deeb95438d",
+          "chunk_count": 6
+        },
+        {
+          "id": "559e3de1-5063-4daa-8180-28756bcc10a9",
+          "file_name": "AJXBundle介绍.pdf",
+          "content_sha256": "135fcb54193df040a729c7ba2aa25a6a1b6c43708ba16b1131ec37a4b5786ebe",
+          "chunk_count": 4
+        },
+        {
+          "id": "52405e9b-1722-418c-837b-e1eab609e7c5",
+          "file_name": "AJX学习与感想.pdf",
+          "content_sha256": "741eb5eccf9587e27c4f33f0f4fb185449438df5228a8df51eb142e64262367f",
+          "chunk_count": 12
+        },
+        {
+          "id": "6c1fde56-cc2e-4ab9-be26-479f61d438e9",
+          "file_name": "AJX热更新.pdf",
+          "content_sha256": "4e7e0c3ea2fe585516355e8907889c8f224d1993e7dfc557101ece04150edf93",
+          "chunk_count": 34
+        },
+        {
+          "id": "7e7e8866-188f-490d-9876-e7e75d617dc3",
+          "file_name": "AJX页面config文件.pdf",
+          "content_sha256": "b754c90d3a06c923e36d4ff56223326d367cc1da0ea64983734bdb7a2d3806c0",
+          "chunk_count": 19
+        },
+        {
+          "id": "a9990c6b-ea6f-403f-9731-6aafbecdbf75",
+          "file_name": "AMAP跨端技术演变.pdf",
+          "content_sha256": "67b6c9087c76f3faec38e841531b0416525b3292d3138d896d1386e17390f4f0",
+          "chunk_count": 7
+        },
+        {
+          "id": "59a1671b-5106-4030-a9f9-e209c7decf9a",
+          "file_name": "BFF调研.pdf",
+          "content_sha256": "2f71ba9f3dd04454b9cd19c8a6fe33a4d96c899895db0100906aaa66e3997feb",
+          "chunk_count": 8
+        },
+        {
+          "id": "aba9d68d-7029-41aa-8bcf-dc136dbf7e55",
+          "file_name": "FOX学习心得.pdf",
+          "content_sha256": "550d24bb8798a134185c2ebe6dd4643a2335c35baf3213f31651f132e7f3c696",
+          "chunk_count": 21
+        },
+        {
+          "id": "a127c5eb-f070-4572-92e6-a296da93cf11",
+          "file_name": "GBF在US建设标准业务能力.pdf",
+          "content_sha256": "b5e8c4d1fc7bf255be161fdb280095b0be95042f25abb41526dc6cbb0c0744b7",
+          "chunk_count": 21
+        },
+        {
+          "id": "06d3ab3f-727d-4de0-b3ce-1c19e3b16408",
+          "file_name": "GBF异步日志优化.pdf",
+          "content_sha256": "11d1154a305bef544c21a3c2aaaa992523b562018deb8ca7499906daa4e95360",
+          "chunk_count": 7
+        },
+        {
+          "id": "ee2e81b6-efc2-43cc-835e-548668c1b727",
+          "file_name": "GBF缓存功能.pdf",
+          "content_sha256": "2bd46655b2717d50c9fdf1fa8165eb8cbf27a1da8e1d63578064ca1f42984234",
+          "chunk_count": 11
+        },
+        {
+          "id": "c62688d5-a811-4ab9-84cc-e4641840de9e",
+          "file_name": "LaunchMode页面加载模式.pdf",
+          "content_sha256": "2e710dafca38702c8d65aea26f6124d6b65b9c26fb997e60b06322a795cd8630",
+          "chunk_count": 3
+        },
+        {
+          "id": "973e6e27-2544-4401-824e-0944f51c3378",
+          "file_name": "Node+调度优化设计方案.pdf",
+          "content_sha256": "69af3c369c51f0e03aebf8b769538d5ba02486c813574dc1b70866c821032d83",
+          "chunk_count": 14
+        },
+        {
+          "id": "feb907b7-b47e-41c8-9e73-582f695d0edd",
+          "file_name": "Node超时属性设计方案.pdf",
+          "content_sha256": "b9f93d443c2d42bdcb68b6e5452809d58790e3de6efe5cda3413110c0893aeaa",
+          "chunk_count": 16
+        },
+        {
+          "id": "176715aa-00d8-431f-a1c5-5561dae49594",
+          "file_name": "US架构思考.pdf",
+          "content_sha256": "d237f351142a773483e81f1acc72f99a6fb792494800e54e8e1801caf1b1848b",
+          "chunk_count": 12
+        },
+        {
+          "id": "448b2c55-c824-459c-a3ca-9a5dada5b869",
+          "file_name": "US领域识别.pdf",
+          "content_sha256": "1d04d6f450d15f7b859cf1b521a8336dec30cdf8a71d6bd553cea5079d137c91",
+          "chunk_count": 7
+        },
+        {
+          "id": "6c6cc9c8-f8d2-4338-86ef-2f7da87b7dd6",
+          "file_name": "_GBF分层设计及模型.pdf",
+          "content_sha256": "34f6e87e8f4b2c86ce3acf1df769c87f6e67b4c4cbf97108b5da5b0e32eeb1f7",
+          "chunk_count": 5
+        },
+        {
+          "id": "4a2384b6-711e-4ba3-9f80-1e15d833f9bb",
+          "file_name": "_GBF在US建设标准业务能力.pdf",
+          "content_sha256": "b5e8c4d1fc7bf255be161fdb280095b0be95042f25abb41526dc6cbb0c0744b7",
+          "chunk_count": 21
+        },
+        {
+          "id": "1a433c94-a780-41e3-96b8-9003207abfbd",
+          "file_name": "_US使用GBF建设portal实践.pdf",
+          "content_sha256": "1b37eae73e60dcd642921265739c0fe48428888bf6acd723b294abee91235f5a",
+          "chunk_count": 17
+        },
+        {
+          "id": "4605358f-3873-4ecc-883a-a38276fb5ae0",
+          "file_name": "_US领域设计原则.pdf",
+          "content_sha256": "c5556162a650ca136944d0deee3a63640cfdcec873ebe5f432e7277206f3949d",
+          "chunk_count": 8
+        },
+        {
+          "id": "d08d604d-d0f3-4ded-9846-2a81d29d17ea",
+          "file_name": "_业务平台建设.pdf",
+          "content_sha256": "6f06fac0fed2628aab56894a777b70d1587860c8d353addf9c8596f22f63437a",
+          "chunk_count": 11
+        },
+        {
+          "id": "149f66c4-f90d-4933-b459-cd7d118dabe1",
+          "file_name": "_星环研究总结.pdf",
+          "content_sha256": "bfb0bdaa7905cd354c69f81bc73b6a04974bd786442b1069c1abb9df3f18ceb5",
+          "chunk_count": 10
+        },
+        {
+          "id": "f696b1a7-566e-4a64-9ca7-59e5e4f6235a",
+          "file_name": "android适配层原理.pdf",
+          "content_sha256": "d1773f99f155286ea8bab9ac45362e0e225b6e529436f1e6e20f363a5e08a253",
+          "chunk_count": 4
+        },
+        {
+          "id": "545b090a-72c4-4182-95e3-1f3068d62299",
+          "file_name": "iOS适配原理简介.pdf",
+          "content_sha256": "f7e62f3799bec9dc67303682ce7d3a9b2759c8f535f72f4e3a3d51f98d668320",
+          "chunk_count": 1
+        },
+        {
+          "id": "ef787b81-899e-4483-b548-0d1a8d3314ef",
+          "file_name": "splash+view.pdf",
+          "content_sha256": "c1316b4c87854e8ecdd7a7ccb4bc7c639e1ab7f882de7ab4fbf5a3c02fa37bf5",
+          "chunk_count": 9
+        },
+        {
+          "id": "9cbf5865-0983-4a21-bf92-edb12bd70f20",
+          "file_name": "一文了解GBF.pdf",
+          "content_sha256": "fce8737a447097df77227a519dd8e189dcd9f8b4d570bdc7c6e210a87924709f",
+          "chunk_count": 44
+        },
+        {
+          "id": "bdefbbeb-f985-48bd-b63a-4456ac6fa782",
+          "file_name": "一文了解高德领域（DDD）研发框架GBF.pdf",
+          "content_sha256": "2601af26ea8d7025c8d3012ebd4dd28897312980c3972c03622dc62d362c5bf6",
+          "chunk_count": 32
+        },
+        {
+          "id": "2b58674d-1ba6-40b3-998d-5fb09ed03cbd",
+          "file_name": "一文读懂高德地图AJX容器架构原理.pdf",
+          "content_sha256": "41220f01d0d0cb5504c58bbc0f3be5e8cdd7d1ff460beac8368608e1eb2f64a3",
+          "chunk_count": 9
+        },
+        {
+          "id": "f8515092-c3c2-4b84-b295-6bb638b4ffc1",
+          "file_name": "一文读懂高德地图AJX容器架构原理2.pdf",
+          "content_sha256": "8af42258347765e97efb1b0062b8098651ff0d1493e7d634bd3a0c8abcf24206",
+          "chunk_count": 9
+        },
+        {
+          "id": "d65e0a06-451f-409b-a0f0-ee9de03cb0f3",
+          "file_name": "业务系统架构实践总结.pdf",
+          "content_sha256": "74e5b4bf8e689d869c372aa75899b7545ed84ab574db243da5001904a1ef37e4",
+          "chunk_count": 44
+        },
+        {
+          "id": "ababf04b-8f2d-445a-b486-e8abbab78c65",
+          "file_name": "介绍.pdf",
+          "content_sha256": "6e34104b22d66e69bb535f7c2a5535b739b61fb1ce14dd62ccb0839e1e476a1b",
+          "chunk_count": 5
+        },
+        {
+          "id": "54244dab-19e6-4f44-b3fd-cd067c9cc847",
+          "file_name": "从长列表看高德地图AJX容器能力演进.pdf",
+          "content_sha256": "2539530c6c7e27c97455fcfc41ea22054bef1318861d4d6050d6bfe0d19723be",
+          "chunk_count": 7
+        },
+        {
+          "id": "cc3d1894-c9ea-4b99-bf39-3329e4b99f08",
+          "file_name": "初识+AJX+Builder.pdf",
+          "content_sha256": "1e1f9a2d88699722ed99975149db34090db18e4232cde560e87ba1c598d94dda",
+          "chunk_count": 10
+        },
+        {
+          "id": "833282d9-dc3f-494e-a635-00590f47a9c6",
+          "file_name": "前端基本介绍.pdf",
+          "content_sha256": "77b5de859faab967e73df190d870a611473fb033b379118617d30e8c91fe60a7",
+          "chunk_count": 2
+        },
+        {
+          "id": "36fffc37-c8cc-48e4-b575-03455a31d117",
+          "file_name": "动态UI适配层原理-iOS篇.pdf",
+          "content_sha256": "9c4ebca232397857737f2c6d8f5b2ea8560ae69d07267379eb16f9bcc2b5695d",
+          "chunk_count": 4
+        },
+        {
+          "id": "33979406-5941-4acc-8026-aa8195d8bcc9",
+          "file_name": "如何进行AJX资源云化.pdf",
+          "content_sha256": "e59151d5fe0d65b2902beab045daba468e2a1a72073d749a60999f8f4476c441",
+          "chunk_count": 2
+        },
+        {
+          "id": "0ae0decf-d941-413d-83bb-7636f0e19af4",
+          "file_name": "引擎基本介绍.pdf",
+          "content_sha256": "b30367ec3c7df93a6502d57bae7d805725c8a8d2033e683dca647cee6c9410eb",
+          "chunk_count": 3
+        },
+        {
+          "id": "92030083-1631-4c5b-a746-7e87f2ef7a5a",
+          "file_name": "我理解的BFF.pdf",
+          "content_sha256": "a3922a80b58ccfee060bb660790c98388871eb170d5997a175d790712b9232c4",
+          "chunk_count": 6
+        },
+        {
+          "id": "03326823-ff9b-4d9d-9e05-c0ffffa6d2b2",
+          "file_name": "我眼中的BFF.pdf",
+          "content_sha256": "23e1c8dfb0ce74ae239c4ffa1e6dac23973333d597d9e0c08fe117997589c9b1",
+          "chunk_count": 7
+        },
+        {
+          "id": "a558dd19-d804-463d-8fc5-da79a179c052",
+          "file_name": "接口模型管理.pdf",
+          "content_sha256": "ff547977a39cc4bac4ea998f3bc0c7b2a5f8ee0371a318c7309b4cb291cd96e2",
+          "chunk_count": 20
+        },
+        {
+          "id": "81354836-a2b9-48ae-b301-069c9145b10b",
+          "file_name": "揭秘高德地图动态化跨端容器--AJX.pdf",
+          "content_sha256": "d0177a0f938771958a71994b87b385200b6b945f9df4181e1734d00900e19c79",
+          "chunk_count": 14
+        },
+        {
+          "id": "1ce1a0de-90f9-4527-a43a-878b388cb360",
+          "file_name": "整体概述.pdf",
+          "content_sha256": "ef093027cf2da6da10bc5d6efed3d6193b9056f56176b45da3ac3222afefa061",
+          "chunk_count": 2
+        },
+        {
+          "id": "1d66d5e1-a772-45f8-b64c-a2344dfc5ce4",
+          "file_name": "流程通用配置能力.pdf",
+          "content_sha256": "6819c42d1d42d5feba946c7e1a29c2c1dd1aabda667d6abc78490625461da057",
+          "chunk_count": 6
+        },
+        {
+          "id": "fbb0164e-5165-4308-a272-1a772c96e038",
+          "file_name": "深入理解动态UI架构.pdf",
+          "content_sha256": "9abab61fefe501f5c2c8c7cf6079e1852cb8e5549b38ac2069bba494bdcb5e67",
+          "chunk_count": 2
+        },
+        {
+          "id": "ba21273e-1454-480f-82dd-5a717d9dd2f4",
+          "file_name": "离职交接指引_02_00_205256.pdf",
+          "content_sha256": "bae7ddb6dab98b7e7dba74abe669e0df9bae0dbd027362fd8a79aced044fd4bd",
+          "chunk_count": 7
+        },
+        {
+          "id": "c21e9c89-d546-45ec-a050-e44c4a001ffd",
+          "file_name": "简介.pdf",
+          "content_sha256": "8e88ba43a59ec5f7c7b7e59f1f848ac1853e09e44f7bec20b3fcc40108521dc2",
+          "chunk_count": 1
+        },
+        {
+          "id": "bf084d89-032a-4ecf-ac11-8168a2bb41fa",
+          "file_name": "资源云化技术方案.pdf",
+          "content_sha256": "5f23cd212bd21630eab6680d50dc41dac216ed72500996d92b517c5b2a16e82c",
+          "chunk_count": 2
+        },
+        {
+          "id": "fc35f76d-5ea9-49b6-8abc-1c2a0663049d",
+          "file_name": "高德+AJX+bundle+化实践总结.pdf",
+          "content_sha256": "a509e1f4c5e7a6101b10ab70fde8bdd46b6c38ee94da57892370f7e3e5ef1bc8",
+          "chunk_count": 5
+        },
+        {
+          "id": "865838ff-40b4-49e3-a961-69f75e414b51",
+          "file_name": "高德信息工程BFF的稳定性方案设计.pdf",
+          "content_sha256": "a44776d1344cf3a368e032a981cf7c6075b741094065779dd4ad0c19d7e9962c",
+          "chunk_count": 16
+        },
+        {
+          "id": "3374ca37-8e99-4e0d-9744-ded0bd1140d6",
+          "file_name": "高德前端框架思考与展望.pdf",
+          "content_sha256": "90c1b53dfb1a7e38a24faa57bcbe672092a7bb94c2e606f9bbdd296fd066118b",
+          "chunk_count": 8
+        },
+        {
+          "id": "73f28ec9-6399-454c-9e84-26def5590f56",
+          "file_name": "高德前端这五年.pdf",
+          "content_sha256": "336a6b324d77c4e1492aa1daeb92196468e412803919fe7ad8e59d81bd128521",
+          "chunk_count": 10
+        },
+        {
+          "id": "f7e94d27-3ab8-4b8a-939e-030b1fef113b",
+          "file_name": "高德地图AJX容器工具链从0到1建设.pdf",
+          "content_sha256": "27bab8f267efaa55092d4828465bbc37f47cf3c7e3351c877b60724109c6546b",
+          "chunk_count": 6
+        },
+        {
+          "id": "b328d6c1-b41c-4f5b-b1fc-3fb91e988f5a",
+          "file_name": "高德架构升级：客户端动态框架篇.pdf",
+          "content_sha256": "7d5c73adb0e94f597f2027cd3b66934bd92fa2c1032f03888109cf0eb32f2636",
+          "chunk_count": 4
+        }
+      ]
+    },
+    "milvus": {
+      "collection": "customer_milvus_collection",
+      "exists": true,
+      "rows": 580
+    }
+  },
+  "unique_files": [
+    {
+      "name": "_GBF分层设计及模型.pdf",
+      "sha256": "cfee2f3b8b6102a29c229968eb392f27543dd55c8d13137dea91b6b37046b9d7",
+      "size": 2020944
+    },
+    {
+      "name": "_GBF在US建设标准业务能力.pdf",
+      "sha256": "321b0e6e24ac72b71d5c6af782d48b63ff4772ef9e92b933829e07cc319bdbbf",
+      "size": 10168059
+    },
+    {
+      "name": "_US使用GBF建设portal实践.pdf",
+      "sha256": "029c3ba10226b63c4f6c00a68db9f52fed30cb9b9a3f67e29a387b9b7f221c12",
+      "size": 7272269
+    },
+    {
+      "name": "_US数据、逻辑分层说明.pdf",
+      "sha256": "40bcca2a54964e6cc119fbda8a2e5ffda4a79675b78774314a4ddf221ac61c23",
+      "size": 3604260
+    },
+    {
+      "name": "_US领域设计原则.pdf",
+      "sha256": "9e965dd19ed59ea97007b5848d6d4a636284608c14820ce51d6053f4d75db431",
+      "size": 436971
+    },
+    {
+      "name": "_业务平台建设.pdf",
+      "sha256": "101b733129a12e96af9c32d00c65d79f552a5a20d017ccf9cbb65fcc1de5fb5a",
+      "size": 2589122
+    },
+    {
+      "name": "_星环研究总结.pdf",
+      "sha256": "85c78789a851a396eee86cad499d9ca9cecd0fa27a9c608b84fddeb857a02e2c",
+      "size": 2397318
+    },
+    {
+      "name": "AJX+Scheme.pdf",
+      "sha256": "7b69be027d3a53ab833f22b675d634a4d4ac07a0b3d5eea26746fc5d0816cc93",
+      "size": 161998
+    },
+    {
+      "name": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+      "sha256": "952e2cf624f6f62e7ba8066b0dd9fe56b9a7b3ed6227149dac0c573da2702d1f",
+      "size": 1888067
+    },
+    {
+      "name": "AJX+动效的前世今生.pdf",
+      "sha256": "9699685a14e35361810ba70f006826e6f2128051cef96b3d677ea6e874175dab",
+      "size": 495696
+    },
+    {
+      "name": "AJXBundle介绍.pdf",
+      "sha256": "888d874be9d32aa6c8636301c005e673f18dbf50812b9c125490f19aac889e3e",
+      "size": 1922450
+    },
+    {
+      "name": "AJX学习与感想.pdf",
+      "sha256": "74a26aa51d62c9c8ae6f03bfa618a89a54424b1dc50807edf90f5ca7e6f711f8",
+      "size": 7223572
+    },
+    {
+      "name": "AJX热更新.pdf",
+      "sha256": "83f72693b6b9241903520ab8b882bf0d7f210328067c92ebfc9958cf80fb75a6",
+      "size": 9869104
+    },
+    {
+      "name": "AJX页面config文件.pdf",
+      "sha256": "556177a815866587a73e35c02f919d7cd991244e73b4e31f8382929fbc2aea75",
+      "size": 1165894
+    },
+    {
+      "name": "AMAP跨端技术演变.pdf",
+      "sha256": "9a1fe03e063afc6fb9956b7ffdd9170e679e4dd2ce953419d43914e1a0fc7cfd",
+      "size": 3746048
+    },
+    {
+      "name": "android适配层原理.pdf",
+      "sha256": "299121b1e3183484af6c35cdd958538dbc5eccc89bd793109565d62f05112bec",
+      "size": 262960
+    },
+    {
+      "name": "BFF调研.pdf",
+      "sha256": "853f93a85e261f6ca3d6aa3495888ed5e765e3e6ce52df312e30ecb18e258e5d",
+      "size": 2757819
+    },
+    {
+      "name": "FOX学习心得.pdf",
+      "sha256": "d5ec5972aaaed8ba6f4343287a57202e0f359f15194d3aa1845987a3f5fcbbf9",
+      "size": 767518
+    },
+    {
+      "name": "GBF在US建设标准业务能力.pdf",
+      "sha256": "e5cf4af028ab0945fadac4f17c95131708e4d8fcc54face66cdef31bd173c11a",
+      "size": 10168059
+    },
+    {
+      "name": "GBF异步日志优化.pdf",
+      "sha256": "3eedabe67113422478641f0941a540032d3fcf48520fc78af44d30694862a5a0",
+      "size": 7818814
+    },
+    {
+      "name": "GBF缓存功能.pdf",
+      "sha256": "53c7acab4f95239611f58493152f65da118d1c34f12f9d85f9b95602b94b4f66",
+      "size": 6505404
+    },
+    {
+      "name": "iOS适配原理简介.pdf",
+      "sha256": "0ad05f72f0dbd9ef97803220ebe8848084e46e2446e05949676f76dc1c7f686d",
+      "size": 188373
+    },
+    {
+      "name": "LaunchMode页面加载模式.pdf",
+      "sha256": "617009ad0c5cffa4c66c217d809824c930c5b9c7236950b9dd0d5ff7a5ec0d74",
+      "size": 2830212
+    },
+    {
+      "name": "Node+调度优化设计方案.pdf",
+      "sha256": "784f68d59581bf29613036248ea70b4d91eaa9990575f1d2e8752829f9c74003",
+      "size": 715638
+    },
+    {
+      "name": "Node超时属性设计方案.pdf",
+      "sha256": "5007e3cc26c706d2de2a9ae651e022836b6813f0f13025b0dfd08981caedfaa1",
+      "size": 660504
+    },
+    {
+      "name": "splash+view.pdf",
+      "sha256": "cdd5216fa30a97c7ee0ed397e7d2ae240aa8afc8cd6275af38cf05201bdc76a0",
+      "size": 379431
+    },
+    {
+      "name": "US架构思考.pdf",
+      "sha256": "2fb5223350198b9ede7ae34cc782db6dd16e6611cca45ddf451ebd35d0764f3b",
+      "size": 3109994
+    },
+    {
+      "name": "US领域识别.pdf",
+      "sha256": "0571871f086166cda0fb0ac729ef8b35ea1e3d4c3dd4dd493b1bde0d030fe90e",
+      "size": 432725
+    },
+    {
+      "name": "一文了解GBF.pdf",
+      "sha256": "f4268ad8bc846902308601ac02a29c4b3001176ca595cc54354cb5b514cf1f34",
+      "size": 11946220
+    },
+    {
+      "name": "一文了解高德领域（DDD）研发框架GBF.pdf",
+      "sha256": "f828a5649a139eec44b4f6b03e6ce660d583ea434049fa6ab41ff4385fc69aa1",
+      "size": 10165440
+    },
+    {
+      "name": "一文读懂高德地图AJX容器架构原理.pdf",
+      "sha256": "3ada6c53018a1bcc1a116f46a9d45ea434be97d028d08d1b0f2330592eb12217",
+      "size": 1678016
+    },
+    {
+      "name": "一文读懂高德地图AJX容器架构原理2.pdf",
+      "sha256": "02f8ba8a6b7abbded52457d3152f5e48ecb437aee1b2266360d95037f861a19e",
+      "size": 1693451
+    },
+    {
+      "name": "业务系统架构实践总结.pdf",
+      "sha256": "c26bb93239e7d7930996d197eef216a5aad559700317a6b0139e4d7ff0117719",
+      "size": 6727212
+    },
+    {
+      "name": "介绍.pdf",
+      "sha256": "915efe6cbe831e76217aa9248eefbcafd0135e287cccbc1d9dfd1c08b9e4094b",
+      "size": 336688
+    },
+    {
+      "name": "从长列表看高德地图AJX容器能力演进.pdf",
+      "sha256": "3ffdbf439950367971a4b0710909b8c7ae4b51b57fe09533bda15331ab5d3916",
+      "size": 1711734
+    },
+    {
+      "name": "初识+AJX+Builder.pdf",
+      "sha256": "4c5eac2496166b7f10b2a5cbf6d63daffb4fc4668bc857231b65b6f02de9714f",
+      "size": 3504566
+    },
+    {
+      "name": "前端基本介绍.pdf",
+      "sha256": "f0b9afa07eb445ea41ee60c7c279b169eb4a38bebca952d7cdb1c583dbc0d733",
+      "size": 254088
+    },
+    {
+      "name": "动态UI适配层原理-iOS篇.pdf",
+      "sha256": "48df77ae9333848cbd07aba24efc6b4b1feeac751aa345f8683f2e6f424568d7",
+      "size": 1681061
+    },
+    {
+      "name": "复杂场景下，SDD完整实践实录与认知迭代.pdf",
+      "sha256": "36c60b1ab9960726ffddf7b910b8ccb6dbb8b45219a02afc5e2109e338d86389",
+      "size": 12977226
+    },
+    {
+      "name": "如何进行AJX资源云化.pdf",
+      "sha256": "ad21096dd9565ed11b35a10b1e440ff63a00d505a2c05a6cb191e0d427c8e4fa",
+      "size": 255978
+    },
+    {
+      "name": "引擎基本介绍.pdf",
+      "sha256": "8ecd0ce01f8c194c5f5c835790aa1e809262ac1c68196de2860dd3e7dc5828cd",
+      "size": 587096
+    },
+    {
+      "name": "我理解的BFF.pdf",
+      "sha256": "22e230ee3adb478ae57aec45a561bb1bda08396f93cd2259c3654fbb4670c84b",
+      "size": 2003439
+    },
+    {
+      "name": "我眼中的BFF.pdf",
+      "sha256": "90d5285e6d1bab3c73d471ffbdee7b21aeb339dd8f0aae9d0460288ad40c18dc",
+      "size": 3501595
+    },
+    {
+      "name": "接口模型管理.pdf",
+      "sha256": "637dbd5193562117516860cd21f7877f7b2fb382dab35789834346bf53c430fb",
+      "size": 1314279
+    },
+    {
+      "name": "揭秘高德地图动态化跨端容器--AJX.pdf",
+      "sha256": "e675680d408f7f483e36f0862fe5a8f2ccacdddb2a67bff29b5080f066deaa83",
+      "size": 2528356
+    },
+    {
+      "name": "整体概述.pdf",
+      "sha256": "a1f820a90a879fd29cc3e01cf739dbe1de3389ee714f37286249bf43ad56a4c0",
+      "size": 159870
+    },
+    {
+      "name": "流程通用配置能力.pdf",
+      "sha256": "87a8c0f32faebb0e029eaec37b041e9139cf845acc2525e4a6b1e7ea22c7af1e",
+      "size": 2052200
+    },
+    {
+      "name": "深入理解动态UI架构.pdf",
+      "sha256": "4c0ae567c022284f4fc430efbf1dd832013df9b1a0583abbc39d7e8b749a7932",
+      "size": 440514
+    },
+    {
+      "name": "离职交接指引_02_00_205256.pdf",
+      "sha256": "01b8d5698faed473c6fc45f6d105b80b4718b7caa55d1d68cb6e898263498551",
+      "size": 145369
+    },
+    {
+      "name": "简介.pdf",
+      "sha256": "c5fd9070bcec716b149f7d9b70b0aa31c6be35f063bdf10bec1b3f6ca6fc4d37",
+      "size": 648292
+    },
+    {
+      "name": "资源云化技术方案.pdf",
+      "sha256": "2ffea3ff4bd17bd0426640ac36d9a3397c1699f97e1e0d22ea878906dfa008d4",
+      "size": 254851
+    },
+    {
+      "name": "高德+AJX+bundle+化实践总结.pdf",
+      "sha256": "53fd16972f254bfcefc556178ebfbe291a69183bc66dc9727685df4cc4333394",
+      "size": 1306448
+    },
+    {
+      "name": "高德信息工程BFF的稳定性方案设计.pdf",
+      "sha256": "90507c24463da79566837a162394648601a5262fdb219ea984ed4b2864ab2073",
+      "size": 10070867
+    },
+    {
+      "name": "高德前端框架思考与展望.pdf",
+      "sha256": "b12266fd4acc01b4bf91c824fffd374c0d82aecac58607a0c253efec62edafce",
+      "size": 1370682
+    },
+    {
+      "name": "高德前端这五年.pdf",
+      "sha256": "845fbd0547770807f639a5a359395f810e4786b6cd23aefba853cb748e477aec",
+      "size": 9245355
+    },
+    {
+      "name": "高德地图AJX容器工具链从0到1建设.pdf",
+      "sha256": "3ae37cb2c4a5ea2a3eb3ef1426813a1a70e224ae7a84ec3f1ebb2d46976b364b",
+      "size": 7830149
+    },
+    {
+      "name": "高德架构升级：客户端动态框架篇.pdf",
+      "sha256": "badcbb63bd74100710a5e51caf28cbfc043077f67780a6a32c78ed1d3a46cf89",
+      "size": 3285366
+    }
+  ],
+  "duplicates": [
+    {
+      "name": "_业务平台建设 (1).pdf",
+      "canonical": "_业务平台建设.pdf",
+      "sha256": "101b733129a12e96af9c32d00c65d79f552a5a20d017ccf9cbb65fcc1de5fb5a",
+      "size": 2589122
+    },
+    {
+      "name": "GBF异步日志优化 (1).pdf",
+      "canonical": "GBF异步日志优化.pdf",
+      "sha256": "3eedabe67113422478641f0941a540032d3fcf48520fc78af44d30694862a5a0",
+      "size": 7818814
+    },
+    {
+      "name": "业务系统架构实践总结 (1).pdf",
+      "canonical": "业务系统架构实践总结.pdf",
+      "sha256": "c26bb93239e7d7930996d197eef216a5aad559700317a6b0139e4d7ff0117719",
+      "size": 6727212
+    }
+  ],
+  "extraction": [
+    {
+      "name": "_GBF分层设计及模型.pdf",
+      "chars": 2460,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 427.04
+    },
+    {
+      "name": "_GBF在US建设标准业务能力.pdf",
+      "chars": 12066,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1664.16
+    },
+    {
+      "name": "_US使用GBF建设portal实践.pdf",
+      "chars": 9052,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1184.21
+    },
+    {
+      "name": "_US数据、逻辑分层说明.pdf",
+      "chars": 41,
+      "eligible": false,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 41.43
+    },
+    {
+      "name": "_US领域设计原则.pdf",
+      "chars": 3698,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 650.34
+    },
+    {
+      "name": "_业务平台建设.pdf",
+      "chars": 3972,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 651.46
+    },
+    {
+      "name": "_星环研究总结.pdf",
+      "chars": 5352,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 697.22
+    },
+    {
+      "name": "AJX+Scheme.pdf",
+      "chars": 1147,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 266.7
+    },
+    {
+      "name": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+      "chars": 2186,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 450.51
+    },
+    {
+      "name": "AJX+动效的前世今生.pdf",
+      "chars": 3424,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 556.8
+    },
+    {
+      "name": "AJXBundle介绍.pdf",
+      "chars": 2416,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 414.68
+    },
+    {
+      "name": "AJX学习与感想.pdf",
+      "chars": 7807,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1115.91
+    },
+    {
+      "name": "AJX热更新.pdf",
+      "chars": 21636,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 2055.18
+    },
+    {
+      "name": "AJX页面config文件.pdf",
+      "chars": 11247,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1727.04
+    },
+    {
+      "name": "AMAP跨端技术演变.pdf",
+      "chars": 4572,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 719.68
+    },
+    {
+      "name": "android适配层原理.pdf",
+      "chars": 2300,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 333.6
+    },
+    {
+      "name": "BFF调研.pdf",
+      "chars": 4184,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 631.18
+    },
+    {
+      "name": "FOX学习心得.pdf",
+      "chars": 10784,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1311.64
+    },
+    {
+      "name": "GBF在US建设标准业务能力.pdf",
+      "chars": 12066,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1848.39
+    },
+    {
+      "name": "GBF异步日志优化.pdf",
+      "chars": 5052,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 898.85
+    },
+    {
+      "name": "GBF缓存功能.pdf",
+      "chars": 6300,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1140.25
+    },
+    {
+      "name": "iOS适配原理简介.pdf",
+      "chars": 332,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 124.93
+    },
+    {
+      "name": "LaunchMode页面加载模式.pdf",
+      "chars": 1710,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 326.18
+    },
+    {
+      "name": "Node+调度优化设计方案.pdf",
+      "chars": 6791,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1394.72
+    },
+    {
+      "name": "Node超时属性设计方案.pdf",
+      "chars": 8730,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1571.95
+    },
+    {
+      "name": "splash+view.pdf",
+      "chars": 4231,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 590.55
+    },
+    {
+      "name": "US架构思考.pdf",
+      "chars": 5419,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 753.99
+    },
+    {
+      "name": "US领域识别.pdf",
+      "chars": 3642,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 618.6
+    },
+    {
+      "name": "一文了解GBF.pdf",
+      "chars": 17402,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 2555.95
+    },
+    {
+      "name": "一文了解高德领域（DDD）研发框架GBF.pdf",
+      "chars": 17427,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 2352.59
+    },
+    {
+      "name": "一文读懂高德地图AJX容器架构原理.pdf",
+      "chars": 5077,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 886.73
+    },
+    {
+      "name": "一文读懂高德地图AJX容器架构原理2.pdf",
+      "chars": 5083,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 939.57
+    },
+    {
+      "name": "业务系统架构实践总结.pdf",
+      "chars": 26763,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 3125.94
+    },
+    {
+      "name": "介绍.pdf",
+      "chars": 1867,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 357.9
+    },
+    {
+      "name": "从长列表看高德地图AJX容器能力演进.pdf",
+      "chars": 3163,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 598.59
+    },
+    {
+      "name": "初识+AJX+Builder.pdf",
+      "chars": 5259,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 687.54
+    },
+    {
+      "name": "前端基本介绍.pdf",
+      "chars": 1188,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 229.07
+    },
+    {
+      "name": "动态UI适配层原理-iOS篇.pdf",
+      "chars": 1659,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 310.95
+    },
+    {
+      "name": "复杂场景下，SDD完整实践实录与认知迭代.pdf",
+      "chars": 0,
+      "eligible": false,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 194.65
+    },
+    {
+      "name": "如何进行AJX资源云化.pdf",
+      "chars": 1415,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 301.47
+    },
+    {
+      "name": "引擎基本介绍.pdf",
+      "chars": 1569,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 371.17
+    },
+    {
+      "name": "我理解的BFF.pdf",
+      "chars": 3329,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 579.39
+    },
+    {
+      "name": "我眼中的BFF.pdf",
+      "chars": 4089,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 635.61
+    },
+    {
+      "name": "接口模型管理.pdf",
+      "chars": 10483,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1497.53
+    },
+    {
+      "name": "揭秘高德地图动态化跨端容器--AJX.pdf",
+      "chars": 6725,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1007.78
+    },
+    {
+      "name": "整体概述.pdf",
+      "chars": 345,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 124.96
+    },
+    {
+      "name": "流程通用配置能力.pdf",
+      "chars": 2775,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 532.87
+    },
+    {
+      "name": "深入理解动态UI架构.pdf",
+      "chars": 650,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 194.04
+    },
+    {
+      "name": "离职交接指引_02_00_205256.pdf",
+      "chars": 3406,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 183.95
+    },
+    {
+      "name": "简介.pdf",
+      "chars": 219,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 118.48
+    },
+    {
+      "name": "资源云化技术方案.pdf",
+      "chars": 1089,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 213.92
+    },
+    {
+      "name": "高德+AJX+bundle+化实践总结.pdf",
+      "chars": 2721,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 439.37
+    },
+    {
+      "name": "高德信息工程BFF的稳定性方案设计.pdf",
+      "chars": 8500,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 1231.44
+    },
+    {
+      "name": "高德前端框架思考与展望.pdf",
+      "chars": 4671,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 783.92
+    },
+    {
+      "name": "高德前端这五年.pdf",
+      "chars": 4779,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 901.71
+    },
+    {
+      "name": "高德地图AJX容器工具链从0到1建设.pdf",
+      "chars": 3501,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 568.55
+    },
+    {
+      "name": "高德架构升级：客户端动态框架篇.pdf",
+      "chars": 2391,
+      "eligible": true,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 478.78
+    }
+  ],
+  "skipped": [
+    {
+      "name": "_US数据、逻辑分层说明.pdf",
+      "chars": 41,
+      "eligible": false,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 41.43
+    },
+    {
+      "name": "复杂场景下，SDD完整实践实录与认知迭代.pdf",
+      "chars": 0,
+      "eligible": false,
+      "removed_nul_chars": 0,
+      "error": null,
+      "parse_ms": 194.65
+    }
+  ],
+  "ingested": [
+    {
+      "name": "_GBF分层设计及模型.pdf",
+      "chars": 2460,
+      "chunks": 5,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.74
+    },
+    {
+      "name": "_GBF在US建设标准业务能力.pdf",
+      "chars": 12066,
+      "chunks": 23,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.57
+    },
+    {
+      "name": "_US使用GBF建设portal实践.pdf",
+      "chars": 9052,
+      "chunks": 15,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.72
+    },
+    {
+      "name": "_US领域设计原则.pdf",
+      "chars": 3698,
+      "chunks": 11,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.12
+    },
+    {
+      "name": "_业务平台建设.pdf",
+      "chars": 3972,
+      "chunks": 7,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.13
+    },
+    {
+      "name": "_星环研究总结.pdf",
+      "chars": 5352,
+      "chunks": 12,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.43
+    },
+    {
+      "name": "AJX+Scheme.pdf",
+      "chars": 1147,
+      "chunks": 2,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.41
+    },
+    {
+      "name": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+      "chars": 2186,
+      "chunks": 6,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.07
+    },
+    {
+      "name": "AJX+动效的前世今生.pdf",
+      "chars": 3424,
+      "chunks": 9,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.9
+    },
+    {
+      "name": "AJXBundle介绍.pdf",
+      "chars": 2416,
+      "chunks": 8,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.83
+    },
+    {
+      "name": "AJX学习与感想.pdf",
+      "chars": 7807,
+      "chunks": 18,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.81
+    },
+    {
+      "name": "AJX热更新.pdf",
+      "chars": 21636,
+      "chunks": 36,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 3.49
+    },
+    {
+      "name": "AJX页面config文件.pdf",
+      "chars": 11247,
+      "chunks": 25,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.94
+    },
+    {
+      "name": "AMAP跨端技术演变.pdf",
+      "chars": 4572,
+      "chunks": 12,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.18
+    },
+    {
+      "name": "android适配层原理.pdf",
+      "chars": 2300,
+      "chunks": 4,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.72
+    },
+    {
+      "name": "BFF调研.pdf",
+      "chars": 4184,
+      "chunks": 11,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.32
+    },
+    {
+      "name": "FOX学习心得.pdf",
+      "chars": 10784,
+      "chunks": 16,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.0
+    },
+    {
+      "name": "GBF在US建设标准业务能力.pdf",
+      "chars": 12066,
+      "chunks": 23,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.71
+    },
+    {
+      "name": "GBF异步日志优化.pdf",
+      "chars": 5052,
+      "chunks": 10,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.65
+    },
+    {
+      "name": "GBF缓存功能.pdf",
+      "chars": 6300,
+      "chunks": 17,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.58
+    },
+    {
+      "name": "iOS适配原理简介.pdf",
+      "chars": 332,
+      "chunks": 2,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.32
+    },
+    {
+      "name": "LaunchMode页面加载模式.pdf",
+      "chars": 1710,
+      "chunks": 5,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.54
+    },
+    {
+      "name": "Node+调度优化设计方案.pdf",
+      "chars": 6791,
+      "chunks": 18,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.95
+    },
+    {
+      "name": "Node超时属性设计方案.pdf",
+      "chars": 8730,
+      "chunks": 19,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.18
+    },
+    {
+      "name": "splash+view.pdf",
+      "chars": 4231,
+      "chunks": 7,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.41
+    },
+    {
+      "name": "US架构思考.pdf",
+      "chars": 5419,
+      "chunks": 20,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.32
+    },
+    {
+      "name": "US领域识别.pdf",
+      "chars": 3642,
+      "chunks": 10,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.0
+    },
+    {
+      "name": "一文了解GBF.pdf",
+      "chars": 17402,
+      "chunks": 38,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 3.67
+    },
+    {
+      "name": "一文了解高德领域（DDD）研发框架GBF.pdf",
+      "chars": 17427,
+      "chunks": 41,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 4.0
+    },
+    {
+      "name": "一文读懂高德地图AJX容器架构原理.pdf",
+      "chars": 5077,
+      "chunks": 11,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.35
+    },
+    {
+      "name": "一文读懂高德地图AJX容器架构原理2.pdf",
+      "chars": 5083,
+      "chunks": 11,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.27
+    },
+    {
+      "name": "业务系统架构实践总结.pdf",
+      "chars": 26763,
+      "chunks": 51,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 4.93
+    },
+    {
+      "name": "介绍.pdf",
+      "chars": 1867,
+      "chunks": 6,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.8
+    },
+    {
+      "name": "从长列表看高德地图AJX容器能力演进.pdf",
+      "chars": 3163,
+      "chunks": 9,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.39
+    },
+    {
+      "name": "初识+AJX+Builder.pdf",
+      "chars": 5259,
+      "chunks": 9,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.06
+    },
+    {
+      "name": "前端基本介绍.pdf",
+      "chars": 1188,
+      "chunks": 3,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.43
+    },
+    {
+      "name": "动态UI适配层原理-iOS篇.pdf",
+      "chars": 1659,
+      "chunks": 12,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.87
+    },
+    {
+      "name": "如何进行AJX资源云化.pdf",
+      "chars": 1415,
+      "chunks": 2,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.49
+    },
+    {
+      "name": "引擎基本介绍.pdf",
+      "chars": 1569,
+      "chunks": 3,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.52
+    },
+    {
+      "name": "我理解的BFF.pdf",
+      "chars": 3329,
+      "chunks": 6,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.92
+    },
+    {
+      "name": "我眼中的BFF.pdf",
+      "chars": 4089,
+      "chunks": 8,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.13
+    },
+    {
+      "name": "接口模型管理.pdf",
+      "chars": 10483,
+      "chunks": 26,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.26
+    },
+    {
+      "name": "揭秘高德地图动态化跨端容器--AJX.pdf",
+      "chars": 6725,
+      "chunks": 10,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.4
+    },
+    {
+      "name": "整体概述.pdf",
+      "chars": 345,
+      "chunks": 1,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.25
+    },
+    {
+      "name": "流程通用配置能力.pdf",
+      "chars": 2775,
+      "chunks": 11,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.23
+    },
+    {
+      "name": "深入理解动态UI架构.pdf",
+      "chars": 650,
+      "chunks": 1,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.35
+    },
+    {
+      "name": "离职交接指引_02_00_205256.pdf",
+      "chars": 3406,
+      "chunks": 6,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.53
+    },
+    {
+      "name": "简介.pdf",
+      "chars": 219,
+      "chunks": 1,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.31
+    },
+    {
+      "name": "资源云化技术方案.pdf",
+      "chars": 1089,
+      "chunks": 2,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.48
+    },
+    {
+      "name": "高德+AJX+bundle+化实践总结.pdf",
+      "chars": 2721,
+      "chunks": 8,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.81
+    },
+    {
+      "name": "高德信息工程BFF的稳定性方案设计.pdf",
+      "chars": 8500,
+      "chunks": 22,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 2.17
+    },
+    {
+      "name": "高德前端框架思考与展望.pdf",
+      "chars": 4671,
+      "chunks": 8,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.15
+    },
+    {
+      "name": "高德前端这五年.pdf",
+      "chars": 4779,
+      "chunks": 11,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 1.35
+    },
+    {
+      "name": "高德地图AJX容器工具链从0到1建设.pdf",
+      "chars": 3501,
+      "chunks": 8,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.96
+    },
+    {
+      "name": "高德架构升级：客户端动态框架篇.pdf",
+      "chars": 2391,
+      "chunks": 8,
+      "removed_nul_chars": 0,
+      "elapsed_sec": 0.73
+    }
+  ],
+  "failures": [],
+  "embedding_preflight": {
+    "model": "qwen3.7-text-embedding",
+    "dimension": 1024,
+    "elapsed_ms": 714.36
+  },
+  "after": {
+    "postgres": {
+      "documents": 55,
+      "chunks": 684,
+      "items": [
+        {
+          "id": "deca6093-0b52-4fbe-b292-beb549eba525",
+          "file_name": "AJX+Scheme.pdf",
+          "content_sha256": "34a34a35ab911f2fbcd4442995d294822bf9dc23447724d4fa3acf52307b3373",
+          "chunk_count": 2
+        },
+        {
+          "id": "9247778d-059f-4eaf-9f36-1dd643b24340",
+          "file_name": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+          "content_sha256": "6a918d4152aece3accd20e9f089e4257f4f8d4b97b8288bb8da499feb3bb4070",
+          "chunk_count": 6
+        },
+        {
+          "id": "fcb3f8ed-c410-4625-ba64-b3bd1b9dd1ad",
+          "file_name": "AJX+动效的前世今生.pdf",
+          "content_sha256": "f8fcedf1b1536afbb3534a94dc1de56a4cc11a37d33439867b2533bfd5495d92",
+          "chunk_count": 9
+        },
+        {
+          "id": "309185f1-e78c-4f72-86af-19ffc6b587ea",
+          "file_name": "AJXBundle介绍.pdf",
+          "content_sha256": "32cd715ff868e7963262183c3e080f79c7f8892bed3a21c6fb6eee427c0f8e82",
+          "chunk_count": 8
+        },
+        {
+          "id": "dc8b772d-31f9-48e4-b5b0-080fc6a71b6d",
+          "file_name": "AJX学习与感想.pdf",
+          "content_sha256": "4f0aa32d897cfc359e16c21fcbbbf240a3cd57166275fee514d067bc0af86b63",
+          "chunk_count": 18
+        },
+        {
+          "id": "a1b538b1-284b-4fef-a4b1-c92056e45b00",
+          "file_name": "AJX热更新.pdf",
+          "content_sha256": "89f6ef4c6c7de556a69940354bf79410666515b6c96f26b2167966cf44e18e65",
+          "chunk_count": 36
+        },
+        {
+          "id": "7e686bd7-3e6f-4346-aec4-825fceaf17bc",
+          "file_name": "AJX页面config文件.pdf",
+          "content_sha256": "94e73a6604c4ed235a78d2cecbef6b61e7c32a2f43acb09c16e720981ac801d0",
+          "chunk_count": 25
+        },
+        {
+          "id": "9485ea10-291c-4330-bd1f-1e8bc837d8ff",
+          "file_name": "AMAP跨端技术演变.pdf",
+          "content_sha256": "772ea68320b9b467a10aff3ab8e5dd561168c1dd20d0c274bcf88835329f0396",
+          "chunk_count": 12
+        },
+        {
+          "id": "7689b431-4f28-4349-aeef-c22674a32d93",
+          "file_name": "BFF调研.pdf",
+          "content_sha256": "5772e1917c79ec71bcbfb73311ad32726006b97a95f691fba299808c7f47e2e3",
+          "chunk_count": 11
+        },
+        {
+          "id": "8acd79df-fe60-4a33-b011-a8dbe0222728",
+          "file_name": "FOX学习心得.pdf",
+          "content_sha256": "4bf54b6ed4b4330707767d73443d46597cbd286e42f84b46cec0654121e49139",
+          "chunk_count": 16
+        },
+        {
+          "id": "b673231b-25c0-40d3-8c37-b0db7ac6dda1",
+          "file_name": "GBF在US建设标准业务能力.pdf",
+          "content_sha256": "53b629a26ea52be1f8320569893b7477c6aec811d9ced673bc7e91ab08568ffb",
+          "chunk_count": 23
+        },
+        {
+          "id": "4701a5ad-2370-496d-8b86-81598bfb387c",
+          "file_name": "GBF异步日志优化.pdf",
+          "content_sha256": "b5e77038c34472db774d7c32acbd313d09e8323615fd6d29d66d8d1ce830c580",
+          "chunk_count": 10
+        },
+        {
+          "id": "083aaea1-018c-4f50-a59c-b5938600c006",
+          "file_name": "GBF缓存功能.pdf",
+          "content_sha256": "73384a2e5521e2d97fc1e4d954c2a506298f3a95781888ac12a588ba1d29fcb3",
+          "chunk_count": 17
+        },
+        {
+          "id": "d80be0d8-b720-4f78-a41e-529a19077ffc",
+          "file_name": "LaunchMode页面加载模式.pdf",
+          "content_sha256": "a11391edbda70c219520234d389b38a023557ab5416eb51dd0973f482fc412ed",
+          "chunk_count": 5
+        },
+        {
+          "id": "f57a3a2a-4f58-4213-997c-24208ccd54ec",
+          "file_name": "Node+调度优化设计方案.pdf",
+          "content_sha256": "bced9746f832cef4c8a62dcf80d8f00c75a51c56127a00885225fb79fb78635d",
+          "chunk_count": 18
+        },
+        {
+          "id": "e12b2cc5-ae32-4db1-80e6-05ca75327947",
+          "file_name": "Node超时属性设计方案.pdf",
+          "content_sha256": "1a1ec9f180239eaebe38ee4995479bf9fd2d23351dff63389255b1be8d441dfe",
+          "chunk_count": 19
+        },
+        {
+          "id": "c5c50cd8-695e-444b-83ab-846f2ce1dabb",
+          "file_name": "US架构思考.pdf",
+          "content_sha256": "0f86b9ce4c689a656fd73bdb6f2e4017974af282f64aad95c9b973e926089d62",
+          "chunk_count": 20
+        },
+        {
+          "id": "49cd187b-1e3d-49dc-b660-8d5ab890a02d",
+          "file_name": "US领域识别.pdf",
+          "content_sha256": "d3609b3e78a29c576400841d59838af6e9205662012a82e4cd4d99b013ac22a3",
+          "chunk_count": 10
+        },
+        {
+          "id": "afee0b23-46bf-4f94-9020-10afa94dbead",
+          "file_name": "_GBF分层设计及模型.pdf",
+          "content_sha256": "852f72cf109e670739397ad43580075b4253725ae28239121ee81c4df03e19aa",
+          "chunk_count": 5
+        },
+        {
+          "id": "586c20e0-b329-4690-8bc6-30881c62fcc5",
+          "file_name": "_GBF在US建设标准业务能力.pdf",
+          "content_sha256": "53b629a26ea52be1f8320569893b7477c6aec811d9ced673bc7e91ab08568ffb",
+          "chunk_count": 23
+        },
+        {
+          "id": "2e93afc8-43ad-471f-badf-44e5e8275034",
+          "file_name": "_US使用GBF建设portal实践.pdf",
+          "content_sha256": "1672911f4f368469dd68662ffce5e54fa9711f976f43a1eca63e66f1b4531681",
+          "chunk_count": 15
+        },
+        {
+          "id": "c514fe33-b4ef-456c-8a79-985bdb26d94e",
+          "file_name": "_US领域设计原则.pdf",
+          "content_sha256": "42319b55ca73596061d6563b4645c5cc922ccd84ffbeac0c0891bd9a92d11d4f",
+          "chunk_count": 11
+        },
+        {
+          "id": "3b589fc2-88f7-4282-aa0e-722c7b22b9e8",
+          "file_name": "_业务平台建设.pdf",
+          "content_sha256": "e3c7fcef4dbc13ae33cb4b0185fd908aeff4be344c6bebbad27417827d9a956a",
+          "chunk_count": 7
+        },
+        {
+          "id": "66230606-9dea-4b3b-ad78-196fcc8de1b0",
+          "file_name": "_星环研究总结.pdf",
+          "content_sha256": "8631139de63da9df660a7cde2f51bde209593a82d2992855b8b0fd7a562488d9",
+          "chunk_count": 12
+        },
+        {
+          "id": "061c1ca2-6d62-4f8b-a485-5c7373d078b5",
+          "file_name": "android适配层原理.pdf",
+          "content_sha256": "8cde8ef5cd3f78b0db4b4d1a22a48702cdf883ed1ee3b09f5ee34c3dd74b4535",
+          "chunk_count": 4
+        },
+        {
+          "id": "38e5eba3-477b-4568-9d45-e7cb6feabc2f",
+          "file_name": "iOS适配原理简介.pdf",
+          "content_sha256": "e638bdc6a4acbb9f9e4cc691c0b4652146f63451c17d844a0999c4fdac53a6c9",
+          "chunk_count": 2
+        },
+        {
+          "id": "c5172ebb-db1b-4fde-9446-09510a444bee",
+          "file_name": "splash+view.pdf",
+          "content_sha256": "8403a7c3aeac55f623ea9455f6e9531e68a2f043c2c5cdc1f358392f60f87aec",
+          "chunk_count": 7
+        },
+        {
+          "id": "492a7eb8-c896-4716-96a3-c51bc17fd481",
+          "file_name": "一文了解GBF.pdf",
+          "content_sha256": "6fd241015c0f9b33c74ee0a62584bcea50f9d0e523cd157d37a30acff077abfb",
+          "chunk_count": 38
+        },
+        {
+          "id": "e26c7df0-9d2f-400e-8454-753c0852200e",
+          "file_name": "一文了解高德领域（DDD）研发框架GBF.pdf",
+          "content_sha256": "6047c73ebefb81487495a49e37fc813152b2d76d52d2b74933f6093a2d2187f1",
+          "chunk_count": 41
+        },
+        {
+          "id": "3fae8be1-c62b-44bd-a615-415ca1d47a10",
+          "file_name": "一文读懂高德地图AJX容器架构原理.pdf",
+          "content_sha256": "34f99cee093a587f4c495a3e2100708c2a76e28391f715e770378c844ba52d71",
+          "chunk_count": 11
+        },
+        {
+          "id": "29ab4c72-8493-49af-af82-241d33519879",
+          "file_name": "一文读懂高德地图AJX容器架构原理2.pdf",
+          "content_sha256": "a48f1313f873f7a32410a95beb60627d208b20d500de3bbe1ba144589efeaa83",
+          "chunk_count": 11
+        },
+        {
+          "id": "f476c11d-3a2c-434e-95f1-fdb3cf6cfe83",
+          "file_name": "业务系统架构实践总结.pdf",
+          "content_sha256": "e009670d3d6b223de84d897c0f478a31ddb94c32ea36d02b3f02d0b3a798d01e",
+          "chunk_count": 51
+        },
+        {
+          "id": "51c70f64-d68e-430a-ac8f-215bbf84f1b4",
+          "file_name": "介绍.pdf",
+          "content_sha256": "0bb4d8aeeed81ef56388f9c85d0fa30dd74a3ffcc6792ae867806f7555560603",
+          "chunk_count": 6
+        },
+        {
+          "id": "8d54d09a-216a-4464-8f3f-0fbf06c1c675",
+          "file_name": "从长列表看高德地图AJX容器能力演进.pdf",
+          "content_sha256": "f9ff7d74b66116841386ebabf685aba04f51055b389d4ae6968d0f2fd27639a9",
+          "chunk_count": 9
+        },
+        {
+          "id": "570fdf90-48dc-4b19-8f8d-516bacc4157c",
+          "file_name": "初识+AJX+Builder.pdf",
+          "content_sha256": "621c7c49da839a4a7fc1fde5ac3fed00916aba26196dfe7deb028bc3e29cb797",
+          "chunk_count": 9
+        },
+        {
+          "id": "a3665c0e-d708-44c5-be9f-9b4c86184e71",
+          "file_name": "前端基本介绍.pdf",
+          "content_sha256": "c63f701f023379d3901dbe74415112f31a871b3ef412c06a532d46c9293de740",
+          "chunk_count": 3
+        },
+        {
+          "id": "94a2feb3-d199-462e-aad9-605efb18ccaf",
+          "file_name": "动态UI适配层原理-iOS篇.pdf",
+          "content_sha256": "b8357883d6346d544069c982c991be22443bbb91eeb1684ff954b73620710571",
+          "chunk_count": 12
+        },
+        {
+          "id": "8ca90aba-03f3-478f-990c-81c025a8316c",
+          "file_name": "如何进行AJX资源云化.pdf",
+          "content_sha256": "71ce9ccbcf5bd0cc173ab650c458ede0c27552146cd1fa21c9a68c6190130856",
+          "chunk_count": 2
+        },
+        {
+          "id": "8d1eaeb8-621f-4469-a993-ec702c8cee9e",
+          "file_name": "引擎基本介绍.pdf",
+          "content_sha256": "aa23d8edf58e2c46a2a44c54bb5441e8bf2900b2185888c6cb8691af60165298",
+          "chunk_count": 3
+        },
+        {
+          "id": "8dcc8b05-2eee-487b-af01-6f40982457e2",
+          "file_name": "我理解的BFF.pdf",
+          "content_sha256": "fa1bbf57d6428641e5b7db59281b4ea27c4a51ec8635b465b415ea16ee2e9709",
+          "chunk_count": 6
+        },
+        {
+          "id": "88f52d88-40dc-4688-a45b-ca154262c3c7",
+          "file_name": "我眼中的BFF.pdf",
+          "content_sha256": "9586245b514239b86efc5ef3446af3329b21cffc03443957f3c0a649f30fb481",
+          "chunk_count": 8
+        },
+        {
+          "id": "2c708737-a6dc-4f96-b080-b4f2a1977672",
+          "file_name": "接口模型管理.pdf",
+          "content_sha256": "54fd70be9fd1259b6fc3a6d325ab1fd771e54ac6514b96ef2fae0c57bd5077a2",
+          "chunk_count": 26
+        },
+        {
+          "id": "1944e53d-4beb-48e7-9a43-b6533707fe1a",
+          "file_name": "揭秘高德地图动态化跨端容器--AJX.pdf",
+          "content_sha256": "36c5032e78c4b04bccbd8661e7c434a047be7bc2bfd3bb5ab2f031d7b60d71ba",
+          "chunk_count": 10
+        },
+        {
+          "id": "bf03c5fd-765f-4a2f-bed5-d87c6598a2a4",
+          "file_name": "整体概述.pdf",
+          "content_sha256": "3a6bf0d951cd4938a9f07c18588fac3d9f1ee2ea87ed472d1ff61f95f367f638",
+          "chunk_count": 1
+        },
+        {
+          "id": "564275ea-df04-4977-8361-8454dc6e628c",
+          "file_name": "流程通用配置能力.pdf",
+          "content_sha256": "e0f246c70d82d1d7fd25fe038e0c5293bfec539b9a4dcc8087ba123c51204e63",
+          "chunk_count": 11
+        },
+        {
+          "id": "87586071-98de-42d6-98c8-d41b52e547b8",
+          "file_name": "深入理解动态UI架构.pdf",
+          "content_sha256": "e7fc5a40354189bc97ec76148e9f019659385fda7ffcd42f2410fcc27d71f686",
+          "chunk_count": 1
+        },
+        {
+          "id": "4d0895f8-5087-4abd-a1be-2c54c9799cde",
+          "file_name": "离职交接指引_02_00_205256.pdf",
+          "content_sha256": "224e946c844d3ed5f360ab3acd4b665c104f9d81bf33d2a601763f79e2c523a1",
+          "chunk_count": 6
+        },
+        {
+          "id": "be8fa03b-76ae-4e66-a3c8-1cb09eec7eeb",
+          "file_name": "简介.pdf",
+          "content_sha256": "5961c3bd0d8642db69283d29cb001dabeb19bc95bfead236042a3ba24ca23b93",
+          "chunk_count": 1
+        },
+        {
+          "id": "653e0a93-121c-4704-9f1d-8e4558d08149",
+          "file_name": "资源云化技术方案.pdf",
+          "content_sha256": "51842d0497c4c12095f25ea2d3ac194b513e88110247832ef6d365f928668095",
+          "chunk_count": 2
+        },
+        {
+          "id": "6d354b13-ee1d-456f-9f8e-30167944d5d4",
+          "file_name": "高德+AJX+bundle+化实践总结.pdf",
+          "content_sha256": "fbc566d57d73a0e0af6852e5f525920a1be8354fb01e6383e81a49763d6bdf11",
+          "chunk_count": 8
+        },
+        {
+          "id": "8521a33d-cb1e-477a-8c39-5857145c0539",
+          "file_name": "高德信息工程BFF的稳定性方案设计.pdf",
+          "content_sha256": "3fb8600f13e0e0d69cb311f38f52907354004809fba4b84cce33ba60f2faa79d",
+          "chunk_count": 22
+        },
+        {
+          "id": "c5fdc579-0ba5-48a8-b565-d9ee9f101343",
+          "file_name": "高德前端框架思考与展望.pdf",
+          "content_sha256": "b0a8d07bd705697bde3894974b88b3b924a214c5ff5ee18ace205230b4c8b38a",
+          "chunk_count": 8
+        },
+        {
+          "id": "efa39212-2101-4aec-90d8-cdb390da6cab",
+          "file_name": "高德前端这五年.pdf",
+          "content_sha256": "036863a5afdd14c9f03832897c89e11b8f53825f615a3e9c07afb62df09f7cfa",
+          "chunk_count": 11
+        },
+        {
+          "id": "3d5d9c34-43c4-40d0-9b21-18812e216738",
+          "file_name": "高德地图AJX容器工具链从0到1建设.pdf",
+          "content_sha256": "68a1b3d1ace210d4fda9c3ca207a770cd1cc9acf5ac3661e62f5083f6ea6aa0b",
+          "chunk_count": 8
+        },
+        {
+          "id": "dd675fd7-5a53-4bd0-ba8f-780acef8c383",
+          "file_name": "高德架构升级：客户端动态框架篇.pdf",
+          "content_sha256": "bb297cad6072dda26b0f4b7a756ec4ac776ef15fa8a4daf2cc0169c3bc134722",
+          "chunk_count": 8
+        }
+      ]
+    },
+    "milvus": {
+      "collection": "customer_milvus_collection",
+      "exists": true,
+      "rows": 684
+    }
+  }
+}
