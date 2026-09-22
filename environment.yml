@@ -1,0 +1,8 @@
+# Harness H0-1：固定解释器为 Python 3.12
+# 业务依赖仍用 pip install -r requirements*.txt
+name: aicustomerobort
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip

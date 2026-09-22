@@ -1,12 +1,13 @@
 .git
-.github
 .venv
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest_tmp/
 *.log
 .DS_Store
 .env
 .env.*
+!.env.example
 .browser_profile/
 .idea/

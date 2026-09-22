@@ -1,9 +1,14 @@
-# ==================== 可选：多智能体 ====================
+# ==============================================================
+# 可选依赖（UTF-8）— pip install -r requirements-extra.txt
+# ==============================================================
+
+# 多智能体（USE_CREW=true）
 crewai>=0.90
 
-# ==================== 可选：语义重排 ====================
+# 语义重排（rerank_enabled；DashScope qwen rerank 或本地 bge）
 sentence-transformers>=3.0
+dashscope>=1.20
 
-# ==================== 可选：告警浏览器降级（Day8）====================
+# 告警浏览器降级（ALARM_BROWSER_ENABLED）
 # 安装后还需执行: playwright install chromium
 playwright>=1.40

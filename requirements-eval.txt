@@ -1,4 +1,6 @@
-# RAG 评测（eval/run_eval.py / CI 可选门禁）
+# ==============================================================
+# RAG 评测（UTF-8）— pip install -r requirements-eval.txt
 # ragas 0.3.9 需搭配 langchain-community 0.3.x（0.4 与 ragas 不兼容）
+# ==============================================================
 ragas==0.3.9
 langchain-community==0.3.31

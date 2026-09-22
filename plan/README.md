@@ -6,11 +6,14 @@
 
 ## 当前主线
 
-下一步改造看这一份：
+可并行跟做：
 
-- **[Harness改造计划.md](./Harness改造计划.md)** — 模块化 Harness + 可插拔 Chat / Knowledge / Alarm
+- **[记忆系统优化.md](./记忆系统优化.md)** — 会话隔离、Token 预算、摘要、RAG 改写、Alarm 情景（推荐先做）
+- **[Harness改造计划.md](./Harness改造计划.md)** — Harness 完整蓝图（保留）
+- **[Harness跟做计划.md](./Harness跟做计划.md)** — **按旧蓝图 H0～H7 逐步跟做（当前主跟做）**
+- **[AgentRuntime改造计划.md](./AgentRuntime改造计划.md)** — 精简执行版（备选）
 
-对话里可以说：`开始 Harness-DayN`（以该文档内章节为准）。
+对话里可以说：`开始 Harness-H0-1`、`完成 Harness-H0-1`、`开始 Mem-DayN`。
 
 ---
 
@@ -18,8 +21,12 @@
 
 | 文件 | 用途 |
 |------|------|
+| [记忆系统优化.md](./记忆系统优化.md) | 记忆第一版跟做（Day1～10） |
+| [记忆系统完善计划.md](./记忆系统完善计划.md) | 记忆完整版蓝图（含长期事实/Checkpoint） |
 | [架构与数据模型.md](./架构与数据模型.md) | 技术栈、目录、表结构、接口字段 |
-| [Harness改造计划.md](./Harness改造计划.md) | 当前改造目标与阶段 |
+| [Harness改造计划.md](./Harness改造计划.md) | Harness 完整蓝图 |
+| [Harness跟做计划.md](./Harness跟做计划.md) | H0～H7 逐步跟做（完整版） |
+| [AgentRuntime改造计划.md](./AgentRuntime改造计划.md) | Runtime 精简执行版（备选） |
 
 ---
 

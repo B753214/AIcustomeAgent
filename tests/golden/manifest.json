@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "Harness H0-6 黄金场景清单",
+  "created_for": "AICustomeRobort Harness 基线",
+  "files": {
+    "chat": "chat.json",
+    "knowledge": "knowledge.json",
+    "alarm": "alarm.json"
+  },
+  "min_cases_per_agent": 2,
+  "event_vocabulary": [
+    "run.started",
+    "route.selected",
+    "model.started",
+    "model.token",
+    "model.completed",
+    "tool.started",
+    "tool.completed",
+    "tool.failed",
+    "workflow.step",
+    "run.completed",
+    "run.failed"
+  ]
+}

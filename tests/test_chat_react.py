@@ -23,6 +23,17 @@ def test_query_order_is_tool_not_agent():
     text = query_order("查一下订单 888888")
     assert "888888" in text
     assert "已发货" in text
+    assert not text.startswith(TOOL_ERROR_PREFIX)
+
+
+def test_query_order_mock_fail_rate(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "order_mock_fail_rate", 1.0)
+    monkeypatch.setattr("app.agents.tools.random.random", lambda: 0.0)
+    text = query_order("查一下订单 888888")
+    assert text.startswith(TOOL_ERROR_PREFIX)
+    assert "888888" in text
 
 
 def test_wrap_tool_preserves_tool_error_prefix():

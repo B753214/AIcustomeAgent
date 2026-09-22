@@ -1,0 +1,64 @@
+# Harness H0-5：离线测试 CI（不依赖真实 LLM / PG / Milvus / MCP / 浏览器）
+name: offline-tests
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect project root
+        id: root
+        shell: bash
+        run: |
+          if [ -f requirements.txt ] && [ -d tests ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f AICustomeRobort/requirements.txt ]; then
+            echo "dir=AICustomeRobort" >> "$GITHUB_OUTPUT"
+          else
+            echo "Cannot find project requirements.txt" >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            **/requirements.txt
+            **/requirements-dev.txt
+
+      - name: Install dependencies
+        working-directory: ${{ steps.root.outputs.dir }}
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Write minimal .env for Settings import
+        working-directory: ${{ steps.root.outputs.dir }}
+        run: |
+          cat > .env <<'EOF'
+          AIROBOT_LLM_BASE_URL=http://localhost:11434/v1
+          AIROBOT_LLM_API_KEY=ci
+          AIROBOT_LLM_MODEL=dummy
+          AIROBOT_EMBEDDING_BASE_URL=http://localhost:11434/v1
+          AIROBOT_EMBEDDING_API_KEY=ci
+          AIROBOT_EMBEDDING_MODEL=dummy
+          POSTGRES_URI=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres
+          MILVUS_URI=http://127.0.0.1:19530
+          TOP_K=5
+          CHUNK_SIZE=400
+          CHUNK_OVERLAP=80
+          ORDER_MOCK_FAIL_RATE=0
+          EOF
+          # strip leading spaces from heredoc if any
+          sed -i 's/^[[:space:]]*//' .env
+
+      - name: Run offline tests
+        working-directory: ${{ steps.root.outputs.dir }}
+        run: pytest tests/ -q --tb=short

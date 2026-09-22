@@ -30,8 +30,24 @@ FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    ensure_collection()
+    try:
+        await init_db()
+    except Exception as exc:
+        raise RuntimeError(
+            "PostgreSQL 不可用（本服务必选依赖）。"
+            "请检查 POSTGRES_URI（须 postgresql+asyncpg://...），"
+            "或先执行: docker compose up -d postgres。"
+            f" 原因: {exc}"
+        ) from exc
+    try:
+        ensure_collection()
+    except Exception as exc:
+        raise RuntimeError(
+            "Milvus 不可用（本服务必选依赖，无内存向量降级）。"
+            "请检查 MILVUS_URI（不是 AIROBOT_MILVUS_URI），"
+            "或先执行: docker compose up -d milvus-standalone。"
+            f" 原因: {exc}"
+        ) from exc
     async for db in get_db():
         kb = get_kb_instance(db)
         if SAMPLE_KB.exists():
@@ -81,6 +97,10 @@ async def rate_limit_middleware(request: Request, call_next):
 
 @app.get("/health")
 async def health():
+    """基础设施健康检查：PostgreSQL 与 Milvus 均为必选，双 ok 才返回 200。
+
+    详见 docs/deps.md。不探测 LLM/Embedding 连通性。
+    """
     pg_status = "ok"
     try:
         async with engine.connect() as conn:
@@ -102,6 +122,18 @@ async def health():
             "status": "healthy" if is_healthy else "unhealthy",
             "postgres": pg_status,
             "milvus": milvus_status,
+            "dependencies": {
+                "postgres": {
+                    "required": True,
+                    "status": "ok" if pg_status == "ok" else "unreachable",
+                    "detail": pg_status,
+                },
+                "milvus": {
+                    "required": True,
+                    "status": "ok" if milvus_status == "ok" else "unreachable",
+                    "detail": milvus_status,
+                },
+            },
             "llm_model": settings.AIROBOT_LLM_MODEL,
             "embedding_model": getattr(
                 settings, "AIROBOT_EMBEDDING_MODEL", settings.embedding_model

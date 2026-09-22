@@ -1,0 +1,71 @@
+[
+  {
+    "id": "alarm-bff-001",
+    "agent": "alarm",
+    "title": "完整告警：填单 BFF（字段+URL）",
+    "input": "P1 【指标】：填单BFF失败\n【配置ID】：11664\n【命中规则】：失败次数超阈\nhttps://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=11664&bizType=30",
+    "route": {
+      "intent": "alarm",
+      "notes": "启发式 is_alarm_message=true → Alarm Pipeline"
+    },
+    "expected": {
+      "events": [
+        "run.started",
+        "route.selected",
+        "workflow.step",
+        "run.completed"
+      ],
+      "workflow_steps_min": ["parse", "classify", "fetch", "report"],
+      "offline": {
+        "is_alarm_message": true,
+        "detected_type": "alarm",
+        "parsed": {
+          "configId": "11664",
+          "indicator": "填单BFF失败",
+          "level": "P1"
+        },
+        "skill_key": "bff"
+      }
+    },
+    "source": "tests/test_alarm.py；eval alarm-rule-001"
+  },
+  {
+    "id": "alarm-render-001",
+    "agent": "alarm",
+    "title": "完整告警：页面白屏 → render playbook",
+    "input": "P2 【指标】：页面白屏\n【配置ID】：20001\n【命中规则】：白屏率超阈\nhttps://info-plate.fc.alibaba-inc.com/monitor/searchall?marketConfigId=20001&bizType=30",
+    "route": {
+      "intent": "alarm"
+    },
+    "expected": {
+      "events": ["run.started", "route.selected", "workflow.step", "run.completed"],
+      "offline": {
+        "is_alarm_message": true,
+        "parsed": {
+          "configId": "20001",
+          "indicator": "页面白屏"
+        },
+        "skill_key": "render"
+      }
+    },
+    "source": "eval/dataset/agent_cases.jsonl#alarm-rule-002"
+  },
+  {
+    "id": "alarm-negative-001",
+    "agent": "alarm",
+    "title": "仅有字段无 URL → 不进入完整告警执行",
+    "input": "P1 【指标】：页面白屏\n【配置ID】：11664",
+    "route": {
+      "intent": "knowledge_or_chat",
+      "notes": "is_alarm_message=false；路由不应直接跑完整 Pipeline"
+    },
+    "expected": {
+      "events": ["run.started", "route.selected", "run.completed"],
+      "offline": {
+        "is_alarm_message": false,
+        "detected_type": "alarm"
+      }
+    },
+    "source": "tests/test_alarm.py；eval alarm-rule-004"
+  }
+]

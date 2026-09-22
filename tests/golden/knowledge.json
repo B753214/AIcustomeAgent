@@ -1,0 +1,63 @@
+[
+  {
+    "id": "knowledge-return-001",
+    "agent": "knowledge",
+    "title": "七天无理由退货（示例库）",
+    "input": "怎么申请七天无理由退货？",
+    "route": {
+      "intent": "knowledge",
+      "notes": "应走 RAG，而非 alarm/chat 工具"
+    },
+    "expected": {
+      "tools": [],
+      "required_any": ["7 天", "七天", "退货", "签收"],
+      "forbidden": ["编造监控", "订单已发货"],
+      "events": ["run.started", "route.selected", "model.started", "run.completed"],
+      "kb_hint": {
+        "corpus": "data/knowledge_base.md",
+        "section": "七天无理由退货"
+      }
+    },
+    "source": "data/knowledge_base.md；eval router-004"
+  },
+  {
+    "id": "knowledge-freight-001",
+    "agent": "knowledge",
+    "title": "退货运费承担方（示例库）",
+    "input": "退货运费由谁承担？",
+    "route": {
+      "intent": "knowledge",
+      "notes": "追问类知识题；后续 Mem 改写可复用本输入"
+    },
+    "expected": {
+      "tools": [],
+      "required_any": ["卖家", "买家", "运费"],
+      "forbidden": ["[TOOL_ERROR]"],
+      "events": ["run.started", "route.selected", "model.started", "run.completed"],
+      "kb_hint": {
+        "corpus": "data/knowledge_base.md",
+        "section": "退货运费由谁承担"
+      }
+    },
+    "source": "data/knowledge_base.md"
+  },
+  {
+    "id": "knowledge-boundary-001",
+    "agent": "knowledge",
+    "title": "概念题走知识而非告警",
+    "input": "什么是 P1 告警？",
+    "route": {
+      "intent": "knowledge",
+      "notes": "无 info-plate 字段+链接，不得判为 alarm 执行链"
+    },
+    "expected": {
+      "tools": [],
+      "forbidden_route": ["alarm_pipeline"],
+      "events": ["run.started", "route.selected", "run.completed"],
+      "offline": {
+        "is_alarm_message": false
+      }
+    },
+    "source": "tests/test_alarm.py；eval router-005"
+  }
+]

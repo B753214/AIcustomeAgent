@@ -21,10 +21,13 @@ def query_order(message: str) -> str:
     Args:
         message: 用户消息，可包含订单号（6 位以上数字）；无订单号时使用默认单号。
     """
+    from app.config import settings
+
     match = re.search(r"\d{6,}", message)
     order_no = match.group(0) if match else "202608090001"
 
-    if random.random() < 0.6:
+    fail_rate = float(getattr(settings, "order_mock_fail_rate", 0.0) or 0.0)
+    if fail_rate > 0 and random.random() < fail_rate:
         return (
             f"{_TOOL_ERROR_PREFIX} 订单 {order_no} 查询失败："
             "订单服务暂时不可用，请稍后重试或联系客服。"

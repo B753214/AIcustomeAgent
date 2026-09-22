@@ -1,0 +1,61 @@
+[
+  {
+    "id": "chat-greeting-001",
+    "agent": "chat",
+    "title": "普通问候（无工具）",
+    "input": "你好，你是谁？",
+    "route": {
+      "intent": "chat",
+      "notes": "classify_intent → chat；不强制调工具"
+    },
+    "expected": {
+      "tools": [],
+      "required_any": ["助手", "帮", "告警", "知识", "你好", "您好"],
+      "forbidden": ["订单已发货", "填单BFF"],
+      "events": ["run.started", "route.selected", "model.started", "run.completed"]
+    },
+    "source": "eval/dataset/agent_cases.jsonl#router-001 / chat-001"
+  },
+  {
+    "id": "chat-order-001",
+    "agent": "chat",
+    "title": "查订单走 query_order",
+    "input": "查一下订单 888888 到哪了",
+    "route": {
+      "intent": "chat",
+      "notes": "意图可为 chat/order；执行侧必须能调 query_order"
+    },
+    "expected": {
+      "tools": ["query_order"],
+      "required_all": ["888888", "已发货"],
+      "forbidden": ["查询失败"],
+      "events": ["run.started", "route.selected", "tool.started", "tool.completed", "run.completed"],
+      "offline": {
+        "direct_tool": "query_order",
+        "tool_input": "查一下订单 888888 到哪了",
+        "required_all": ["888888", "已发货"],
+        "must_not_start_with": "[TOOL_ERROR]"
+      }
+    },
+    "source": "eval/dataset/agent_cases.jsonl#chat-002；ORDER_MOCK_FAIL_RATE=0"
+  },
+  {
+    "id": "chat-weather-001",
+    "agent": "chat",
+    "title": "问天气走 query_weather",
+    "input": "杭州今天天气怎么样？",
+    "route": {
+      "intent": "chat",
+      "notes": "应优先 query_weather；无 Key 时允许 [TOOL_ERROR] 诚实失败"
+    },
+    "expected": {
+      "tools": ["query_weather"],
+      "max_tool_calls": 4,
+      "events": ["run.started", "route.selected", "tool.started", "run.completed"],
+      "offline": {
+        "notes": "天气依赖外部 Key，H0-6 不做强制 offline 断言"
+      }
+    },
+    "source": "eval/dataset/agent_cases.jsonl#chat-003"
+  }
+]

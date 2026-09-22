@@ -3,7 +3,7 @@
 基于 **FastAPI + LangChain + Milvus + CrewAI** 构建的生产级智能客服服务，
 支持意图识别路由、RAG 检索增强生成、多智能体协作、SSE 流式对话、语义缓存等核心能力。
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.12%20(rec.%203.12)-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?logo=postgresql&logoColor=white)
 ![Milvus](https://img.shields.io/badge/Milvus-向量检索-blue)
@@ -35,7 +35,7 @@
 | **闲聊 Agent** | 手写 LangGraph `StateGraph`（`call_model` ⇄ `call_tools`）；工具：订单 / 本地天气 / 可选高德 MCP | `app/agents/chat_graph.py` |
 | **语义缓存** | 首轮问题按余弦+词面双门限命中复用，毫秒级响应 | `app/services/semantic_cache.py` |
 | **稳定性** | tenacity 指数退避重试 + 滑动窗口限流 | `app/services/resilience.py` / `ratelimit.py` |
-| **可视化控制台** | 内置单页 Dashboard，实时监控全链路耗时 | `app/static/dashboard.html` |
+| **可视化控制台** | 旧版 HTML + React 18 双前端并存 | `/dashboard` · `/console/` · `frontend/` |
 | **告警排查** | info-plate 告警 RCA：MCP → 浏览器 → 正文；可选 Replan（补第 2 页 / 换 playbook）；SSE `/api/analyze` | `app/agents/alarm/` |
 
 ---
@@ -103,7 +103,7 @@ intent=chat
 | LLM 编排 | LangChain + **LangGraph** | 意图/RAG；闲聊手写 StateGraph |
 | 多智能体 | CrewAI（Agent/Task/Crew） | 可选，未安装自动降级 |
 | MCP（可选） | langchain-mcp-adapters | 高德地图工具；`AMAP_MCP_ENABLED` |
-| 文档解析 | pypdf + python-docx | PDF / Word 解析 |
+| 文档解析 | pypdf + python-docx + pdfplumber | PDF / Word；PDF 优先版面解析 |
 | 检索 | jieba + rank_bm25 | BM25 中文词面检索 |
 | 稳定性 | tenacity | 指数退避重试 |
 | 重排 | sentence-transformers bge-reranker | 可选，懒加载 |
@@ -114,20 +114,40 @@ intent=chat
 
 ### 前置条件
 
-- Python **3.10 - 3.12**
-- PostgreSQL 数据库（异步驱动 `asyncpg`）
-- Milvus 向量库（当前实现通过 `MILVUS_URI` 连接；本地可用 `docker compose up -d`）
+- **Python：兼容 3.10–3.12，推荐锁定 3.12**（Harness / CI 以 3.12 为准；详见 [docs/env.md](./docs/env.md)）
+- 配置字段对照：[docs/config.md](./docs/config.md)
+- 基础设施依赖（PG / Milvus **双必选**）：[docs/deps.md](./docs/deps.md)
+- **PostgreSQL（必选）**，异步驱动 `asyncpg`
+- **Milvus（必选）**，无内存向量降级；本地可用 `docker compose up -d postgres milvus-standalone`
 - 一个 OpenAI 兼容的 LLM 服务（DashScope / Ollama / DeepSeek）
 
-### 1. 克隆 & 安装依赖
+### 1. 克隆 & 创建 Python 环境
 
 ```powershell
 git clone <repo-url>
 cd AICustomeRobort
+```
 
+**方式 A：venv（默认）**
+
+```powershell
+# 请使用 3.12（可用 py -3.12 -m venv .venv）
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python --version   # 期望 Python 3.12.x
+```
 
+**方式 B：Conda（可选）**
+
+```powershell
+conda env create -f environment.yml
+conda activate aicustomerobort
+python --version   # 期望 Python 3.12.x
+```
+
+### 2. 安装依赖
+
+```powershell
 # 核心依赖
 pip install -r requirements.txt
 
@@ -138,13 +158,13 @@ pip install -r requirements-extra.txt
 playwright install chromium
 ```
 
-### 2. 配置环境变量
+### 3. 配置环境变量
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-按实际情况编辑 `.env`。**变量名须与 `app/config.py` 字段一致**（无默认值的项启动前必须填齐）。最小关键项：
+按实际情况编辑 `.env`。**变量名须与 `app/config.py` 字段一致**（无默认值的项启动前必须填齐）。字段对照见 [docs/config.md](./docs/config.md)。最小关键项：
 
 ```ini
 # 大模型（必选）
@@ -152,13 +172,10 @@ AIROBOT_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AIROBOT_LLM_API_KEY=your-api-key
 AIROBOT_LLM_MODEL=qwen-plus
 
-# 向量模型（必选；AIROBOT_EMBEDDING_* 与 embedding_* 两套都要填）
+# 向量模型（必选）
 AIROBOT_EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AIROBOT_EMBEDDING_API_KEY=your-api-key
-AIROBOT_EMBEDDING_MODEL=text-embedding-v4
-embedding_base_url=https://dashscope.aliyuncs.com/compatible-mode/v1
-embedding_api_key=your-api-key
-embedding_model=text-embedding-v4
+AIROBOT_EMBEDDING_MODEL=text-embedding-v3
 
 # PostgreSQL（必选，须带 +asyncpg）
 POSTGRES_URI=postgresql+asyncpg://postgres:123456@127.0.0.1:5432/postgres
@@ -175,6 +192,8 @@ CHUNK_OVERLAP=80
 USE_CREW=false
 ```
 
+> `embedding_*` 为兼容别名，**可省略**（自动等于 `AIROBOT_EMBEDDING_*`）。
+
 完整模板见 [`.env.example`](./.env.example)。
 
 > **本地 Ollama 示例（免费离线）：**
@@ -185,16 +204,14 @@ USE_CREW=false
 > AIROBOT_EMBEDDING_BASE_URL=http://localhost:11434/v1
 > AIROBOT_EMBEDDING_API_KEY=ollama
 > AIROBOT_EMBEDDING_MODEL=nomic-embed-text
-> embedding_base_url=http://localhost:11434/v1
-> embedding_api_key=ollama
-> embedding_model=nomic-embed-text
 > ```
+> （`embedding_*` 可省略，会自动回落上面的 `AIROBOT_EMBEDDING_*`）
 > ```powershell
 > ollama pull qwen2.5:1.5b
 > ollama pull nomic-embed-text
 > ```
 
-### 3. 启动服务
+### 4. 启动服务
 
 须在仓库根目录 `AICustomeRobort` 下执行。Windows 若因控制台编码（emoji/中文）启动失败，先设置 UTF-8：
 
@@ -206,7 +223,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 等价：`python -m app.main`（无 reload）。Docker：`docker compose up -d --build`。
 
-### 4. 验证
+### 5. 验证
 
 ```powershell
 # 健康检查
@@ -216,8 +233,10 @@ Invoke-RestMethod http://localhost:8000/health
 $body = @{ message = "怎么申请退款？"; session_id = "user-001" } | ConvertTo-Json
 Invoke-RestMethod -Uri http://localhost:8000/api/v1/chat -Method Post -Body $body -ContentType "application/json"
 
-# 可视化控制台（浏览器访问）
-# http://localhost:8000/dashboard
+# 可视化控制台（浏览器访问，双前端并存）
+# 旧版：http://localhost:8000/dashboard
+# React：http://localhost:8000/console/  （需先 cd frontend && npm run build）
+# 开发：cd frontend && npm run dev → http://localhost:5173
 ```
 
 ---
@@ -309,9 +328,13 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 }
 ```
 
-### `GET /dashboard` — 可视化控制台
+### `GET /dashboard` — 旧版可视化控制台
 
-浏览器访问，实时展示全链路耗时与状态。
+浏览器访问 `app/static/dashboard.html`，实时展示全链路耗时与状态。
+
+### `GET /console/` — React 18 控制台
+
+需先在 `frontend/` 执行 `npm run build`。开发态可用 `npm run dev`（默认 :5173）。与 `/dashboard` 并存，页面内可互相跳转。
 
 ### `POST /api/analyze` — 告警分析（SSE）
 
@@ -414,16 +437,31 @@ AICustomeRobort/
 │   │   ├── session_service.py # 会话持久化
 │   │   └── chunk_service.py # 分块入库
 │   ├── models/              # SQLAlchemy ORM 模型
-│   └── static/dashboard.html # 可视化控制台
+│   └── static/dashboard.html # 旧版单页控制台（/dashboard）
+├── frontend/                # React 18 控制台（Vite，推荐）
 ├── data/                    # 知识库文件
 ├── tests/                   # 单元测试
 ├── plan/                    # 实施计划文档
 ├── .env.example             # 环境变量模板
 ├── docker-compose.yml       # Docker 部署编排
-├── requirements.txt         # 核心依赖
-├── requirements-extra.txt  # 可选：CrewAI + 重排 + Playwright
-└── requirements-dev.txt    # 开发/测试依赖
+├── requirements.txt         # 核心依赖（含 pdfplumber）
+├── requirements-extra.txt  # 可选：CrewAI + 重排/dashscope + Playwright
+├── requirements-dev.txt    # 开发/测试依赖
+├── requirements-eval.txt   # RAGAS 评测依赖
 ```
+
+---
+
+## 离线测试
+
+不依赖真实 LLM / PostgreSQL / Milvus / MCP / 浏览器：
+
+```powershell
+pip install -r requirements-dev.txt
+pytest tests/ -q
+```
+
+推荐 Python **3.12**（如 `conda activate agent-test`）。CI：`.github/workflows/offline-tests.yml`。
 
 ---
 
@@ -432,11 +470,11 @@ AICustomeRobort/
 **Q：未配置 API Key 能跑吗？**
 能。服务可启动，`/health` 正常，但对话接口会返回"未配置 AIROBOT_LLM_API_KEY"提示。
 
-**Q：没有 PostgreSQL 怎么办？**
-当前默认链路依赖 `postgresql+asyncpg://...`。若改 SQLite，需自行安装 `aiosqlite` 并把 `POSTGRES_URI` 改成 `sqlite+aiosqlite:///./airobot.db`；生产仍推荐 PostgreSQL。
+**Q：没有 PostgreSQL 怎么办？**  
+PostgreSQL 为**必选**（会话、文档 chunk、启动建表）。请用 `docker compose up -d postgres` 或自备实例，并配置 `POSTGRES_URI=postgresql+asyncpg://...`。当前**未实现** SQLite 开箱降级；若自行改驱动需改 `database.py` 与依赖，不在支持范围内。详见 [docs/deps.md](./docs/deps.md)。
 
-**Q：没有 Milvus 怎么办？**
-当前代码通过 `MILVUS_URI` 连接 Milvus，**不会**自动降级到内存向量库。本地可用 `docker compose up -d` 拉起 postgres + milvus，或自备 Milvus 实例。注意环境变量名是 `MILVUS_URI`，写 `AIROBOT_MILVUS_URI` 会被忽略。
+**Q：没有 Milvus 怎么办？**  
+Milvus 为**必选**（向量入库与检索）。代码**不会**自动降级到内存向量库。本地：`docker compose up -d milvus-standalone`（或 `docker compose up -d`）。环境变量名是 `MILVUS_URI`，写 `AIROBOT_MILVUS_URI` 会被忽略。`GET /health` 在 PG 或 Milvus 任一不可达时返回 **503**。
 
 **Q：为什么 Crew / TOP_K 配了不生效？**
 请用 `USE_CREW`、`TOP_K`、`CHUNK_SIZE`、`CHUNK_OVERLAP`。`AIROBOT_USE_CREW`、`AIROBOT_TOP_K` 等带错误前缀的名字不会映射到 `Settings` 字段。
