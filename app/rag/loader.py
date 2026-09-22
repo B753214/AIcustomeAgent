@@ -1,11 +1,27 @@
+import logging
 from pathlib import Path
 
 
+logger = logging.getLogger(__name__)
+
+
 def _parse_pdf(path):
+    try:
+        from app.rag.pdf_layout_parser import extract_pdf_text
+
+        text = extract_pdf_text(path)
+        if text.strip():
+            return text
+    except (ImportError, ModuleNotFoundError):
+        logger.info("pdfplumber is unavailable; falling back to pypdf for %s", path)
+    except Exception as exc:
+        logger.warning("pdfplumber failed for %s; falling back to pypdf: %s", path, exc)
+
     from pypdf import PdfReader
+
     reader = PdfReader(path)
     pages = [page.extract_text() or "" for page in reader.pages]
-    return "\n".join(p.strip() for p in pages if p.strip())
+    return "\n\n".join(p.strip() for p in pages if p.strip())
 
 
 def _parse_docx(path):

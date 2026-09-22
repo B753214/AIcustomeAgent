@@ -1,40 +1,42 @@
 # AICustomeRobort 实施计划
 
-对标参考项目，做同等能力的智能客服。  
-**聊天记录用 PostgreSQL，向量用 Milvus**（重启不丢）。
+对标智能客服能力：**会话 → PostgreSQL，向量 → Milvus**。
 
 ---
 
-## 新人请从这里开始
+## 当前主线
 
-1. 打开 **[分步实施.md](./分步实施.md)**（白话、按步骤、有验证方法）  
-2. 看 **[进度.md](./进度.md)** 里的「下一步」  
-3. 在 Cursor 对话里对我说进度里那句提示词，例如：`开始步骤 0-1`  
-4. 我带你做完、你本地验证，再进入下一步  
+下一步改造看这一份：
 
-不要先翻任务编号，也不要先复制参考项目代码。
+- **[Harness改造计划.md](./Harness改造计划.md)** — 模块化 Harness + 可插拔 Chat / Knowledge / Alarm
+
+对话里可以说：`开始 Harness-DayN`（以该文档内章节为准）。
 
 ---
 
-## 文档分工
+## 常查阅
 
-| 文件 | 什么时候看 |
-|---|---|
-| [分步实施.md](./分步实施.md) | **主手册**：项目是什么、每一步干什么、成功长什么样 |
-| [进度.md](./进度.md) | 现在走到哪、下一句该对我说什么 |
-| [学习路线.md](./学习路线.md) | 某阶段概念想再抠细时（过关标准、先不要学什么） |
-| [计划总表.md](./计划总表.md) | 看阶段周期和验收 |
-| [任务清单.md](./任务清单.md) | 开发看板 T-001…（跟做时由我勾，不必自己管） |
-| [架构与数据模型.md](./架构与数据模型.md) | 写库表、对接口字段时查阅 |
-| [告警Agent合并.md](./告警Agent合并.md) | **已完成**：car_robot 告警核心迁入 Python；说「开始 Alarm-Day1」已过 |
-| [改动计划表.md](./改动计划表.md) | 闲聊 Chat-SG（已完成）+ 告警 Replan |
-| [闲聊LangGraph.md](./闲聊LangGraph.md) | 闲聊预置 create_agent（过渡，已废弃） |
-| [闲聊StateGraph.md](./闲聊StateGraph.md) | **闲聊手写 StateGraph（已完成 Day1–8）** |
-| [闲聊ReAct查活动.md](./闲聊ReAct查活动.md) | 线 A 明细 |
-| [告警PlanExecuteReplan.md](./告警PlanExecuteReplan.md) | 线 B 明细 |
+| 文件 | 用途 |
+|------|------|
+| [架构与数据模型.md](./架构与数据模型.md) | 技术栈、目录、表结构、接口字段 |
+| [Harness改造计划.md](./Harness改造计划.md) | 当前改造目标与阶段 |
+
+---
+
+## 历史归档（已完成 / 不再跟做）
+
+早期「从 0 跟做」、闲聊 Chat-SG、告警合并与 Replan 等文档已合并到：
+
+| 归档 | 内容 |
+|------|------|
+| [archive/奠基与学习.md](./archive/奠基与学习.md) | 分步实施 + 进度 + 计划总表 + 任务清单 + 学习路线 |
+| [archive/闲聊专题.md](./archive/闲聊专题.md) | StateGraph（完成）+ LangGraph（废弃）+ ReAct（历史） |
+| [archive/告警专题.md](./archive/告警专题.md) | Agent 合并 + Plan-Execute-Replan + 改动计划表 |
+
+细节以代码与主 README 为准；归档仅供回溯设计决策。
 
 ---
 
 ## 目标一句话
 
-用户提问 → 判断是知识/订单/闲聊 → 知识类先检索帮助文档再生成答案 → 全过程可流式输出 → 对话写入 PostgreSQL，资料向量写入 Milvus。CrewAI 双角色是可选项，关掉也能用。
+用户提问 → 判断知识/订单/闲聊/告警 → 知识类 RAG 再生成 → 可 SSE 流式 → 对话进 PostgreSQL，向量进 Milvus。CrewAI 可选；告警为约束型 Pipeline + Replan。

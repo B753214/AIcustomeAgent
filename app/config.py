@@ -28,17 +28,23 @@ class Settings(BaseSettings):
     top_k: int
     chunk_size: int
     chunk_overlap: int
-    hybrid_vector_top_k: int = 15
+    pdf_chunk_size: int = 800
+    pdf_chunk_overlap: int = 80
+    pdf_section_max_chars: int = 1000
+    pdf_section_min_chars: int = 150
+    hybrid_vector_top_k: int = 20
     hybrid_enabled: bool = True
-    hybrid_bm25_top_k: int = 15
+    hybrid_bm25_top_k: int = 20
     rerank_enabled:bool = False
     rerank_provider: str = "local"
-    rerank_model: str = "qwen3-rerank"
+    rerank_model: str = "qwen3.7-text-rerank"
     rerank_api_key: str = ""
-    hybrid_fusion_top_k: int = 5
+    hybrid_fusion_top_k: int = 20
     memory_max_turns: int = 5
     retry_attempts: int = 3
     retry_max_wait: int = 3
+    # 闲聊 Graph 单次工具调用上限（秒）；超时返回 [TOOL_ERROR]
+    tool_timeout_sec: float = 30
     POSTGRES_URI: str
     DEBUG: bool = True
     APP_VERSION: str = "0.1.0"

@@ -61,4 +61,5 @@ async def get_chunks_by_ids(chunk_ids: list[str], db: AsyncSession) -> list[Chun
         return []
     stmt = select(Chunk).where(Chunk.id.in_(chunk_ids))
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    chunks_by_id = {chunk.id: chunk for chunk in result.scalars().all()}
+    return [chunks_by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in chunks_by_id]

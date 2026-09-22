@@ -1,6 +1,7 @@
 """闲聊手写 StateGraph：call_model / call_tools + 失败熔断。"""
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
 from collections.abc import Callable
@@ -14,6 +15,11 @@ from langgraph.graph.message import add_messages
 
 from app.agents.tools import query_order
 from app.agents.weather import query_weather
+from app.agents.tool_validation import (
+    QueryOrderArgs,
+    QueryWeatherArgs,
+    validate_tool_args,
+)
 from app.config import settings
 
 TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
@@ -114,6 +120,7 @@ def _chat_tools() -> list:
                 "查询订单状态与物流。参数 message 为用户原话或订单号（6 位以上数字）。"
                 f"失败时返回以 {TOOL_ERROR_PREFIX} 开头的说明。"
             ),
+            args_schema=QueryOrderArgs,
             handle_tool_error=True,
         ),
         StructuredTool.from_function(
@@ -124,6 +131,7 @@ def _chat_tools() -> list:
                 "如 beijing、杭州、116.40,39.90。"
                 f"失败时返回以 {TOOL_ERROR_PREFIX} 开头的说明，必须据此回复用户。"
             ),
+            args_schema=QueryWeatherArgs,
             handle_tool_error=True,
         ),
         *_extra_tools,
@@ -146,6 +154,24 @@ def _bump_fail_count(counts: dict[str, int], name: str, content: str) -> None:
         counts[name] = 0
 
 
+async def _ainvoke_tool_with_timeout(tool: Any, args: dict, name: str) -> str:
+    """统一 ainvoke + 超时；超时/异常都变成 [TOOL_ERROR] 观察结果。"""
+    timeout = float(settings.tool_timeout_sec)
+    try:
+        if timeout > 0:
+            content = await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
+        else:
+            content = await tool.ainvoke(args)
+        return str(content)
+    except asyncio.TimeoutError:
+        return (
+            f"{TOOL_ERROR_PREFIX} 工具 {name} 执行超时"
+            f"（>{timeout:g}s），请稍后重试或换一种问法。"
+        )
+    except Exception as e:
+        return f"{TOOL_ERROR_PREFIX} 工具 {name} 异常: {e}"
+
+
 async def call_tools(state: ChatState) -> dict:
     last = state["messages"][-1]
     tool_calls = getattr(last, "tool_calls", None) or []
@@ -165,12 +191,12 @@ async def call_tools(state: ChatState) -> dict:
         if tool is None:
             content = f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
         else:
-            try:
-                # MCP 工具仅支持 async，统一 ainvoke（本地 StructuredTool 也可）
-                content = await tool.ainvoke(args)
-            except Exception as e:
-                content = f"{TOOL_ERROR_PREFIX} 工具 {name} 异常: {e}"
-            content = str(content)
+            cleaned, err = validate_tool_args(tool, name, args)
+            if err is not None:
+                content = err
+            else:
+                # MCP 工具仅支持 async，统一 ainvoke；外层 wait_for 防挂死
+                content = await _ainvoke_tool_with_timeout(tool, cleaned or {}, name)
 
         _bump_fail_count(counts, name, content)
         outs.append(ToolMessage(content=content, tool_call_id=tid, name=name))

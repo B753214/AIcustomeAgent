@@ -42,14 +42,14 @@ def upset_chunk_vector(chunk_id: str, doc_id: str, vector: list[float]) -> None:
             "vector": vector,
         }],
     )
-def search_vectors(query_vector: list[float], top_k: int = 5) -> list[dict]:
+def search_vectors(query_vector: list[float], top_k: int = 10) -> list[dict]:
     if not query_vector:
         return []
     client = get_milvus_client()
     results = client.search(
         collection_name=COLLECTION_NAME,
         data=[query_vector],
-        top_k=top_k,
+        limit=top_k,
         metric_type="COSINE",
         output_fields=["chunk_id", "doc_id"],
     )

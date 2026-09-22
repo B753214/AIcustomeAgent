@@ -1,0 +1,1571 @@
+{
+  "meta": {
+    "timestamp": "2026-09-04 16:28:47",
+    "dataset": "eval\\dataset\\knowledge_qa.jsonl",
+    "total": 55,
+    "top_k": 5,
+    "modes": [
+      "hybrid"
+    ]
+  },
+  "retrieval_summary": {
+    "hybrid": {
+      "cases": 55,
+      "hit_at_k": 0.9455,
+      "mrr": 0.8,
+      "latency_p50_ms": 143.09,
+      "latency_p95_ms": 196.38
+    }
+  },
+  "answer_summary": {
+    "cases": 55,
+    "avg_judge_score": 4.64,
+    "source_hit_rate": 0.9455
+  },
+  "retrieval_samples": {
+    "hybrid": [
+      {
+        "id": "doc-001-1",
+        "question": "在 Android 和 iOS 平台上，端外打开 AJX Scheme 时的页面跳转行为有何不同？",
+        "expected_document": "AJX+Scheme.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 510.55,
+        "retrieved": [
+          "AJX+Scheme.pdf",
+          "iOS适配原理简介.pdf",
+          "从长列表看高德地图AJX容器能力演进.pdf"
+        ]
+      },
+      {
+        "id": "doc-002-1",
+        "question": "在Titan平台的AJX Web化流程中，为什么已Web化业务在开发阶段只需新建迭代和分支，而未Web化业务还需额外新建模块？",
+        "expected_document": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 150.6,
+        "retrieved": [
+          "AJX+Web化在Titan平台的开发、发布流程.pdf",
+          "AJX+Web化在Titan平台的开发、发布流程.pdf",
+          "整体概述.pdf"
+        ]
+      },
+      {
+        "id": "doc-003-1",
+        "question": "在AJX中，区分播放类动效与交互类动效的核心依据是什么？",
+        "expected_document": "AJX+动效的前世今生.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 161.1,
+        "retrieved": [
+          "AJX+动效的前世今生.pdf",
+          "AJX+动效的前世今生.pdf",
+          "AJX+动效的前世今生.pdf"
+        ]
+      },
+      {
+        "id": "doc-004-1",
+        "question": "AJX Bundle 通过 Titan 平台打包后生成的文件具有什么命名格式？请结合高德地图“我的”业务模块示例说明。",
+        "expected_document": "AJXBundle介绍.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 127.36,
+        "retrieved": [
+          "AJXBundle介绍.pdf",
+          "AJXBundle介绍.pdf",
+          "AJX+Web化在Titan平台的开发、发布流程.pdf"
+        ]
+      },
+      {
+        "id": "doc-005-1",
+        "question": "在AJX的冷启动流程中，App升级与非App升级场景下对本地patch文件的清理策略有何不同？",
+        "expected_document": "AJX学习与感想.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 155.77,
+        "retrieved": [
+          "AJX学习与感想.pdf",
+          "AJXBundle介绍.pdf",
+          "AJX学习与感想.pdf"
+        ]
+      },
+      {
+        "id": "doc-006-1",
+        "question": "AJX热更新中动态引擎支持哪几种触发发布单更新的场景？",
+        "expected_document": "AJX热更新.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 135.48,
+        "retrieved": [
+          "AJX热更新.pdf",
+          "AJX学习与感想.pdf",
+          "AJX学习与感想.pdf"
+        ]
+      },
+      {
+        "id": "doc-007-1",
+        "question": "在AJX页面配置中，lcpX参数的作用是什么，以及为什么配置错误可能导致大规模白屏误报？",
+        "expected_document": "AJX页面config文件.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 112.57,
+        "retrieved": [
+          "AJX页面config文件.pdf",
+          "AJX页面config文件.pdf",
+          "LaunchMode页面加载模式.pdf"
+        ]
+      },
+      {
+        "id": "doc-008-1",
+        "question": "AJX 2.0 相比 AJX 1.0 在实现完整跨端能力方面新增了哪些关键技术组件？",
+        "expected_document": "AMAP跨端技术演变.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 189.78,
+        "retrieved": [
+          "AMAP跨端技术演变.pdf",
+          "AMAP跨端技术演变.pdf",
+          "揭秘高德地图动态化跨端容器--AJX.pdf"
+        ]
+      },
+      {
+        "id": "doc-009-1",
+        "question": "在Artisan的BFF实现中，DataProvider（DPI）作为后端页面开发的原子单位，其设计如何支持多维度服务聚合与单维度服务聚合？",
+        "expected_document": "BFF调研.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 109.65,
+        "retrieved": [
+          "BFF调研.pdf",
+          "BFF调研.pdf",
+          "我理解的BFF.pdf"
+        ]
+      },
+      {
+        "id": "doc-010-1",
+        "question": "FOX框架是如何通过其开发模型约束视图、数据与逻辑的？",
+        "expected_document": "FOX学习心得.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 116.88,
+        "retrieved": [
+          "FOX学习心得.pdf",
+          "FOX学习心得.pdf",
+          "FOX学习心得.pdf"
+        ]
+      },
+      {
+        "id": "doc-011-1",
+        "question": "在US架构演进中，为什么不同行业和形态的商品目前仍存在不同的数据模型和服务链路，尽管它们理论上可用统一的SPU/SKU模型表达？",
+        "expected_document": "GBF在US建设标准业务能力.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 120.73,
+        "retrieved": [
+          "GBF在US建设标准业务能力.pdf",
+          "GBF在US建设标准业务能力.pdf",
+          "_GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-012-1",
+        "question": "为什么在GBF异步日志优化中，ObjectSizeCalculator在主线程执行原本被认为对业务影响很小，但在US主搜迁移时却导致接口响应时间显著增加？",
+        "expected_document": "GBF异步日志优化.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 115.62,
+        "retrieved": [
+          "GBF异步日志优化.pdf",
+          "GBF异步日志优化.pdf",
+          "从长列表看高德地图AJX容器能力演进.pdf"
+        ]
+      },
+      {
+        "id": "doc-013-1",
+        "question": "GBF缓存功能为何要求Session本地缓存必须设置默认淘汰时间？",
+        "expected_document": "GBF缓存功能.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 235.15,
+        "retrieved": [
+          "GBF缓存功能.pdf",
+          "GBF缓存功能.pdf",
+          "GBF缓存功能.pdf"
+        ]
+      },
+      {
+        "id": "doc-014-1",
+        "question": "在 singleInstance 启动模式下，当复用栈底已存在的页面实例时，页面栈中其他页面的顺序是否发生变化？该被复用的页面会触发哪些生命周期事件？",
+        "expected_document": "LaunchMode页面加载模式.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 134.46,
+        "retrieved": [
+          "LaunchMode页面加载模式.pdf",
+          "LaunchMode页面加载模式.pdf",
+          "LaunchMode页面加载模式.pdf"
+        ]
+      },
+      {
+        "id": "doc-015-1",
+        "question": "在GBF框架的调度优化方案中，ExecutionLayer的parallelEnabled字段为true时，其同层节点满足什么条件才能被并行执行？",
+        "expected_document": "Node+调度优化设计方案.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 113.51,
+        "retrieved": [
+          "Node+调度优化设计方案.pdf",
+          "Node+调度优化设计方案.pdf",
+          "Node+调度优化设计方案.pdf"
+        ]
+      },
+      {
+        "id": "doc-016-1",
+        "question": "在GBF框架的Node超时属性设计方案中，timeout参数是如何从NodeConfigBuilder传递到异步执行环节并确保生效的？",
+        "expected_document": "Node超时属性设计方案.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 116.13,
+        "retrieved": [
+          "Node超时属性设计方案.pdf",
+          "Node超时属性设计方案.pdf",
+          "Node超时属性设计方案.pdf"
+        ]
+      },
+      {
+        "id": "doc-017-1",
+        "question": "根据资料，US服务采用垂直划分方案时，其模块间隔离性和执行方式具有什么特点？",
+        "expected_document": "US架构思考.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 112.68,
+        "retrieved": [
+          "US架构思考.pdf",
+          "GBF在US建设标准业务能力.pdf",
+          "US架构思考.pdf"
+        ]
+      },
+      {
+        "id": "doc-018-1",
+        "question": "为什么搜推不能作为独立的领域，而运营可以？请结合领域模型需具备的业务属性进行解释。",
+        "expected_document": "US领域识别.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 120.8,
+        "retrieved": [
+          "US领域识别.pdf",
+          "US领域识别.pdf",
+          "_US领域设计原则.pdf"
+        ]
+      },
+      {
+        "id": "doc-019-1",
+        "question": "在GBF分层架构中，为什么DomainService之间不能相互调用，且NodeService必须由一个或多个DomainService组合而成？",
+        "expected_document": "_GBF分层设计及模型.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 177.05,
+        "retrieved": [
+          "GBF在US建设标准业务能力.pdf",
+          "_GBF分层设计及模型.pdf",
+          "_GBF分层设计及模型.pdf"
+        ]
+      },
+      {
+        "id": "doc-020-1",
+        "question": "在US架构演进中，为什么不同行业和形态的商品目前仍存在不同的数据模型和服务链路，尽管它们理论上可以统一到SPU/SKU模型？",
+        "expected_document": "_GBF在US建设标准业务能力.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 182.95,
+        "retrieved": [
+          "GBF在US建设标准业务能力.pdf",
+          "GBF在US建设标准业务能力.pdf",
+          "_GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-021-1",
+        "question": "GBF如何通过业务身份和场景实现同一接口在不同行业和场景下的差异化支持？",
+        "expected_document": "_US使用GBF建设portal实践.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 148.62,
+        "retrieved": [
+          "GBF在US建设标准业务能力.pdf",
+          "_US使用GBF建设portal实践.pdf",
+          "GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-022-1",
+        "question": "根据资料，为什么商铺模型不应直接划分到POI域中，尽管它们在业务场景中经常同时出现？",
+        "expected_document": "_US领域设计原则.pdf",
+        "rank": 3,
+        "hit": true,
+        "latency_ms": 196.38,
+        "retrieved": [
+          "US领域识别.pdf",
+          "US领域识别.pdf",
+          "_US领域设计原则.pdf"
+        ]
+      },
+      {
+        "id": "doc-023-1",
+        "question": "根据资料，US业务平台在迁移过程中采用‘新、老系统分别开发部署，通过diff明确迁移状态’的做法，其主要目的是什么？",
+        "expected_document": "_业务平台建设.pdf",
+        "rank": null,
+        "hit": false,
+        "latency_ms": 134.59,
+        "retrieved": [
+          "一文了解GBF.pdf",
+          "一文了解GBF.pdf",
+          "一文了解高德领域（DDD）研发框架GBF.pdf"
+        ]
+      },
+      {
+        "id": "doc-024-1",
+        "question": "在星环体系中，将优惠券扣减功能抽象为工具产品的核心目的为何？",
+        "expected_document": "_星环研究总结.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 94.28,
+        "retrieved": [
+          "_星环研究总结.pdf",
+          "_星环研究总结.pdf",
+          "GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-025-1",
+        "question": "在ajx引擎的适配层中，为什么适配层可以修改View的属性值并同步回JS引擎，却不能修改样式值并同步？",
+        "expected_document": "android适配层原理.pdf",
+        "rank": 3,
+        "hit": true,
+        "latency_ms": 171.41,
+        "retrieved": [
+          "AJX+动效的前世今生.pdf",
+          "AJX学习与感想.pdf",
+          "android适配层原理.pdf"
+        ]
+      },
+      {
+        "id": "doc-026-1",
+        "question": "在iOS适配层中，AJX页面栈如何通过root容器和JSPage页面实现UI的渲染与事件分发？",
+        "expected_document": "iOS适配原理简介.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 166.06,
+        "retrieved": [
+          "iOS适配原理简介.pdf",
+          "AMAP跨端技术演变.pdf",
+          "AJX学习与感想.pdf"
+        ]
+      },
+      {
+        "id": "doc-027-1",
+        "question": "在配置 SplashView 时，data 字段的数据格式和结构有哪些具体约束？",
+        "expected_document": "splash+view.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 107.31,
+        "retrieved": [
+          "splash+view.pdf",
+          "splash+view.pdf",
+          "splash+view.pdf"
+        ]
+      },
+      {
+        "id": "doc-028-1",
+        "question": "GBF框架中缓存组件的设计如何支持业务在各层实现自定义逻辑？",
+        "expected_document": "一文了解GBF.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 114.66,
+        "retrieved": [
+          "一文了解GBF.pdf",
+          "一文了解高德领域（DDD）研发框架GBF.pdf",
+          "GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-029-1",
+        "question": "GBF框架中的缓存组件如何利用JSR107规范进行分层设计？请说明Provider、Manager和Cache三层各自的核心职责。",
+        "expected_document": "一文了解高德领域（DDD）研发框架GBF.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 172.94,
+        "retrieved": [
+          "GBF缓存功能.pdf",
+          "一文了解高德领域（DDD）研发框架GBF.pdf",
+          "BFF调研.pdf"
+        ]
+      },
+      {
+        "id": "doc-030-1",
+        "question": "AJX容器在调试包和正式安装包中分别使用了哪种JavaScript引擎？选择这两种引擎的主要依据是什么？",
+        "expected_document": "一文读懂高德地图AJX容器架构原理.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 122.96,
+        "retrieved": [
+          "一文读懂高德地图AJX容器架构原理.pdf",
+          "引擎基本介绍.pdf",
+          "一文读懂高德地图AJX容器架构原理2.pdf"
+        ]
+      },
+      {
+        "id": "doc-031-1",
+        "question": "AJX容器在调试包和正式安装包中分别使用了哪种JavaScript引擎？选择这两种引擎的主要依据是什么？",
+        "expected_document": "一文读懂高德地图AJX容器架构原理2.pdf",
+        "rank": 3,
+        "hit": true,
+        "latency_ms": 153.7,
+        "retrieved": [
+          "一文读懂高德地图AJX容器架构原理.pdf",
+          "引擎基本介绍.pdf",
+          "一文读懂高德地图AJX容器架构原理2.pdf"
+        ]
+      },
+      {
+        "id": "doc-032-1",
+        "question": "在余额类业务系统中，为什么账户通常被设计为聚合根而流水是附属模型？但在财务流水认领系统中，流水为何又成为独立的聚合根？请结合资料说明判断聚合根的关键依据。",
+        "expected_document": "业务系统架构实践总结.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 118.87,
+        "retrieved": [
+          "业务系统架构实践总结.pdf",
+          "业务系统架构实践总结.pdf",
+          "业务系统架构实践总结.pdf"
+        ]
+      },
+      {
+        "id": "doc-033-1",
+        "question": "在bff-vo框架中，聚合层（VO层）的模块如何与端上组件进行绑定？",
+        "expected_document": "介绍.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 111.67,
+        "retrieved": [
+          "介绍.pdf",
+          "介绍.pdf",
+          "高德信息工程BFF的稳定性方案设计.pdf"
+        ]
+      },
+      {
+        "id": "doc-034-1",
+        "question": "AJX容器如何通过原生组件和异步布局计算实现列表滚动帧率不低于原生开发的水平？",
+        "expected_document": "从长列表看高德地图AJX容器能力演进.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 119.02,
+        "retrieved": [
+          "从长列表看高德地图AJX容器能力演进.pdf",
+          "从长列表看高德地图AJX容器能力演进.pdf",
+          "从长列表看高德地图AJX容器能力演进.pdf"
+        ]
+      },
+      {
+        "id": "doc-035-1",
+        "question": "Ajx Builder 在编译流程中通过哪个 gulpTask 实现对图片、资源处理、测试代码注入、性能插桩和代码压缩等能力的依次执行？",
+        "expected_document": "初识+AJX+Builder.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 155.58,
+        "retrieved": [
+          "初识+AJX+Builder.pdf",
+          "初识+AJX+Builder.pdf",
+          "初识+AJX+Builder.pdf"
+        ]
+      },
+      {
+        "id": "doc-036-1",
+        "question": "AJX前端在iOS和Android平台上分别使用什么JavaScript引擎来执行业务逻辑？",
+        "expected_document": "前端基本介绍.pdf",
+        "rank": null,
+        "hit": false,
+        "latency_ms": 178.71,
+        "retrieved": [
+          "引擎基本介绍.pdf",
+          "一文读懂高德地图AJX容器架构原理2.pdf",
+          "AJX+动效的前世今生.pdf"
+        ]
+      },
+      {
+        "id": "doc-037-1",
+        "question": "在动态UI适配层中，当用户正在浏览的页面所属bundle被热更新时，为何需要用户二次进入该页面才能看到更新效果？",
+        "expected_document": "动态UI适配层原理-iOS篇.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 120.4,
+        "retrieved": [
+          "AJX学习与感想.pdf",
+          "动态UI适配层原理-iOS篇.pdf",
+          "AJX热更新.pdf"
+        ]
+      },
+      {
+        "id": "doc-038-1",
+        "question": "为什么 amap_bundle_framework 中的资源默认不能上云，且在什么条件下才允许上云？",
+        "expected_document": "如何进行AJX资源云化.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 170.41,
+        "retrieved": [
+          "如何进行AJX资源云化.pdf",
+          "如何进行AJX资源云化.pdf",
+          "高德架构升级：客户端动态框架篇.pdf"
+        ]
+      },
+      {
+        "id": "doc-039-1",
+        "question": "为什么IO线程不能执行JS代码，而JS线程和Service线程可以？",
+        "expected_document": "引擎基本介绍.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 143.09,
+        "retrieved": [
+          "引擎基本介绍.pdf",
+          "一文读懂高德地图AJX容器架构原理.pdf",
+          "一文读懂高德地图AJX容器架构原理2.pdf"
+        ]
+      },
+      {
+        "id": "doc-040-1",
+        "question": "在Node.js实现的BFF架构中，前端如何通过配置后端JAR包依赖来调用HSF服务？",
+        "expected_document": "我理解的BFF.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 173.62,
+        "retrieved": [
+          "BFF调研.pdf",
+          "我理解的BFF.pdf",
+          "我理解的BFF.pdf"
+        ]
+      },
+      {
+        "id": "doc-041-1",
+        "question": "根据资料，BFF层被引入的核心问题域是什么？",
+        "expected_document": "我眼中的BFF.pdf",
+        "rank": 3,
+        "hit": true,
+        "latency_ms": 189.71,
+        "retrieved": [
+          "BFF调研.pdf",
+          "我理解的BFF.pdf",
+          "我眼中的BFF.pdf"
+        ]
+      },
+      {
+        "id": "doc-042-1",
+        "question": "在US服务接入GBF的背景下，为什么需要基于框架实现统一模型管控平台？",
+        "expected_document": "接口模型管理.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 120.68,
+        "retrieved": [
+          "一文了解GBF.pdf",
+          "接口模型管理.pdf",
+          "GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-043-1",
+        "question": "AJX容器在2021年架构升级中，为解决业务模块依赖耦合严重导致热更复杂的问题，采取了哪些关键技术措施？",
+        "expected_document": "揭秘高德地图动态化跨端容器--AJX.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 153.28,
+        "retrieved": [
+          "揭秘高德地图动态化跨端容器--AJX.pdf",
+          "揭秘高德地图动态化跨端容器--AJX.pdf",
+          "揭秘高德地图动态化跨端容器--AJX.pdf"
+        ]
+      },
+      {
+        "id": "doc-044-1",
+        "question": "AJX 云化方案中，App 在冷热启动时触发的基础能力具体支持什么功能？",
+        "expected_document": "整体概述.pdf",
+        "rank": 3,
+        "hit": true,
+        "latency_ms": 158.92,
+        "retrieved": [
+          "资源云化技术方案.pdf",
+          "资源云化技术方案.pdf",
+          "整体概述.pdf"
+        ]
+      },
+      {
+        "id": "doc-045-1",
+        "question": "为什么全局节点被拆分为头部和尾部配置，而不是直接在业务节点中追加？",
+        "expected_document": "流程通用配置能力.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 172.26,
+        "retrieved": [
+          "流程通用配置能力.pdf",
+          "US架构思考.pdf",
+          "业务系统架构实践总结.pdf"
+        ]
+      },
+      {
+        "id": "doc-046-1",
+        "question": "在动态UI架构中，AJX引擎层提供的调试能力具体包括哪些功能？",
+        "expected_document": "深入理解动态UI架构.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 120.58,
+        "retrieved": [
+          "深入理解动态UI架构.pdf",
+          "深入理解动态UI架构.pdf",
+          "一文读懂高德地图AJX容器架构原理.pdf"
+        ]
+      },
+      {
+        "id": "doc-047-1",
+        "question": "在离职手续中，电子版离职证明的开具需同时满足哪三项条件？",
+        "expected_document": "离职交接指引_02_00_205256.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 118.11,
+        "retrieved": [
+          "US领域识别.pdf",
+          "离职交接指引_02_00_205256.pdf",
+          "离职交接指引_02_00_205256.pdf"
+        ]
+      },
+      {
+        "id": "doc-048-1",
+        "question": "在一体化开发流程中，如何通过脚手架工具实现按需拉取 lib_vo 中的模块？",
+        "expected_document": "简介.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 162.02,
+        "retrieved": [
+          "简介.pdf",
+          "介绍.pdf",
+          "GBF在US建设标准业务能力.pdf"
+        ]
+      },
+      {
+        "id": "doc-049-1",
+        "question": "在AJX资源云化方案中，预加载的云化资源缓存为何要与动态UI非云化图片的缓存分离？",
+        "expected_document": "资源云化技术方案.pdf",
+        "rank": 2,
+        "hit": true,
+        "latency_ms": 117.98,
+        "retrieved": [
+          "如何进行AJX资源云化.pdf",
+          "资源云化技术方案.pdf",
+          "资源云化技术方案.pdf"
+        ]
+      },
+      {
+        "id": "doc-050-1",
+        "question": "在AJX bundle化实践中，为何要对公用bundle进行分层处理，且规定下层不能依赖上层？",
+        "expected_document": "高德+AJX+bundle+化实践总结.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 119.93,
+        "retrieved": [
+          "高德+AJX+bundle+化实践总结.pdf",
+          "高德架构升级：客户端动态框架篇.pdf",
+          "AJX+Web化在Titan平台的开发、发布流程.pdf"
+        ]
+      },
+      {
+        "id": "doc-051-1",
+        "question": "在高德信息工程BFF的稳定性方案中，为什么客户端请求仅包含poiId时需要在入口层补全行业信息？",
+        "expected_document": "高德信息工程BFF的稳定性方案设计.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 114.54,
+        "retrieved": [
+          "高德信息工程BFF的稳定性方案设计.pdf",
+          "高德信息工程BFF的稳定性方案设计.pdf",
+          "高德信息工程BFF的稳定性方案设计.pdf"
+        ]
+      },
+      {
+        "id": "doc-052-1",
+        "question": "为什么高德在选择前端框架时认为 Rax 相比 React 更适合无线端，且能以较低侵入性适配其自研的 AJX 渲染引擎？",
+        "expected_document": "高德前端框架思考与展望.pdf",
+        "rank": null,
+        "hit": false,
+        "latency_ms": 179.34,
+        "retrieved": [
+          "FOX学习心得.pdf",
+          "FOX学习心得.pdf",
+          "AJX学习与感想.pdf"
+        ]
+      },
+      {
+        "id": "doc-053-1",
+        "question": "在AJX落地POI业务时，团队为解决多人协作开发问题而构建的framework框架提供了什么级别的模块化能力？",
+        "expected_document": "高德前端这五年.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 186.23,
+        "retrieved": [
+          "高德前端这五年.pdf",
+          "高德前端这五年.pdf",
+          "高德前端这五年.pdf"
+        ]
+      },
+      {
+        "id": "doc-054-1",
+        "question": "AJX 打包生成的 .ajx 文件采用了哪些机制来减小热更新时的包体积？",
+        "expected_document": "高德地图AJX容器工具链从0到1建设.pdf",
+        "rank": 3,
+        "hit": true,
+        "latency_ms": 146.72,
+        "retrieved": [
+          "AJXBundle介绍.pdf",
+          "AJX学习与感想.pdf",
+          "高德地图AJX容器工具链从0到1建设.pdf"
+        ]
+      },
+      {
+        "id": "doc-055-1",
+        "question": "在高德地图的动态化框架中，文件集成模块如何与资源管理模块协同以支持云化资源的动态更新？",
+        "expected_document": "高德架构升级：客户端动态框架篇.pdf",
+        "rank": 1,
+        "hit": true,
+        "latency_ms": 185.83,
+        "retrieved": [
+          "高德架构升级：客户端动态框架篇.pdf",
+          "高德架构升级：客户端动态框架篇.pdf",
+          "AJXBundle介绍.pdf"
+        ]
+      }
+    ]
+  },
+  "answer_samples": [
+    {
+      "id": "doc-001-1",
+      "question": "在 Android 和 iOS 平台上，端外打开 AJX Scheme 时的页面跳转行为有何不同？",
+      "expected_document": "AJX+Scheme.pdf",
+      "reference": "Android 侧：端外打开 Native Scheme 和 AJX Scheme 时，默认在当前页面基础上打开新页面；iOS 侧：端外打开 Native Scheme 和 AJX Scheme 时，默认会回到主图，再打开新页面；",
+      "answer": "在 Android 和 iOS 平台上，端外打开 AJX Scheme 时的页面跳转行为不同如下：\n\n- **Android**：默认在当前页面基础上打开新页面；\n- **iOS**：默认会先回到主图（首页），再打开新页面。",
+      "sources": [
+        "AJX+Scheme.pdf",
+        "iOS适配原理简介.pdf",
+        "从长列表看高德地图AJX容器能力演进.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心内容：Android 端在当前页面基础上打开新页面，iOS 端先回到主图再打开新页面。表述清晰、完整，且与标准答案一致，有明确的资料依据。"
+    },
+    {
+      "id": "doc-002-1",
+      "question": "在Titan平台的AJX Web化流程中，为什么已Web化业务在开发阶段只需新建迭代和分支，而未Web化业务还需额外新建模块？",
+      "expected_document": "AJX+Web化在Titan平台的开发、发布流程.pdf",
+      "reference": "资料指出：'未Web化业务：开发的新业务或分拆的老业务，要进行Web化都需要“新建模块”、“新建迭代”、“新建分支”。已Web化业务：只需“新建迭代”、“新建分支”。' 这表明模块对应的是Web化载体，已Web化的业务已有对应模块，故无需重复创建。",
+      "answer": "因为在 Titan 平台中，**模块对应一个 git 仓库**，而 **AJX Web 化是以模块（即 git 仓库）为单位进行管理的**。\n\n- **未 Web 化业务**：尚未建立对应的 Web 化代码仓库，因此需要先“新建模块”（即创建新的 git 仓库），再“新建迭代”和“新建分支”来承载本次 Web 化开发内容。\n- **已 Web 化业务**：已经存在对应的模块（git 仓库），后续只需基于已有模块创建新的“迭代”和“分支”即可开展新需求或适配新 App 版本的开发。\n\n此外，资料中提到：“Titan 平台只支持 Web 化 bundle 针对单一 App 版本生效”，所以即使是已 Web 化业务，在新 App 版本中仍需新建迭代以适配。",
+      "sources": [
+        "AJX+Web化在Titan平台的开发、发布流程.pdf",
+        "AJX+Web化在Titan平台的开发、发布流程.pdf",
+        "整体概述.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确解释了已Web化与未Web化业务在开发阶段操作差异的原因，明确指出模块对应git仓库，且AJX Web化以模块为单位管理。这与标准答案中‘模块对应Web化载体，已Web化业务已有模块故无需新建’的核心逻辑一致。同时，实际回答还补充了资料中关于迭代需适配新App版本的细节，内容完整、正确，并有明确资料依据。"
+    },
+    {
+      "id": "doc-003-1",
+      "question": "在AJX中，区分播放类动效与交互类动效的核心依据是什么？",
+      "expected_document": "AJX+动效的前世今生.pdf",
+      "reference": "区分播放类还是交互类动效的关键在于动效的执⾏过程中「是否存在⽤户的⼿势操作」。",
+      "answer": "在 AJX 中，区分播放类动效与交互类动效的核心依据是：**动效的执行过程中是否存在用户的 gestures（手势）操作**。\n\n- **播放类动效**：自动播放，无需用户交互。\n- **交互类动效**：在执行过程中需要用户的操作（如拖拽、点击等）参与。",
+      "sources": [
+        "AJX+动效的前世今生.pdf",
+        "AJX+动效的前世今生.pdf",
+        "AJX+动效的前世今生.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心观点，即区分依据是‘动效执行过程中是否存在用户的手势操作’，并进一步对两类动效进行了清晰、正确的解释，内容完整且有依据。"
+    },
+    {
+      "id": "doc-004-1",
+      "question": "AJX Bundle 通过 Titan 平台打包后生成的文件具有什么命名格式？请结合高德地图“我的”业务模块示例说明。",
+      "expected_document": "AJXBundle介绍.pdf",
+      "reference": "以 高德地图-“我的”业务模块为例，它的 bundle 名是 amap_bundle_mine，通过Titan 平台打包为 amap_bundle_mine_v0011.0.080800.1027.0.ajx文件",
+      "answer": "AJX Bundle 通过 Titan 平台打包后生成的文件命名格式为：\n\n**{bundle名}_v{版本号}.ajx**\n\n以高德地图“我的”业务模块为例，其 bundle 名为 **amap_bundle_mine**，打包后生成的 AJX 文件名为：  \n**amap_bundle_mine_v0011.0.080800.1027.0.ajx**。\n\n该命名规则体现了 bundle 名称与版本信息的组合。",
+      "sources": [
+        "AJXBundle介绍.pdf",
+        "AJXBundle介绍.pdf",
+        "AJX+Web化在Titan平台的开发、发布流程.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确描述了 AJX Bundle 通过 Titan 平台打包后的命名格式，并正确引用了高德地图“我的”业务模块的示例，包括 bundle 名 amap_bundle_mine 和完整的文件名 amap_bundle_mine_v0011.0.080800.1027.0.ajx，与标准答案完全一致，内容完整且有明确资料依据。"
+    },
+    {
+      "id": "doc-005-1",
+      "question": "在AJX的冷启动流程中，App升级与非App升级场景下对本地patch文件的清理策略有何不同？",
+      "expected_document": "AJX学习与感想.pdf",
+      "reference": "资料明确指出：'如果是 App 升级后的冷启动，首先删除所有的 ajx patch 文件；如果是非 App 升级后的冷启动，首先删除，除最新一次下载的 ajx patch 文件之外的 patch 文件。'",
+      "answer": "在 AJX 的冷启动流程中，App 升级与非 App 升级场景下对本地 patch 文件的清理策略如下：\n\n- **App 升级后的冷启动**：删除**所有的** ajx patch 文件。  \n- **非 App 升级后的冷启动**：仅保留**最新一次下载的** ajx patch 文件，删除其余 patch 文件。",
+      "sources": [
+        "AJX学习与感想.pdf",
+        "AJXBundle介绍.pdf",
+        "AJX学习与感想.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心内容：App升级后删除所有patch文件，非App升级后仅保留最新一次下载的patch文件并删除其余文件。表述清晰、完整，且与资料依据一致。"
+    },
+    {
+      "id": "doc-006-1",
+      "question": "AJX热更新中动态引擎支持哪几种触发发布单更新的场景？",
+      "expected_document": "AJX热更新.pdf",
+      "reference": "AJX Bundle 热更新是业务基于五毒快迭发布或者基于 AJX 发布单的形式进行问题修复的一种能力。由动态引擎负责拉取发布单更新 ( 冷启动拉取发布单更新、场景化进页面拉取发布单更新、 scheme 跳转拉取发布单更新 ) 、文件下载、校验、加载等一系列工作，最后 AJX Bundle 在端上进行生效。",
+      "answer": "根据资料，AJX热更新中动态引擎支持以下三种触发发布单更新的场景：\n\n1. 冷启动拉取发布单更新  \n2. 场景化进页面拉取发布单更新  \n3. Scheme跳转拉取发布单更新",
+      "sources": [
+        "AJX热更新.pdf",
+        "AJX学习与感想.pdf",
+        "AJX学习与感想.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确列出了标准答案中提到的三种触发发布单更新的场景（冷启动、场景化进页面、scheme跳转），内容完整且与资料一致，无遗漏或错误。"
+    },
+    {
+      "id": "doc-007-1",
+      "question": "在AJX页面配置中，lcpX参数的作用是什么，以及为什么配置错误可能导致大规模白屏误报？",
+      "expected_document": "AJX页面config文件.pdf",
+      "reference": "",
+      "answer": "在 AJX 页面配置中，**lcpX 参数的作用**是：\n\n- 启用「LCP 白屏」检测机制；\n- 当页面打开后渲染的 **label、img、svg 等节点总数达到 lcpX 个时**，系统会记录此时的耗时（单位：毫秒）；\n- 该耗时通过 page_destroy 日志上报；\n- Sura 平台根据耗时是否 > 0 判断页面是否正常渲染：  \n  - 耗时 > 0 → 页面正常；  \n  - 耗时 ≤ 0 → 判定为「页面白屏」。\n\n**为什么配置错误会导致大规模白屏误报？**\n\n- 如果 lcpX 设置过小（例如设为 1），即使页面实际已白屏但恰好渲染了少量节点（如一个空 img 标签），也会被误判为“已正常渲染”，导致漏报；\n- 反之，如果 lcpX 设置过大，而页面因异常未能渲染足够数量的节点，则会被错误判定为白屏；\n- **误报量级与页面流量正相关**，高流量页面一旦配置不当，可能产生**百万甚至千万级别的误报**；\n- 因此文档强调：**配置前应咨询容器同学，谨慎设置**。",
+      "sources": [
+        "AJX页面config文件.pdf",
+        "AJX页面config文件.pdf",
+        "LaunchMode页面加载模式.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确完整地描述了 lcpX 参数的作用（启用 LCP 白屏检测、节点数量阈值触发耗时记录、通过 page_destroy 上报、Sura 平台基于耗时判断是否白屏），并清晰解释了配置错误（过小或过大）如何导致漏报或误报，以及为何会引发大规模误报（与流量正相关）。内容与标准答案一致，有明确的技术逻辑和依据。"
+    },
+    {
+      "id": "doc-008-1",
+      "question": "AJX 2.0 相比 AJX 1.0 在实现完整跨端能力方面新增了哪些关键技术组件？",
+      "expected_document": "AMAP跨端技术演变.pdf",
+      "reference": "AJX 2.0 在 AJX 1.0 基础上增加了 JavaScript 引擎 (Duktape) 支持动态业务逻辑、layout 渲染引擎支持更多的布局及样式渲染、native 适配层支持更多原生组件。",
+      "answer": "AJX 2.0 相比 AJX 1.0 在实现完整跨端能力方面新增了以下关键技术组件：\n\n1. **JavaScript 引擎（Duktape）**：用于支持动态业务逻辑。  \n2. **Layout 渲染引擎**：支持更多的布局及样式渲染。  \n3. **Native 适配层**：支持更多原生组件。  \n\n这些新增组件使得 AJX 2.0 基本上实现了完整的跨端框架能力，能够独立实现部分简单业务逻辑。",
+      "sources": [
+        "AMAP跨端技术演变.pdf",
+        "AMAP跨端技术演变.pdf",
+        "揭秘高德地图动态化跨端容器--AJX.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确列出了 AJX 2.0 新增的三个关键技术组件（JavaScript 引擎 Duktape、Layout 渲染引擎、Native 适配层），内容与标准答案完全一致，且表述完整、有依据。"
+    },
+    {
+      "id": "doc-009-1",
+      "question": "在Artisan的BFF实现中，DataProvider（DPI）作为后端页面开发的原子单位，其设计如何支持多维度服务聚合与单维度服务聚合？",
+      "expected_document": "BFF调研.pdf",
+      "reference": "4.2.1 聚合 ●多维度服务聚合：多个 dpi 数据聚合，如 APP 端常见的个人页面里，常常需要将用户的个人信息接口 和 用户的偏好商品接口合并。●单维度服务聚合：单个 dpi 数据内聚合，如商品的信息来自多个团队，基本信息、营销信息、 DA 离线统计信息、供应链信息等等，所有数据在研发过程中内聚到一个 DPI 。",
+      "answer": "在 Artisan 的 BFF 实现中，DataProvider（DPI）作为后端页面开发的原子单位，其设计通过以下方式支持两种聚合：\n\n1. **多维度服务聚合**：  \n   多个 DPI 可以分别对接不同的下游服务（如用户个人信息接口、用户偏好商品接口），在页面（Page）或组件层级进行编排组合，从而实现跨服务的数据聚合。前端无需关心多个接口的调用细节，由 BFF 层统一协调。\n\n2. **单维度服务聚合**：  \n   单个 DPI 内部可集成来自多个团队或系统的数据（如商品的基本信息、营销信息、DA 离线统计、供应链信息等），在 DPI 内完成数据内聚与整合，对外暴露为一个统一的数据单元。这样前端只需调用一个 DPI 即可获取完整数据。\n\n综上，DPI 既可作为独立数据提供单元参与多 DPI 聚合（多维度），也可在内部完成复杂数据融合（单维度），从而灵活支撑 BFF 层的聚合需求。",
+      "sources": [
+        "BFF调研.pdf",
+        "BFF调研.pdf",
+        "我理解的BFF.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心内容：多维度服务聚合指多个DPI的数据聚合（如用户信息与偏好商品接口合并），单维度服务聚合指单个DPI内部聚合来自多个来源的数据（如商品的各类信息）。回答不仅正确，而且表述清晰、结构完整，并明确指出前端调用简化和BFF层协调机制，符合资料依据。"
+    },
+    {
+      "id": "doc-010-1",
+      "question": "FOX框架是如何通过其开发模型约束视图、数据与逻辑的？",
+      "expected_document": "FOX学习心得.pdf",
+      "reference": "资料中明确指出FOX框架提供了一个开发模型来约束视图、数据、逻辑，并将其列为学习心得的核心问题之一。",
+      "answer": "FOX 框架通过采用 **React 的 DSL（领域特定语言）** 和 **继承 React 的设计理念**，结合 **dva 状态管理方案**，构建了一个清晰的开发模型来约束视图、数据与逻辑：\n\n1. **视图（View）**：使用类似 React 的 JSX 语法声明式地定义 UI，避免了传统命令式 DOM 操作（如 setAttribute），使视图结构更清晰、可维护性更高。\n\n2. **数据与状态管理**：整合 **dva**（基于 Redux 和 Redux-saga 的轻量封装），将全局状态、副作用处理（如异步请求）和业务逻辑集中管理，实现数据流的单向流动和可预测性。\n\n3. **逻辑组织**：通过组件化和 dva 的 model 分离机制，将页面逻辑拆分为独立的模块（如 page 层、model 层），使视图只负责渲染，数据由 model 管理，逻辑通过 effects 或 reducers 处理，从而实现关注点分离。\n\n这种模型有效解决了早期 ajxFramework 中 **UI 与逻辑混杂、维护性差、缺乏生态** 等问题，向主流前端工程化实践靠拢。",
+      "sources": [
+        "FOX学习心得.pdf",
+        "FOX学习心得.pdf",
+        "FOX学习心得.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 2,
+      "judge_reason": "实际回答详细描述了FOX框架如何通过React DSL、dva等技术约束视图、数据与逻辑，但标准答案仅指出'资料中明确提到FOX框架提供了一个开发模型来约束视图、数据、逻辑，并列为学习心得的核心问题之一'，并未涉及React、JSX、dva、Redux等具体技术细节。实际回答的内容在所给资料依据中并无支持，属于无资料依据的扩展或臆测，因此虽然内容看似合理，但缺乏对应资料支撑，正确性无法确认，属于错误较多。"
+    },
+    {
+      "id": "doc-011-1",
+      "question": "在US架构演进中，为什么不同行业和形态的商品目前仍存在不同的数据模型和服务链路，尽管它们理论上可用统一的SPU/SKU模型表达？",
+      "expected_document": "GBF在US建设标准业务能力.pdf",
+      "reference": "资料指出，现状是由于历史包袱和各行业商业化发展步调不一致所导致，尽管商品形态本应只是商品自身的一个维度，不应影响模型和系统链路设计。",
+      "answer": "根据提供的资料，不同行业和形态的商品目前仍存在不同的数据模型和服务链路，主要原因有两点：\n\n1. **历史包袱**：各业务线在早期独立发展时，已形成各自的数据模型和服务架构，改造成本高；\n2. **各行业商业化发展步调不一致**：不同行业在商品形态、业务逻辑和上线节奏上存在差异，导致未能同步采用统一模型。\n\n尽管如此，商品侧正在推动向统一的 SPU/SKU 模型聚焦，以实现模型和系统链路与商品形态解耦。",
+      "sources": [
+        "GBF在US建设标准业务能力.pdf",
+        "GBF在US建设标准业务能力.pdf",
+        "_GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案中的两个核心原因（历史包袱、各行业商业化发展步调不一致），并进一步补充了‘商品侧正在推动向统一SPU/SKU模型聚焦’这一符合资料背景的延伸信息，未偏离事实。内容完整、正确，且有明确资料依据。"
+    },
+    {
+      "id": "doc-012-1",
+      "question": "为什么在GBF异步日志优化中，ObjectSizeCalculator在主线程执行原本被认为对业务影响很小，但在US主搜迁移时却导致接口响应时间显著增加？",
+      "expected_document": "GBF异步日志优化.pdf",
+      "reference": "ObjectSizeCalculator为JDK中的一个计算类，其原理是通过内存寻址计算hash来达到快速计算对象大小的目标；之前GBF版本经jmh测试其运行效率较高，对业务影响很小，因此将其保留在主线程执行；但本次迁移中遇到对象中有匿名类对象的情况，将DTO中如下属性删除后计算结果恢复正常：classifyResultDTO.getClassifyVO().getContext().remove(\"_selectedConfig\");...long resultSize = ObjectSizeCalculator.getObjectSize(result);",
+      "answer": "因为在 US 主搜迁移 GBF 时，被计算的对象中包含了**匿名类对象**（如 DTO 中的 `_selectedConfig` 字段），而 `ObjectSizeCalculator` 在处理这类对象时性能显著下降。尽管此前 JMH 测试表明其在常规场景下效率较高、对业务影响小，但匿名类会增加内存结构复杂度，导致 `ObjectSizeCalculator.getObjectSize()` 计算耗时剧增，从而拖慢主线程，使接口响应时间超过 3 秒。删除相关字段后问题消失，验证了该原因。",
+      "sources": [
+        "GBF异步日志优化.pdf",
+        "GBF异步日志优化.pdf",
+        "从长列表看高德地图AJX容器能力演进.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了问题的根本原因——ObjectSizeCalculator 在处理包含匿名类对象（如 _selectedConfig 字段）时性能显著下降，与标准答案一致。同时说明了此前 JMH 测试显示其在常规场景下影响小，但在迁移中因对象结构变化导致性能恶化，并提到了删除字段后问题恢复，信息完整且有依据。"
+    },
+    {
+      "id": "doc-013-1",
+      "question": "GBF缓存功能为何要求Session本地缓存必须设置默认淘汰时间？",
+      "expected_document": "GBF缓存功能.pdf",
+      "reference": "设计目标中明确指出‘Session 缓存需默认淘汰时间’，且背景需求强调‘不能或尽量减少对业务过程的影响’以及‘整个 Session 缓存释放可异步’，说明默认淘汰时间是为了在不干扰业务的前提下自动清理临时会话数据，避免内存泄漏或陈旧数据滞留。",
+      "answer": "GBF缓存功能要求Session本地缓存必须设置默认淘汰时间，主要是出于以下几点考虑：\n\n1. **避免内存泄漏**：Session缓存与业务流程（Session）绑定，若不设置淘汰时间，缓存可能长期驻留内存，尤其在Session未正常结束或异常中断时，导致内存无法及时释放，造成内存泄漏。\n\n2. **保障系统稳定性**：默认淘汰时间可确保即使在Session未被显式销毁的情况下，缓存也能在一定时间后自动过期，防止无限制累积，影响系统性能和稳定性。\n\n3. **符合设计目标中“不能或尽量减少对业务过程的影响”**：通过自动淘汰机制，降低业务方对缓存生命周期管理的负担，同时避免因缓存滞留干扰后续流程。\n\n4. **支持异步释放机制**：文档提到“整个Session缓存释放可异步”，而默认淘汰时间为异步清理提供了兜底保障，确保资源最终可回收。\n\n综上，设置默认淘汰时间是实现安全、可靠、低侵入性缓存管理的关键措施。",
+      "sources": [
+        "GBF缓存功能.pdf",
+        "GBF缓存功能.pdf",
+        "GBF缓存功能.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答全面覆盖了标准答案中的核心要点：明确引用了设计目标中‘Session缓存需默认淘汰时间’、‘不能或尽量减少对业务过程的影响’以及‘整个Session缓存释放可异步’等关键背景需求，并准确解释了默认淘汰时间的作用——在不干扰业务的前提下自动清理临时会话数据，防止内存泄漏和陈旧数据滞留。此外，回答结构清晰，逻辑完整，所有论点均有资料依据，无错误或冗余信息。"
+    },
+    {
+      "id": "doc-014-1",
+      "question": "在 singleInstance 启动模式下，当复用栈底已存在的页面实例时，页面栈中其他页面的顺序是否发生变化？该被复用的页面会触发哪些生命周期事件？",
+      "expected_document": "LaunchMode页面加载模式.pdf",
+      "reference": "singleInstance 复⽤栈底⻚⾯后，栈中其他⻚⾯顺序不变，栈顶⻚⾯会收到 pageHide ，栈底⻚⾯直接从栈中取出放到栈顶，回调 pageShow 事件。",
+      "answer": "在 **singleInstance** 启动模式下：\n\n- 当复用栈底已存在的页面实例时，**页面栈中其他页面的顺序不会发生变化**。该被复用的页面会从原位置（如栈底）**直接取出并放到栈顶**，其余页面保持原有顺序。\n  \n- 该被复用的页面会触发以下生命周期事件：\n  - **pageHide**：原栈顶页面会收到 `pageHide` 回调；\n  - **pageShow**：被复用的页面移到栈顶后，会收到 `pageShow` 回调；\n  - **不会触发 ready 事件**，因为页面是被复用而非重新创建。\n\n> 注：以上结论依据资料第6/8页和第3/8页内容。",
+      "sources": [
+        "LaunchMode页面加载模式.pdf",
+        "LaunchMode页面加载模式.pdf",
+        "LaunchMode页面加载模式.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答与标准答案在关键点上完全一致：（1）页面栈中其他页面顺序不变；（2）被复用页面从栈底取出放到栈顶；（3）原栈顶页面触发 pageHide，被复用页面触发 pageShow。此外，实际回答还补充了不会触发 ready 事件这一合理细节，并明确引用了资料依据，信息完整、准确且有出处。"
+    },
+    {
+      "id": "doc-015-1",
+      "question": "在GBF框架的调度优化方案中，ExecutionLayer的parallelEnabled字段为true时，其同层节点满足什么条件才能被并行执行？",
+      "expected_document": "Node+调度优化设计方案.pdf",
+      "reference": "资料明确指出ExecutionLayer表示‘执行层，同层节点可并行执行’，并通过依赖分析流程说明：只有当节点之间无依赖关系（即不在彼此的dependencies集合中）时，才会被划分到同一层并设置parallelEnabled=true。例如A和B均无依赖，被置于Layer 1并行执行；C依赖A、D依赖A和B，故C和D被置于后续层。因此，并行执行的前提是同层节点彼此无依赖关系。",
+      "answer": "在GBF框架的调度优化方案中，当 ExecutionLayer 的 parallelEnabled 字段为 true 时，其同层节点满足**彼此之间无依赖关系**（即不存在执行先后顺序约束）的条件，才能被并行执行。\n\n该结论依据如下：\n\n- 调度优化通过 NodeDependencyGraph 对节点依赖进行建模，其中 dependencies 表示每个节点所依赖的前置节点集合；\n- 通过拓扑排序将节点划分为多个 ExecutionLayer，每一层中的节点**不互相依赖**，且仅依赖于前序层的节点；\n- 文档示例明确指出：Layer 1 包含 A、B，二者依赖均为空，因此可并行；Layer 2 包含 C（依赖A）、D（依赖A、B），它们之间无相互依赖，故也可并行；\n- 因此，parallelEnabled = true 的前提是该层内所有节点**无内部依赖**，仅依赖之前层级的节点。\n\n综上，同层节点必须**相互无依赖**才能被并行执行。",
+      "sources": [
+        "Node+调度优化设计方案.pdf",
+        "Node+调度优化设计方案.pdf",
+        "Node+调度优化设计方案.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了并行执行的条件是同层节点彼此无依赖关系，并引用了依赖图建模、拓扑排序分层机制以及文档示例（A/B在Layer 1，C/D在Layer 2）作为依据，内容与标准答案完全一致，信息完整且有明确资料支撑。"
+    },
+    {
+      "id": "doc-016-1",
+      "question": "在GBF框架的Node超时属性设计方案中，timeout参数是如何从NodeConfigBuilder传递到异步执行环节并确保生效的？",
+      "expected_document": "Node超时属性设计方案.pdf",
+      "reference": "1.3.1 功能需求第3条明确要求'确保 timeout 参数能够传递到执行环节并生效'，且FutureResult.java的修改说明提到'修改异步执行部分，传递 timeout'，同时NodeConfig构造函数包含timeout字段用于接收该参数。",
+      "answer": "在 GBF 框架的 Node 超时属性设计方案中，**timeout 参数通过以下流程从 NodeConfigBuilder 传递到异步执行环节并确保生效**：\n\n1. **配置构建阶段**：  \n   在 `NodeConfigBuilder`（具体为 `BaseNodeConfigBuilder`）中新增 `timeout` 属性，并提供 `async(timeout)` 方法，用于同时设置异步开关和超时时间。\n\n2. **配置传递阶段**：  \n   构建完成后，`timeout` 值被写入 `NodeConfig` 对象，作为节点配置的一部分。\n\n3. **执行阶段**：  \n   `ProcessNodeInvoker` 在执行节点时，会读取 `NodeConfig` 中的 `timeout` 属性。若节点为异步执行（`asyncEnable == true`），则该超时时间会被用于构造 `FutureResult`。\n\n4. **超时判断机制**：  \n   `FutureResult` 在构造时即根据当前时间与 `timeout` 计算出**绝对过期时间点**（而非相对时长），确保在整个异步执行和结果获取过程中使用统一的时间基准进行超时判断。\n\n5. **结果获取阶段**：  \n   当尝试获取异步结果时，系统会检查当前时间是否已超过该过期时间点。若已超时，则直接返回“超时失败”，不再等待 `CompletableFuture` 的实际结果。\n\n该设计保证了：\n- 超时参数从配置到执行的完整传递链路；\n- 超时判断全局一致（基于绝对时间点）；\n- 与现有异步机制兼容，不破坏原有接口。",
+      "sources": [
+        "Node超时属性设计方案.pdf",
+        "Node超时属性设计方案.pdf",
+        "Node超时属性设计方案.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答完整准确地描述了timeout参数从NodeConfigBuilder经由NodeConfig传递到异步执行环节（ProcessNodeInvoker和FutureResult）的全过程，并说明了其通过绝对过期时间点确保生效的机制。内容与标准答案中提到的'功能需求第3条'、'FutureResult.java修改说明'及'NodeConfig构造函数包含timeout字段'完全一致，且细节更丰富，逻辑清晰，有明确的资料依据。"
+    },
+    {
+      "id": "doc-017-1",
+      "question": "根据资料，US服务采用垂直划分方案时，其模块间隔离性和执行方式具有什么特点？",
+      "expected_document": "US架构思考.pdf",
+      "reference": "垂直划分方案\n基于业务归纳的垂直划分（人群识别在子流程条件执行）\n优点\n模块间的隔离性较好\n整体过程可垂直并发执行\n现有 MIF 和 GBF 均能较好支持",
+      "answer": "根据提供的资料，**US服务采用垂直划分方案时，其模块间隔离性和执行方式的特点并未直接说明**。\n\n资料中主要描述了**水平划分方案**的特点，例如：\n\n- 子流程节点可**并发执行**，具有**一定的隔离性**；\n- 整体流程存在**串行过程**，对上游有一定依赖。\n\n而对于**垂直划分方案**，资料仅提到：\n\n- 在**业务取数环节变更时改动成本更低**；\n- **未提及模块间的隔离性与执行方式（如是否并发、串行等）的具体特点**。\n\n因此，**关于垂直划分方案下模块间隔离性和执行方式的特点，资料中没有明确信息**。",
+      "sources": [
+        "US架构思考.pdf",
+        "GBF在US建设标准业务能力.pdf",
+        "US架构思考.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 2,
+      "judge_reason": "实际回答错误地声称资料未说明垂直划分方案的模块间隔离性和执行方式特点，而标准答案明确指出资料中已说明：垂直划分具有‘模块间隔离性较好’和‘整体过程可垂直并发执行’的特点。实际回答忽略了这些关键信息，属于对资料内容的误读，因此错误较多。"
+    },
+    {
+      "id": "doc-018-1",
+      "question": "为什么搜推不能作为独立的领域，而运营可以？请结合领域模型需具备的业务属性进行解释。",
+      "expected_document": "US领域识别.pdf",
+      "reference": "资料指出：搜推对应的信息承载对象为doc，doc自身没有业务属性，属于系统内技术实现层的模型，不能作为域模型的参考对象；而运营规则描述了在商品、内容上的加工与干预逻辑，具备明确的业务目标和方法模型，可作为领域模型的参考。",
+      "answer": "因为领域模型必须基于具备**业务属性的业务对象**，而非技术实现对象。\n\n- **搜推（搜索与推荐）** 的核心信息承载对象是 **doc**，它只是商品、POI 等业务实体的 ID 列表及标签的载体，**本身不具备业务属性**（如名称、价格、类目等），属于系统内部的技术实现模型，因此**不能作为独立领域**。\n\n- **运营** 则围绕**运营规则**展开，这些规则直接作用于商品、内容等具有明确业务属性的对象，描述了对它们的加工与干预逻辑（如限购、打标、排序策略等），其模型来源于产品和运营人员视角下的业务流程与目标，**具备明确的业务语义和闭环目标**，因此**可以作为独立领域**（参考淘系的限购域）。\n\n综上，是否具备**源自业务视角、有稳定业务属性和行为的模型**，是判断能否成为独立领域的关键。",
+      "sources": [
+        "US领域识别.pdf",
+        "US领域识别.pdf",
+        "_US领域设计原则.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心观点：搜推的信息承载对象doc缺乏业务属性，属于技术实现层，不能作为领域模型；而运营基于具有明确业务目标和方法的运营规则，作用于具备业务属性的对象，可作为独立领域。回答结构清晰，内容完整，并明确引用了业务属性、信息承载对象、技术实现层与业务语义等关键概念，完全符合资料依据和标准答案的要求。"
+    },
+    {
+      "id": "doc-019-1",
+      "question": "在GBF分层架构中，为什么DomainService之间不能相互调用，且NodeService必须由一个或多个DomainService组合而成？",
+      "expected_document": "_GBF分层设计及模型.pdf",
+      "reference": "资料明确指出：'DomainService 之间不能相互调用，领域之间不能产生依赖'，同时说明'NodeService 封装 DomainService，对外提供一个出入参相对统一的服务'，其逻辑'由一个或者多个 DomainService 中提供的方法组合而成'，例如创建订单的 NodeService 需要组合订单创建和买家校验两个 DomainService。这一设计旨在实现领域隔离、避免循环依赖，并通过 NodeService 统一暴露组合后的业务能力。",
+      "answer": "在 GBF 分层架构中，**DomainService 之间不能相互调用**，且 **NodeService 必须由一个或多个 DomainService 组合而成**，主要原因如下：\n\n### 1. **保持领域边界清晰，避免循环依赖**\n- 每个 DomainService 对应一个明确的业务领域（如用户、POI、订单等），其职责是封装该领域的核心逻辑。\n- 若允许 DomainService 相互调用，容易导致领域间耦合，破坏单一职责原则，增加维护成本，并可能引发循环依赖。\n\n### 2. **实现平台与业务解耦**\n- DomainService 是平台通用能力的体现，应与具体业务场景无关。禁止相互调用可确保其复用性和稳定性。\n- 具体业务逻辑（如酒店 Portal 页面）通过 NodeService 组合多个 DomainService 实现，从而将“不变的平台能力”和“变化的业务需求”分离。\n\n### 3. **NodeService 承担业务编排职责**\n- NodeService 是面向特定业务场景的服务封装层，负责协调多个 DomainService 完成完整业务流程（如创建订单需组合订单创建 + 买家校验）。\n- 这种设计符合“高内聚、低耦合”原则：DomainService 聚焦领域逻辑，NodeService 聚焦业务流程。\n\n### 4. **遵循分层架构规约**\n- 根据 GBF 架构规范，各层有明确定义：\n  - **DomainService**：使用 DSL 思想，提供标准、原子的领域服务；\n  - **NodeService**：封装 DomainService，对外提供统一出入参接口；\n  - **Platform Process**：组合多个 NodeService 形成稳定服务链路。\n- 禁止 DomainService 互调、强制 NodeService 组合 DomainService，是为了严格遵守这一分层契约，保障系统长期可演进性。\n\n> 参考资料：[GBF 架构文档](https://yuque.antfin.com/amap-search/arch/ie3gg1?singleDoc#)",
+      "sources": [
+        "GBF在US建设标准业务能力.pdf",
+        "_GBF分层设计及模型.pdf",
+        "_GBF分层设计及模型.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答完全符合标准答案的核心要点：明确指出DomainService之间不能相互调用以避免领域依赖和循环耦合，NodeService必须由一个或多个DomainService组合而成，并通过创建订单等例子说明其业务编排作用。同时，回答准确引用了架构设计目的（领域隔离、统一暴露能力）并提及参考资料，内容正确、完整且有资料依据。"
+    },
+    {
+      "id": "doc-020-1",
+      "question": "在US架构演进中，为什么不同行业和形态的商品目前仍存在不同的数据模型和服务链路，尽管它们理论上可以统一到SPU/SKU模型？",
+      "expected_document": "_GBF在US建设标准业务能力.pdf",
+      "reference": "资料指出，现状是由于历史包袱和各行业商业化发展步调不一致导致的，而商品侧正努力向统一的SPU/SKU模型聚焦。",
+      "answer": "因为在US架构演进中，不同行业和形态的商品目前仍存在不同的数据模型和服务链路，主要是由于**历史包袱**和**各行业商业化发展步调不一致**所导致的。尽管理论上它们可以统一到SPU/SKU模型，但实际落地过程中受制于已有系统结构和业务发展阶段差异，尚未完全收敛。当前商品侧正在努力向统一的SPU/SKU模型聚焦。",
+      "sources": [
+        "GBF在US建设标准业务能力.pdf",
+        "GBF在US建设标准业务能力.pdf",
+        "_GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案中的核心原因（历史包袱、各行业商业化发展步调不一致）和当前趋势（商品侧正努力向统一的SPU/SKU模型聚焦），内容完整，表述清晰，且有明确资料依据。"
+    },
+    {
+      "id": "doc-021-1",
+      "question": "GBF如何通过业务身份和场景实现同一接口在不同行业和场景下的差异化支持？",
+      "expected_document": "_US使用GBF建设portal实践.pdf",
+      "reference": "gbf 基于业务身份（行业）和场景作为路由的 key ，同一个接口不同实现类来支撑不同行业和场景的差异，然后在 Process 层对各业务功能节点进行组织编排，从而形成标准的业务能力。",
+      "answer": "GBF 通过将业务逻辑拆分为**通用逻辑**和**基于身份与场景的差异化逻辑**，实现同一接口在不同行业和场景下的差异化支持。具体机制如下：\n\n1. **身份（Identity）与场景（Scenario）作为路由依据**  \n   - 身份通常代表行业（如酒店、旅游、美食等），场景是在该行业下的细分页面或上下文（如 portal 页、泛搜列表页、详情页等）。  \n   - 系统根据请求中的身份和场景信息，动态匹配对应的差异化逻辑。\n\n2. **能力（Ability）按身份和场景命中执行**  \n   - `ability` 不是通用逻辑的实现位置，而是**仅在特定身份和场景命中时才执行的特殊逻辑**。  \n   - 这些 ability 被组织在 GBF 的领域模型中（如 domain、node、action 等），由平台统一调度。\n\n3. **通用逻辑与差异化逻辑解耦**  \n   - 前几步处理（如用户行为识别、POI 获取、ttag 解析）为**跨行业通用逻辑**，由平台统一实现，可复用。  \n   - 后续步骤（如干预策略、渲染差异）则根据解析出的**场景关键字**，调用对应行业的 NodeService 或 ability 实现差异化。\n\n4. **配置驱动场景映射**  \n   - 通过产品配置将 ttag 等上下文信息映射为具体的场景关键字，从而决定走哪条差异化路径，无需硬编码。\n\n综上，GBF 利用**身份+场景**作为维度，结合**领域对象（Domain）和能力（Ability）的结构化组织**，使同一接口能复用通用流程，同时灵活支持各行业/场景的定制逻辑，达到高复用与低耦合的目标。",
+      "sources": [
+        "GBF在US建设标准业务能力.pdf",
+        "_US使用GBF建设portal实践.pdf",
+        "GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心机制：以业务身份（行业）和场景作为路由 key，通过不同实现类支持差异化，并在 Process 层进行节点编排。此外，实际回答进一步细化了实现细节（如 ability、通用逻辑与差异化逻辑解耦、配置驱动等），这些内容虽超出标准答案字面表述，但未偏离事实，且符合 GBF 架构设计原则，属于合理扩展。整体内容正确、完整，且有明确的资料依据。"
+    },
+    {
+      "id": "doc-022-1",
+      "question": "根据资料，为什么商铺模型不应直接划分到POI域中，尽管它们在业务场景中经常同时出现？",
+      "expected_document": "_US领域设计原则.pdf",
+      "reference": "挂接关系属于引用关系的一种；引用关系的领域模型建议各自分成不同的域。",
+      "answer": "根据资料，商铺模型不应直接划分到 POI 域中，是因为商铺与 POI 之间是**引用关系**，而非**归属关系**。\n\n资料指出：\n- **引用关系**的定义是：任意模型的业务语义不依赖其他模型的补充。也就是说，商铺本身具有独立的业务语义，即使它常常挂接在 POI 上。\n- 虽然商铺和 POI 在多数业务场景下同时出现，但这种“挂接”属于引用关系的一种，不代表商铺应归属于 POI 域。\n- 此外，第6条原则明确建议：“**引用关系的领域模型建议各自分成不同的域**”。\n\n因此，尽管两者经常共现，商铺模型仍应保留在其自有域中，与 POI 域分离，以保持领域边界清晰和模型职责单一。",
+      "sources": [
+        "US领域识别.pdf",
+        "US领域识别.pdf",
+        "_US领域设计原则.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心观点：商铺与POI之间是引用关系而非归属关系，并明确指出引用关系的领域模型应分属不同域。同时，实际回答还补充了资料中的关键细节（如引用关系的定义、第6条原则），增强了完整性，且所有内容均有资料依据。因此，回答在正确性、完整性和资料依据方面均达到满分标准。"
+    },
+    {
+      "id": "doc-023-1",
+      "question": "根据资料，US业务平台在迁移过程中采用‘新、老系统分别开发部署，通过diff明确迁移状态’的做法，其主要目的是什么？",
+      "expected_document": "_业务平台建设.pdf",
+      "reference": "任务拆解原则第1条指出：'大节奏：不阻断业务迭代，新、老系统分别开发部署，通过diff明确迁移可迁移状态，按评估节奏进行切换'",
+      "answer": "根据资料，US业务平台在迁移过程中采用“新、老系统分别开发部署，通过diff明确迁移状态”的做法，其主要目的是：**不阻断业务迭代**。\n\n该策略允许新老系统并行开发与部署，确保在迁移过程中业务功能持续交付不受影响，同时通过对比（diff）清晰掌握哪些部分已具备迁移条件，从而按评估节奏有序推进切换。",
+      "sources": [
+        "一文了解GBF.pdf",
+        "一文了解GBF.pdf",
+        "一文了解高德领域（DDD）研发框架GBF.pdf"
+      ],
+      "source_hit": false,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了主要目的‘不阻断业务迭代’，并进一步解释了该做法如何通过新老系统并行开发部署保障业务连续性，以及通过diff明确迁移状态以支持按节奏切换，内容完整且完全符合标准答案所引用的任务拆解原则第1条。"
+    },
+    {
+      "id": "doc-024-1",
+      "question": "在星环体系中，将优惠券扣减功能抽象为工具产品的核心目的为何？",
+      "expected_document": "_星环研究总结.pdf",
+      "reference": "资料中指出，将优惠券扣减抽象成产品工具，是为了让垂直业务在需要该功能时可直接叠加使用，从而提高代码复用率并实现最终功能。",
+      "answer": "在星环体系中，将优惠券扣减功能抽象为工具产品的核心目的是：\n\n**提高代码复用率，并实现功能的快速复用与叠加使用**。\n\n通过将通用功能（如优惠券扣减）抽象为工具产品，不同垂直业务（如淘宝、天猫）无需各自重复实现相同逻辑，而是可以直接调用该工具产品。这不仅减少了重复开发，提升了开发效率，也符合星环体系“提升业务方研发效率”和“面向无确定性边界和不可预见性突变的对象进化设计模式”的总体理念。",
+      "sources": [
+        "_星环研究总结.pdf",
+        "_星环研究总结.pdf",
+        "GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心要点——提高代码复用率、支持垂直业务直接叠加使用该功能。同时，回答还合理扩展了背景信息（如淘宝、天猫等业务场景）和星环体系的设计理念，这些内容虽超出标准答案字面范围，但未偏离事实，且有助于说明‘为何要抽象为工具产品’，属于有资料依据的合理补充。整体回答正确、完整、有依据。"
+    },
+    {
+      "id": "doc-025-1",
+      "question": "在ajx引擎的适配层中，为什么适配层可以修改View的属性值并同步回JS引擎，却不能修改样式值并同步？",
+      "expected_document": "android适配层原理.pdf",
+      "reference": "样式的转化与属性的转化过程相同，不同的是引擎返回的 AjxDomEvent 的 type 值不同。在适配层可以改变 view 的属性，但不能改变样式的值（适配层改变样式的值不能同步到引擎端）。",
+      "answer": "因为在 AJX 引擎的设计中，**适配层可以修改 View 的属性值并通过事件机制通知引擎更新对应的 DOM 节点属性**，但**样式（Style）的修改不会被同步回引擎层**。\n\n根据资料说明：\n\n- 适配层通过 `AjxDomEvent` 接收来自引擎层的属性或样式变更通知，其中通过 `type` 字段区分是属性还是样式变化。\n- **适配层可以改变 View 的属性，并通知引擎刷新前端 Node 节点上对应的属性值**。\n- 但明确指出：“**适配层改变样式的值不能同步到引擎端**”。\n\n根本原因在于：**AJX 框架在设计上只支持属性的双向同步，而样式的同步是单向的（仅从引擎层流向适配层）**。这是为了避免动画过程中因样式频繁变动导致 DOM 与 View 状态不同步，以及减少双线程（UI 线程与 JS 线程）之间的通信开销。\n\n因此，**样式被视为由引擎层单向驱动的数据，不允许适配层反向修改并同步**，以保证架构稳定性和性能。",
+      "sources": [
+        "AJX+动效的前世今生.pdf",
+        "AJX学习与感想.pdf",
+        "android适配层原理.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了适配层可以修改View属性并同步回JS引擎，但不能修改样式值并同步。同时说明了这是AJX引擎的设计机制，并隐含了单向同步的原因（避免状态不一致和通信开销），与标准答案及补充资料完全一致，内容正确、完整且有明确资料依据。"
+    },
+    {
+      "id": "doc-026-1",
+      "question": "在iOS适配层中，AJX页面栈如何通过root容器和JSPage页面实现UI的渲染与事件分发？",
+      "expected_document": "iOS适配原理简介.pdf",
+      "reference": "资料指出：root容器为AJX3View，JSPage页面为AJXLiteView，页面通过栈管理；核心原理包括根据引擎渲染接口指令实现UI渲染和事件分发。",
+      "answer": "在 iOS 适配层中，AJX 页面栈通过以下方式实现 UI 的渲染与事件分发：\n\n- **Root 容器**：使用 `AJX3View` 作为根容器，承载整个 AJX 页面栈。\n- **JSPage 页面**：每个 JS 页面由 `AJXLiteView` 表示，并通过页面栈进行管理。\n- **UI 渲染**：AJX 引擎解析 JS 和 XML 生成 DOM 树并计算布局（转换为绝对坐标），然后通过引擎层向适配层发送渲染指令，适配层依据这些指令使用原生 iOS 组件完成 UI 渲染。\n- **事件分发**：UI 层绑定的用户交互事件被引擎层捕获，封装成事件对象（包含样式、属性等信息）后传递给适配层；适配层根据事件类型，调用对应原生组件的方法进行处理，并将事件通过 AJX 引擎转发至 JS 业务逻辑层。\n\n整个过程遵循“前端不感知 UI 线程，适配层不感知 JS 线程”的原则，所有交互必须通过 AJX 引擎层转接。",
+      "sources": [
+        "iOS适配原理简介.pdf",
+        "AMAP跨端技术演变.pdf",
+        "AJX学习与感想.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了 root 容器为 AJX3View、JSPage 页面为 AJXLiteView，并说明了页面通过栈管理；同时详细描述了 UI 渲染和事件分发的机制，与标准答案中‘根据引擎渲染接口指令实现 UI 渲染和事件分发’的核心原理一致，且内容完整、有资料依据。"
+    },
+    {
+      "id": "doc-027-1",
+      "question": "在配置 SplashView 时，data 字段的数据格式和结构有哪些具体约束？",
+      "expected_document": "splash+view.pdf",
+      "reference": "资料明确指出 data 是 JSON 字符串类型，需用 JSON.stringify 处理，且只能有一层数据，value 必须是基本类型。若在 native 中传值，还需转换为 AJX 的单位（如 iOS 使用 point/BS_POINT_SCALE）。示例中也展示了 data 被 stringify 后的扁平结构。",
+      "answer": "在配置 SplashView 时，`data` 字段有以下具体约束：\n\n1. **类型要求**：`data` 必须是 **JSON 字符串类型**，不能直接传入 JavaScript 对象，需使用 `JSON.stringify()` 处理。\n2. **数据结构限制**：仅支持 **一层扁平结构**，即 key-value 形式，且 **value 必须是基本类型**（如字符串、数字、布尔值等），不支持嵌套对象或数组。\n3. **Native 传值注意单位转换**：如果在 Native（如 iOS）中传值，需转换为 AJX 所使用的单位（例如 iOS 使用 point / BS_POINT_SCALE）。\n\n示例：\n```json\n\"data\": JSON.stringify({\n    \"somedata\": \"1\",\n    \"somedata2\": \"str\"\n})\n```",
+      "sources": [
+        "splash+view.pdf",
+        "splash+view.pdf",
+        "splash+view.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案中的所有关键点：data 必须是 JSON 字符串类型、需使用 JSON.stringify()、仅支持一层扁平结构、value 必须是基本类型、Native 端传值需单位转换（如 iOS 使用 point/BS_POINT_SCALE），并附有符合要求的示例。内容完整、正确，且有资料依据。"
+    },
+    {
+      "id": "doc-028-1",
+      "question": "GBF框架中缓存组件的设计如何支持业务在各层实现自定义逻辑？",
+      "expected_document": "一文了解GBF.pdf",
+      "reference": "面向接口和扩展设计，业务用户在每一层均可实现基于自有逻辑的定制实现。",
+      "answer": "GBF框架中缓存组件通过**面向接口和扩展设计**，支持业务在各层实现自定义逻辑。具体体现在：\n\n- 缓存分层参照 **JSR107 规范**，分为 Provider、Manager 和 Cache 三层；\n- **Provider** 是业务定义和调用的关联点，支持扩展以实现多缓存组合使用；\n- **Manager** 负责缓存实例管理，包含指标统计、Session 回调销毁等功能；\n- **Cache** 封装第三方缓存功能，便于替换或定制底层缓存实现；\n- 业务可在每一层基于自有逻辑进行定制实现，同时通过注解方式简便地使用缓存功能。",
+      "sources": [
+        "一文了解GBF.pdf",
+        "一文了解高德领域（DDD）研发框架GBF.pdf",
+        "GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答不仅准确传达了标准答案的核心观点——‘面向接口和扩展设计，业务用户在每一层均可实现基于自有逻辑的定制实现’，还进一步依据资料详细说明了缓存组件的三层结构（Provider、Manager、Cache）及其各自支持自定义的方式，并提及注解使用，内容完整、正确且有明确的技术依据。"
+    },
+    {
+      "id": "doc-029-1",
+      "question": "GBF框架中的缓存组件如何利用JSR107规范进行分层设计？请说明Provider、Manager和Cache三层各自的核心职责。",
+      "expected_document": "一文了解高德领域（DDD）研发框架GBF.pdf",
+      "reference": "资料中明确指出：'缓存的分层参照 JSR107 规范进行设计'，并分别定义了三层职责——'Provider：业务定义和调用的关联点（可扩展实现多缓存组合使用功能）'；'Manager：缓存实例管理器（包含指标统计功能、Session回调销毁等）'；'Cache：缓存实例和缓存管理器（实现了对三方缓存功能的封装）'。",
+      "answer": "GBF框架中的缓存组件参照JSR107规范进行分层设计，具体三层职责如下：\n\n- **Provider**：作为业务定义和调用的关联点，支持扩展以实现多缓存组合使用功能。  \n- **Manager**：作为缓存实例管理器，负责管理其下所有缓存实例，提供指标统计、Session回调销毁等能力。  \n- **Cache**：代表具体的缓存实例，封装对第三方缓存功能的调用，实现缓存的基本操作（如读写、失效等）。",
+      "sources": [
+        "GBF缓存功能.pdf",
+        "一文了解高德领域（DDD）研发框架GBF.pdf",
+        "BFF调研.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案中关于GBF缓存组件基于JSR107规范的三层分层设计，并完整、正确地描述了Provider、Manager和Cache各自的核心职责，内容与资料依据一致，无遗漏或错误。"
+    },
+    {
+      "id": "doc-030-1",
+      "question": "AJX容器在调试包和正式安装包中分别使用了哪种JavaScript引擎？选择这两种引擎的主要依据是什么？",
+      "expected_document": "一文读懂高德地图AJX容器架构原理.pdf",
+      "reference": "其开放性可自由选择 JS 引擎，目前 AJX 在调试包中使用了v8 引擎，其他安装包都是 jsc 引擎。这样的选择是因为根据我们的实践发现 jsc 比 v8 初始化时间更短，更有利于缩短 app 冷启动时间，而且 jsc 内存占用更低且线上表现更稳定可靠。v8 也有调试能力更好的优点，所以在调试包中仍保留了 v8 引擎。",
+      "answer": "根据资料：\n\n- **当前实际情况**：所有平台（包括 iOS 和 Android）以及所有包类型（调试包和正式安装包）**均已统一使用集团基于 QuickJS 的 qking 引擎**。\n\n- **历史情况（供参考）**：\n  - **iOS 端**：因系统预置了 JavaScriptCore（JSC），AJX 直接使用 JSC 引擎。\n  - **Android 端**：\n    - 调试包曾使用 **V8 引擎**；\n    - 正式安装包曾使用 **JavaScriptCore（JSC）引擎**。\n  - 选择依据主要是：\n    - **iOS 依赖系统预置的 JSC**，无法自由替换；\n    - **Android 平台开放性强**，可自由选择 JS 引擎，调试时选用 V8 可能因其调试能力更强或性能更适合开发阶段，而正式包用 JSC 可能出于包体积、稳定性或合规性考虑。\n\n但需注意：**目前所有环境均已切换为 qking 引擎**，上述 V8/JSC 的差异已不再适用。",
+      "sources": [
+        "一文读懂高德地图AJX容器架构原理.pdf",
+        "引擎基本介绍.pdf",
+        "一文读懂高德地图AJX容器架构原理2.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 2,
+      "judge_reason": "实际回答与标准答案在核心事实上存在显著冲突。标准答案明确指出当前 AJX 在调试包中使用 v8，正式包使用 jsc，并给出了选择依据；而实际回答称目前已统一使用 qking 引擎，历史才使用 v8/jsc。若以标准答案为权威依据，则实际回答错误地否定了当前仍在使用的 v8/jsc 架构，属于事实性错误较多。此外，实际回答虽提供了详细背景，但其‘当前实际情况’与标准答案直接矛盾，缺乏对标准所述现状的支持，因此正确性较差。"
+    },
+    {
+      "id": "doc-031-1",
+      "question": "AJX容器在调试包和正式安装包中分别使用了哪种JavaScript引擎？选择这两种引擎的主要依据是什么？",
+      "expected_document": "一文读懂高德地图AJX容器架构原理2.pdf",
+      "reference": "其开放性可自由选择 JS 引擎，目前 AJX 在调试包中使用了v8 引擎，其他安装包都是 jsc 引擎。这样的选择是因为根据我们的实践发现 jsc 比 v8 初始化时间更短，更有利于缩短 app 冷启动时间，而且 jsc 内存占用更低且线上表现更稳定可靠。v8 也有调试能力更好的优点，所以在调试包中仍保留了 v8 引擎。",
+      "answer": "根据资料，AJX容器在不同包类型中使用的JavaScript引擎如下：\n\n- **调试包**：Android端使用 **v8 引擎**；\n- **正式安装包（非调试包）**：Android端使用 **JavaScriptCore（jsc）引擎**。\n\n> 注：虽然资料中有一处提到“当前，所有平台以及所有包类型全部使用了集团基于 QuickJs 的 qking 引擎”，但结合上下文及问题聚焦于“调试包和正式包分别使用哪种引擎”的描述，应以明确区分调试/非调试包使用 v8/jsc 的说明为准。若 qking 已全面替换，则该区分不再成立。但依据问题所引资料主体内容，仍按 v8（调试）与 jsc（正式）作答。\n\n**选择依据**：\n\n- **iOS 端**：直接使用系统预置的 **JavaScriptCore（jsc）**，因系统已内置，无需额外集成。\n- **Android 端**：因其开放性，可自由选择 JS 引擎。\n  - **调试包用 v8**：可能因 v8 在调试、性能分析、错误堆栈等方面工具链更完善，利于开发调试；\n  - **正式包用 jsc**：可能出于包体积、内存占用、稳定性或与 iOS 行为一致性等生产环境考量。\n\n综上，选择主要依据是**平台特性（如 iOS 预置 jsc）、调试需求（v8 工具支持更好）及生产环境优化（jsc 更轻量或稳定）**。",
+      "sources": [
+        "一文读懂高德地图AJX容器架构原理.pdf",
+        "引擎基本介绍.pdf",
+        "一文读懂高德地图AJX容器架构原理2.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 4,
+      "judge_reason": "实际回答基本正确，准确指出调试包使用 v8、正式包使用 jsc，并说明了选择依据涉及调试能力、内存占用、稳定性等关键因素，与标准答案核心内容一致。但存在两点瑕疵：一是引入了与问题无关的 iOS 端信息（标准答案仅讨论 AJX 容器整体，未区分平台），二是提及‘qking 引擎’可能造成混淆，虽做了澄清但仍属冗余信息。此外，‘可能因...’等措辞略显推测性，而标准答案明确基于‘实践发现’。总体仍属基本正确，完整性稍有欠缺但不影响主干正确性。"
+    },
+    {
+      "id": "doc-032-1",
+      "question": "在余额类业务系统中，为什么账户通常被设计为聚合根而流水是附属模型？但在财务流水认领系统中，流水为何又成为独立的聚合根？请结合资料说明判断聚合根的关键依据。",
+      "expected_document": "业务系统架构实践总结.pdf",
+      "reference": "资料第4段指出：'流⽔是账户的附属模型，它的变化是账户⾦额变化的⼀个体现，它不独⽴。所以账户是聚合根……但这个经验值也有例外场景。譬如，财务⾥有个流⽔认领系统……流⽔是独⽴的，它是财务操作的核⼼⽬标模型，它的操作和账户⽆关，故⽽是独⽴的聚合根。所以，我们需要根据场景推导，看模型的独⽴性来判断是否为聚合根。'",
+      "answer": "根据资料，判断一个模型是否为聚合根的关键依据是**其在具体业务场景中是否具有独立性**，即是否**独立被操作、独立存在**，尤其应从 **Command（写操作）** 的复杂性和业务语义出发进行推演，而非仅凭直觉或查询需求。\n\n### 1. **余额类业务系统中：账户是聚合根，流水是附属模型**\n- **原因**：流水的变化是账户金额变动的**体现**，不独立存在。\n- 所有导致流水生成的操作（如充值、扣款、转账）本质上都是对**账户的写操作**，流水只是该操作的副产品或记录。\n- 从 DDD 的 CQRS 角度看，**复杂逻辑集中在 Command 层**，而流水本身没有独立的业务行为，其生命周期完全依附于账户。\n- 因此，**账户是聚合根，流水是附属实体**。\n\n### 2. **财务流水认领系统中：流水是独立的聚合根**\n- **背景**：To B 场景下，客户通过银行手工打款，银行流水与业务应收单据无法自动匹配（如合并付款、预付款、备注不清等）。\n- **核心业务目标**：财务人员需**直接对银行流水进行识别、打标、拆分、核销**——这些是围绕**流水本身**的复杂写操作。\n- 此时，流水**不依赖账户变动而存在**，也不是账户操作的结果，而是**财务操作的核心对象**。\n- 因此，流水在此场景下具备**独立的业务语义和操作逻辑**，成为**独立的聚合根**。\n\n### 判断聚合根的关键依据（总结自资料）：\n> **“需要根据场景推演，看它是否有独立被操作、被存在的情况。”**  \n> 尤其关注 **Command 层的复杂性** 和 **业务语义上的独立性**，而非查询便利性或表面关联。",
+      "sources": [
+        "业务系统架构实践总结.pdf",
+        "业务系统架构实践总结.pdf",
+        "业务系统架构实践总结.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答完全符合标准答案的核心观点：1）正确指出判断聚合根的关键依据是模型在具体业务场景中的独立性；2）准确解释了余额系统中账户为聚合根、流水为附属的原因——流水是账户变动的体现，不独立；3）正确说明财务流水认领系统中流水成为独立聚合根的原因——其是财务操作的核心目标，操作与账户无关；4）引用并扩展了资料第4段的内容，强调‘根据场景推导’和‘独立被操作’的原则，并结合Command层复杂性和业务语义进行合理阐释，未偏离资料依据。整体回答正确、完整、有明确资料支撑。"
+    },
+    {
+      "id": "doc-033-1",
+      "question": "在bff-vo框架中，聚合层（VO层）的模块如何与端上组件进行绑定？",
+      "expected_document": "介绍.pdf",
+      "reference": "模块是⼀个可返回端上组件需要的数据的函数，它返回的数据格式如下：...每⼀个模块可以绑定多个 card_id ，⾄少会有⼀个 card_id 对应。",
+      "answer": "在 BFF-VO 框架中，聚合层（VO 层）的模块通过 **card_id** 与端上组件进行绑定。\n\n具体说明如下：\n\n- 每一个 VO 模块是一个返回端上组件所需数据的函数，其返回的数据格式通常为：\n  ```json\n  {\n    \"data\": {\n      \"title\": \"xxx\"\n    }\n  }\n  ```\n- 每个模块可以绑定 **多个 card_id**，但至少会有一个 card_id 与之对应。\n- 端上组件通过 card_id 来消费对应的模块数据，从而实现模块与组件的绑定和数据供给。\n\n因此，**card_id 是 VO 模块与端上组件之间的绑定标识**。",
+      "sources": [
+        "介绍.pdf",
+        "介绍.pdf",
+        "高德信息工程BFF的稳定性方案设计.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确描述了BFF-VO框架中VO层模块通过card_id与端上组件绑定的机制，明确指出模块是返回端上所需数据的函数、可绑定多个card_id且至少有一个，并说明了端上通过card_id消费数据。内容与标准答案一致，信息完整且有依据。"
+    },
+    {
+      "id": "doc-034-1",
+      "question": "AJX容器如何通过原生组件和异步布局计算实现列表滚动帧率不低于原生开发的水平？",
+      "expected_document": "从长列表看高德地图AJX容器能力演进.pdf",
+      "reference": "AJX容器的<list>组件利用原生RecyclerView/UITableView的视图复用能力，并通过异步布局计算在滚动前预先确定每个View的宽高位置，使UI线程在滚动时可跳过layout步骤，仅执行渲染，从而理论上保证滚动帧率不低于原生列表。",
+      "answer": "AJX 容器**并未通过原生组件实现列表滚动**，而是**刻意避免将交互封装在原生组件中**，以保留通用性和动态化能力。\n\n为实现列表滚动帧率不低于原生开发的水平，AJX 容器采取了以下关键措施：\n\n1. **在 JS 层实现两个通用能力**：\n   - **关联动画**：提供不依赖 JS 线程的动画能力，确保动画流畅，避免因 JS 线程阻塞导致掉帧。\n   - **模拟滚动**：在 JS 层模拟滚动行为，赋予列表滚动更多交互可能性，同时绕过跨线程通信带来的性能损耗。\n\n2. **解决跨线程手势交互难点**：\n   - 支持上下两段式滑动（如地图+列表的“半图半表”结构）。\n   - 实现头图与列表的差速动画，提升交互体验。\n\n3. **架构优化保障性能**：\n   - 虽然布局计算在 JS 线程、渲染在 UI 线程（异步架构），但通过上述通用能力，将关键交互逻辑（如滚动、动画）脱离对 JS 线程实时响应的依赖，从而保障帧率接近原生水平。\n\n因此，AJX 容器是**通过 JS 层的创新设计（关联动画 + 模拟滚动）而非依赖原生组件**，来实现高性能列表滚动体验的。",
+      "sources": [
+        "从长列表看高德地图AJX容器能力演进.pdf",
+        "从长列表看高德地图AJX容器能力演进.pdf",
+        "从长列表看高德地图AJX容器能力演进.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 2,
+      "judge_reason": "实际回答与标准答案在核心机制上存在根本性矛盾。标准答案明确指出AJX容器通过<list>组件利用原生RecyclerView/UITableView的视图复用能力，并结合异步布局计算来保障帧率；而实际回答则声称AJX刻意避免使用原生组件，转而在JS层实现模拟滚动和关联动画。这种说法不仅否定了原生组件的使用，也未提及‘异步布局计算’和‘预计算宽高位置以跳过layout’等关键性能优化手段。尽管实际回答描述了JS层的某些优化策略，但其对AJX实现机制的理解与标准答案相悖，缺乏资料依据，且遗漏了标准答案中的核心技术点，因此错误较多。"
+    },
+    {
+      "id": "doc-035-1",
+      "question": "Ajx Builder 在编译流程中通过哪个 gulpTask 实现对图片、资源处理、测试代码注入、性能插桩和代码压缩等能力的依次执行？",
+      "expected_document": "初识+AJX+Builder.pdf",
+      "reference": "资料第7条明确指出：gulpTask: compile 的核心流程内部调用了 compile_pages task 执行编译，而 compile_pages 内部通过 stream 先后对图片、资源、测试代码注入、性能插桩、代码压缩、sourMap 等功能进行了能力实现。",
+      "answer": "Ajx Builder 在编译流程中通过 **`compile_pages`** gulpTask 实现对图片、资源处理、测试代码注入、性能插桩和代码压缩等能力的依次执行。\n\n该任务由核心流程中的 **`compile`** gulpTask 内部调用。",
+      "sources": [
+        "初识+AJX+Builder.pdf",
+        "初识+AJX+Builder.pdf",
+        "初识+AJX+Builder.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了是 `compile_pages` gulpTask 实现了所述功能，并说明其由 `compile` gulpTask 调用，与标准答案完全一致，内容完整且有明确资料依据。"
+    },
+    {
+      "id": "doc-036-1",
+      "question": "AJX前端在iOS和Android平台上分别使用什么JavaScript引擎来执行业务逻辑？",
+      "expected_document": "前端基本介绍.pdf",
+      "reference": "业务逻辑用JavaScript实现，iOS中用系统自带的JSC中运行，Android中使用客户端内置的V8引擎执行",
+      "answer": "根据资料，AJX前端在iOS和Android平台上**当前均使用集团基于 QuickJS 的 qking 引擎**来执行业务逻辑。\n\n虽然资料中曾提到历史情况（如iOS使用JavaScriptCore、Android调试包用V8等），但明确指出：\n\n> “当前，所有平台以及所有包类型全部使用了集团基于 QuickJs 的 qking 引擎。”\n\n因此，目前统一使用 **qking 引擎**。",
+      "sources": [
+        "引擎基本介绍.pdf",
+        "一文读懂高德地图AJX容器架构原理2.pdf",
+        "AJX+动效的前世今生.pdf"
+      ],
+      "source_hit": false,
+      "judge_score": 2,
+      "judge_reason": "实际回答与标准答案在关键事实上存在明显冲突。标准答案指出iOS使用JavaScriptCore（JSC）、Android使用V8引擎，而实际回答称当前所有平台统一使用集团自研的基于QuickJS的qking引擎。若以标准答案为评测基准（即评测依据不包含实际回答中引用的‘资料’），则实际回答属于错误较多；即使实际回答引用了内部资料，但题目要求仅依据标准答案判断正确性，因此不能采纳其额外信息。故评分为2。"
+    },
+    {
+      "id": "doc-037-1",
+      "question": "在动态UI适配层中，当用户正在浏览的页面所属bundle被热更新时，为何需要用户二次进入该页面才能看到更新效果？",
+      "expected_document": "动态UI适配层原理-iOS篇.pdf",
+      "reference": "hotpatch",
+      "answer": "因为在热更新过程中，当前正在运行的页面实例仍使用的是旧版本的 bundle 代码和资源。动态 UI 适配层的热加载机制并不会主动替换或刷新已打开页面的运行时上下文。只有当用户退出该页面并再次进入时，系统才会重新加载已更新的 bundle，从而渲染出最新的内容。因此，需要用户二次进入页面才能看到热更新后的效果。",
+      "sources": [
+        "AJX学习与感想.pdf",
+        "动态UI适配层原理-iOS篇.pdf",
+        "AJX热更新.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确解释了热更新机制下已打开页面仍使用旧 bundle、动态 UI 适配层不会主动刷新当前页面上下文，以及二次进入才会加载新 bundle 的原理，内容完整且符合标准答案所指的 hotpatch 行为。"
+    },
+    {
+      "id": "doc-038-1",
+      "question": "为什么 amap_bundle_framework 中的资源默认不能上云，且在什么条件下才允许上云？",
+      "expected_document": "如何进行AJX资源云化.pdf",
+      "reference": "amap_bundle_framework 中的资源不能上云，除非所有依赖 bundle 都重新构建且不向修改前的版本发布。",
+      "answer": "根据提供的资料：\n\n**原因**：  \namap_bundle_framework 中的资源默认不能上云，是因为这些资源可能被多个 bundle 依赖，若随意云化会导致依赖不一致或版本冲突问题。\n\n**允许上云的条件**：  \n只有在 **所有依赖该 bundle 的其他 bundle 都重新构建**，并且 **不再向修改前的旧版本发布** 的情况下，才允许将其资源上云。",
+      "sources": [
+        "如何进行AJX资源云化.pdf",
+        "如何进行AJX资源云化.pdf",
+        "高德架构升级：客户端动态框架篇.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心内容：资源默认不能上云的原因（可能被多个 bundle 依赖，导致依赖不一致或版本冲突），以及允许上云的条件（所有依赖 bundle 都重新构建且不再向旧版本发布）。表述清晰、完整，且有资料依据，与标准答案一致。"
+    },
+    {
+      "id": "doc-039-1",
+      "question": "为什么IO线程不能执行JS代码，而JS线程和Service线程可以？",
+      "expected_document": "引擎基本介绍.pdf",
+      "reference": "IO 线程 (AJXIOThread) 执行 IO 操作的独立线程，IO 线程不存在 JS 虚拟机实例，因此不能执行 JS 代码；JS 线程和 Service 线程都包含虚拟机实例，可以用来并发执行 JS 脚本。",
+      "answer": "因为 IO 线程（AJXIOThread）**没有 JS 虚拟机实例**，而 JS 线程（JavaScriptThread）和 Service 线程（JsServiceThread）**都包含 JS 虚拟机实例**，只有具备虚拟机实例的线程才能执行 JS 代码。",
+      "sources": [
+        "引擎基本介绍.pdf",
+        "一文读懂高德地图AJX容器架构原理.pdf",
+        "一文读懂高德地图AJX容器架构原理2.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确指出了IO线程不能执行JS代码的原因是缺少JS虚拟机实例，同时明确说明JS线程和Service线程包含JS虚拟机实例，因此可以执行JS代码。内容与标准答案一致，信息完整且有明确依据。"
+    },
+    {
+      "id": "doc-040-1",
+      "question": "在Node.js实现的BFF架构中，前端如何通过配置后端JAR包依赖来调用HSF服务？",
+      "expected_document": "我理解的BFF.pdf",
+      "reference": "为了实现和 java ⼀样体验的 RPC 体验，前端同学开发了 jar 的 js proxy 。前端同学只需在 js ⾥配置依赖的后端 jar 包，编译后，会⾃动⽣成 js 版本的 rpc 服务⽂档。Node: 配置依赖 jar 包 -- 》编译 -- 》⾃动⽣成 js ⽂件（⽂档注释保留） -- 》调⽤ HSF 服务。",
+      "answer": "在 Node.js 实现的 BFF 架构中，前端通过以下步骤调用 HSF 服务：\n\n1. **配置依赖的后端 JAR 包**：前端在项目中声明所需调用的后端 Java 服务对应的 JAR 包依赖；\n2. **编译阶段自动生成 JS 文件**：构建时，系统会根据 JAR 包中的接口定义，自动生成对应的 JavaScript RPC 客户端文件，并保留原始文档注释；\n3. **直接调用 HSF 服务**：生成的 JS 文件提供了与 Java 端一致的 RPC 接口体验，前端可在 BFF 层直接调用这些接口获取数据。\n\n该机制通过 **JS Proxy** 技术模拟 Java 的 RPC 调用体验，使前端能以接近原生的方式消费后端微服务。",
+      "sources": [
+        "BFF调研.pdf",
+        "我理解的BFF.pdf",
+        "我理解的BFF.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心内容：前端通过配置后端JAR包依赖，在编译阶段自动生成保留文档注释的JS文件（即JS Proxy），从而实现对HSF服务的调用。回答完整覆盖了‘配置依赖→编译生成→调用服务’的流程，并明确提及‘JS Proxy’和‘与Java一致的RPC体验’等关键点，且所有信息均有标准答案作为依据，无错误或冗余。"
+    },
+    {
+      "id": "doc-041-1",
+      "question": "根据资料，BFF层被引入的核心问题域是什么？",
+      "expected_document": "我眼中的BFF.pdf",
+      "reference": "引⼊ BFF 层核⼼解决什么问题？……我尝试⽤这样的定义来描述 BFF 层的问题域：追求相对稳定的垂直业务域和灵活多变的端侧需求的⽭盾。",
+      "answer": "根据资料，BFF层被引入的核心问题域是：**解决相对稳定的垂直业务域与灵活多变的端侧需求之间的矛盾**。",
+      "sources": [
+        "BFF调研.pdf",
+        "我理解的BFF.pdf",
+        "我眼中的BFF.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心内容，明确指出BFF层旨在解决‘相对稳定的垂直业务域’与‘灵活多变的端侧需求’之间的矛盾。表述完整、正确，且有资料依据。"
+    },
+    {
+      "id": "doc-042-1",
+      "question": "在US服务接入GBF的背景下，为什么需要基于框架实现统一模型管控平台？",
+      "expected_document": "接口模型管理.pdf",
+      "reference": "前期分析部分指出，US服务接入GBF工作量最大的内容之一是模型的统一维护；尤其各方共建的领域模型字段和结构复杂、迭代变更频繁，开发过程面临腐化失控的挑战，因此迫切需要基于框架实现统一模型管控平台。",
+      "answer": "在 US 服务接入 GBF 的背景下，需要基于框架实现统一模型管控平台的原因如下：\n\n1. **模型复杂且变更频繁**：US 服务涉及多方共建的领域模型，字段和结构复杂，迭代变更频繁，开发过程中容易出现模型腐化和失控。\n\n2. **避免重复建设和分歧**：缺乏统一管控会导致各团队重复修改或定义模型，造成标准不一致和业务理解分歧。\n\n3. **提升可视性与可维护性**：通过统一平台，模型内容可被直观展示，便于开发者理解其业务含义及引用关系。\n\n4. **支持数据合规验证**：平台可提供数据验证能力，确保模型数据符合规范。\n\n5. **保障架构一致性**：架构委员会已定义统一的领域模型，但实际开发中可能存在随意更改或冗余属性的问题，需通过平台及时发现并约束违规行为。\n\n6. **支撑上下游协作**：在版本迭代时，上下游需明确接口及出入参模型，统一模型管控有助于接口文档生成、Mock 联调等协同工作。",
+      "sources": [
+        "一文了解GBF.pdf",
+        "接口模型管理.pdf",
+        "GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答全面覆盖了标准答案的核心要点（模型复杂、变更频繁、易腐化失控），并进一步扩展了统一模型管控平台的必要性，包括避免重复建设、提升可维护性、支持合规验证、保障架构一致性及支撑协作等。所有内容均与问题背景紧密相关，逻辑清晰，有明确的资料依据，且未出现错误信息。因此，在正确性、完整性和依据方面均达到‘完全正确完整’的标准。"
+    },
+    {
+      "id": "doc-043-1",
+      "question": "AJX容器在2021年架构升级中，为解决业务模块依赖耦合严重导致热更复杂的问题，采取了哪些关键技术措施？",
+      "expected_document": "揭秘高德地图动态化跨端容器--AJX.pdf",
+      "reference": "2021 年，借由架构升级和包⼤⼩专项，联合业务团队，我们启动了业务模块的依赖治理，通过动态引擎升级……使业务在使⽤动态化能⼒上成本进⼀步降低，并且升级后业务可以根据⾃⼰的特点来进⾏除 AJX 以外的地图资源， Android SO 动态库， Android 插件的全云化。依赖的治理除了……需要依赖⽆向图找环算法来解题。",
+      "answer": "根据提供的资料，AJX容器在2021年架构升级中，为解决业务模块依赖耦合严重导致热更复杂的问题，采取了以下关键技术措施：\n\n1. **启动业务模块的依赖治理**：联合业务团队，对业务模块之间的严重依赖进行解耦。\n2. **动态引擎升级**：通过升级动态引擎（详见《高德地图 AJX 容器动态引擎策略进化之路 - 举起自己》），降低业务使用动态化能力的成本。\n3. **支持全云化能力扩展**：升级后，业务可根据自身特点实现除AJX外的地图资源、Android SO动态库、Android插件的全云化。\n\n这些措施不仅使业务架构更清晰，还显著优化了Android安装包大小（从150M降至90M），并推动AJX进入架构稳固期。",
+      "sources": [
+        "揭秘高德地图动态化跨端容器--AJX.pdf",
+        "揭秘高德地图动态化跨端容器--AJX.pdf",
+        "揭秘高德地图动态化跨端容器--AJX.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 4,
+      "judge_reason": "实际回答基本正确，涵盖了标准答案中的关键措施：依赖治理、动态引擎升级和全云化扩展，并补充了包大小优化等合理细节。但未提及‘依赖无向图找环算法’这一具体技术手段，完整性略有欠缺。所有内容均有资料依据。"
+    },
+    {
+      "id": "doc-044-1",
+      "question": "AJX 云化方案中，App 在冷热启动时触发的基础能力具体支持什么功能？",
+      "expected_document": "整体概述.pdf",
+      "reference": "App 冷热启动时触发基础能力，支持多 ajx bundle。",
+      "answer": "在 AJX 云化方案中，App 在冷热启动时触发的基础能力具体支持以下功能：\n\n- **预加载各 AJX Bundle 配置的预加载资源列表**：在 App 冷启动或热启动时，会自动下载并缓存这些预加载资源到磁盘。\n- **支持多 AJX Bundle**：能够同时处理多个 AJX Bundle 的预加载需求。\n- **独立缓存机制**：预加载资源的缓存位置独立于动态 UI 中非云化图片的缓存，不会因非云化图片缓存的空间或时间限制而被清除。\n\n该能力旨在提升资源加载效率，减小安装包体积，并保障云化资源在启动阶段即可用。",
+      "sources": [
+        "资源云化技术方案.pdf",
+        "资源云化技术方案.pdf",
+        "整体概述.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答不仅准确包含了标准答案中‘支持多 AJX bundle’这一核心内容，还进一步补充了预加载资源列表、独立缓存机制等具体功能细节，这些信息与问题高度相关且逻辑一致，体现出对 AJX 云化方案基础能力的完整理解。所有陈述均围绕冷热启动时触发的基础能力展开，内容正确、完整，并有明确的技术依据。"
+    },
+    {
+      "id": "doc-045-1",
+      "question": "为什么全局节点被拆分为头部和尾部配置，而不是直接在业务节点中追加？",
+      "expected_document": "流程通用配置能力.pdf",
+      "reference": "不同流程的 Node 顺序和配置各异，因此考虑将全局配置拆分为头部节点配置和尾部节点配置，分别在构造的前后追加节点，不再在业务节点中追加，避免对原有流程造成影响。",
+      "answer": "为了避免对原有业务流程造成影响。  \n\n由于不同流程的 Node 顺序和配置各异，若直接在业务节点中追加全局节点，容易干扰原有的流程逻辑。因此，将全局配置拆分为**头部节点配置**和**尾部节点配置**，分别在流程构造的前后统一追加，既实现了全局能力的注入，又保持了业务流程的独立性和稳定性。",
+      "sources": [
+        "流程通用配置能力.pdf",
+        "US架构思考.pdf",
+        "业务系统架构实践总结.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答完整复现了标准答案的核心要点：说明了不同流程的 Node 顺序和配置存在差异，直接在业务节点中追加会影响原有流程，因此采用头部和尾部配置的方式在构造前后统一追加，以避免干扰。内容正确、完整，并有明确的资料依据，与标准答案一致。"
+    },
+    {
+      "id": "doc-046-1",
+      "question": "在动态UI架构中，AJX引擎层提供的调试能力具体包括哪些功能？",
+      "expected_document": "深入理解动态UI架构.pdf",
+      "reference": "AJX 引擎层 ●\n调试能⼒的核⼼也在 AJX 引擎层，包括 JS 断点调试、 DOM 调试、 AJX ⽂件浏览器以及性能排查⼯具等。",
+      "answer": "在动态UI架构中，AJX引擎层提供的调试能力具体包括以下功能：\n\n- JS断点调试  \n- DOM调试  \n- AJX文件浏览器  \n- 性能排查工具",
+      "sources": [
+        "深入理解动态UI架构.pdf",
+        "深入理解动态UI架构.pdf",
+        "一文读懂高德地图AJX容器架构原理.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答完整列出了标准答案中提到的所有调试功能（JS断点调试、DOM调试、AJX文件浏览器、性能排查工具），内容准确且无遗漏，完全符合资料依据。"
+    },
+    {
+      "id": "doc-047-1",
+      "question": "在离职手续中，电子版离职证明的开具需同时满足哪三项条件？",
+      "expected_document": "离职交接指引_02_00_205256.pdf",
+      "reference": "完成上述事项后，HR服务台将为您开具电子版离职证明：1）上述离职交接手续全部完成，2）系统确认无数据安全风险，3）内网账号完成冻结。",
+      "answer": "电子版离职证明的开具需同时满足以下三项条件：\n\n1. 上述离职交接手续全部完成；  \n2. 系统确认无数据安全风险；  \n3. 内网账号完成冻结。",
+      "sources": [
+        "US领域识别.pdf",
+        "离职交接指引_02_00_205256.pdf",
+        "离职交接指引_02_00_205256.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答与标准答案内容完全一致，准确列出了开具电子版离职证明所需的三项条件，信息完整、正确，且与提供的资料依据相符。"
+    },
+    {
+      "id": "doc-048-1",
+      "question": "在一体化开发流程中，如何通过脚手架工具实现按需拉取 lib_vo 中的模块？",
+      "expected_document": "简介.pdf",
+      "reference": "按需拉取请使用脚手架的 merge-vo 命令，脚手架工具（bff-cli） - 原文：merge-vo",
+      "answer": "在一体化开发流程中，通过脚手架工具 **bff-cli** 提供的 **merge-vo** 命令实现按需拉取 **lib_vo** 中的模块。",
+      "sources": [
+        "简介.pdf",
+        "介绍.pdf",
+        "GBF在US建设标准业务能力.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案中的关键信息：使用脚手架工具 bff-cli 的 merge-vo 命令来按需拉取 lib_vo 中的模块，内容正确、完整，并有明确的资料依据（与原文一致）。"
+    },
+    {
+      "id": "doc-049-1",
+      "question": "在AJX资源云化方案中，预加载的云化资源缓存为何要与动态UI非云化图片的缓存分离？",
+      "expected_document": "资源云化技术方案.pdf",
+      "reference": "预加载能力●\n在 App 冷热启时，对各 ajx bundle 配置的预加载列表进⾏下载并缓存到磁盘，此缓\n存 位置独⽴于动态 UI ⾮云化图⽚的缓存。不能因为超过⾮云化图⽚缓存的空间、时间\n阈值⽽删除。",
+      "answer": "在 AJX 资源云化方案中，预加载的云化资源缓存与动态 UI 非云化图片的缓存分离，是为了**避免因非云化图片缓存的空间或时间限制策略影响到预加载云化资源的可用性**。\n\n具体来说，文档中明确指出：\n\n> “此缓存位置独立于动态 UI 非云化图片的缓存。不能因为超过非云化图片缓存的空间、时间……”\n\n这意味着：\n- 预加载的云化资源通常在 App 冷/热启动时就下载并缓存，目的是保障页面快速呈现；\n- 若与非云化图片共用缓存，可能因后者缓存淘汰策略（如 LRU、容量上限等）导致关键预加载资源被意外清除；\n- 分离缓存可确保预加载资源的**持久性和可靠性**，提升用户体验和页面加载性能。\n\n因此，缓存分离是一种保障关键资源不被误删的机制设计。",
+      "sources": [
+        "如何进行AJX资源云化.pdf",
+        "资源云化技术方案.pdf",
+        "资源云化技术方案.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复述了标准答案的核心要点：预加载的云化资源缓存必须独立于动态UI非云化图片缓存，以防止因后者缓存的空间或时间阈值限制导致预加载资源被删除。回答不仅正确，还完整补充了设计目的（保障关键资源持久性、提升性能），并引用了原文依据，符合资料内容。"
+    },
+    {
+      "id": "doc-050-1",
+      "question": "在AJX bundle化实践中，为何要对公用bundle进行分层处理，且规定下层不能依赖上层？",
+      "expected_document": "高德+AJX+bundle+化实践总结.pdf",
+      "reference": "将公⽤功能下沉为公⽤ bundle 。公⽤代码改动影响范围较⼤，同时对公⽤ bundle 进⾏了分层处理，按 bundle 的功能分为四层：下层不能依赖上层，业务之间不能互相依赖，这样⼤⼤简化了依赖关系；同时越往下层，改动频率越低，减⼩了公⽤ bundle 变动影响范围。",
+      "answer": "在 AJX bundle 化实践中，对公用 bundle 进行分层处理并规定**下层不能依赖上层**，主要出于以下两个目的：\n\n1. **简化依赖关系**：通过分层并禁止下层依赖上层，避免了循环依赖和复杂的耦合，使整体架构更清晰、可控。\n2. **降低变更影响范围**：越往下层，功能越基础、稳定，改动频率越低。这样当上层业务频繁迭代时，不会波及底层公共代码，从而减小公用 bundle 变动对整体系统的影响。",
+      "sources": [
+        "高德+AJX+bundle+化实践总结.pdf",
+        "高德架构升级：客户端动态框架篇.pdf",
+        "AJX+Web化在Titan平台的开发、发布流程.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确涵盖了标准答案的核心要点：一是通过分层和禁止下层依赖上层来简化依赖关系，避免循环依赖；二是下层更稳定、改动频率低，从而减小公用 bundle 变动的影响范围。虽然未明确提及‘四层’结构和‘业务之间不能互相依赖’的细节，但这些属于补充说明，不影响对核心原理的正确性和完整性表达。整体回答逻辑清晰、有依据，与标准答案一致。"
+    },
+    {
+      "id": "doc-051-1",
+      "question": "在高德信息工程BFF的稳定性方案中，为什么客户端请求仅包含poiId时需要在入口层补全行业信息？",
+      "expected_document": "高德信息工程BFF的稳定性方案设计.pdf",
+      "reference": "资料指出：'部分场景下，客户端请求中只有 poiId ，缺少行业信息，无法映射到行业逻辑和渲染模版，需要在入口处补全'。这说明补全的必要性在于后续的行业逻辑处理和模板渲染依赖行业信息，而仅有poiId不足以完成这些操作。",
+      "answer": "因为在高德信息工程BFF架构中，渲染页面所需的内容和模板依赖于具体的行业信息。当客户端请求仅包含 poiId 时，缺少对应的行业信息，系统无法直接确定应使用哪种行业逻辑或渲染模板。\n\n因此，需要在入口层通过访问基础数据服务（如 opendi）补充行业数据，从而完成后续的数据获取、字段加工和页面渲染。这一补全过程是动态页面链路（如 poi 详情页、搜索列表页）的关键前置步骤。",
+      "sources": [
+        "高德信息工程BFF的稳定性方案设计.pdf",
+        "高德信息工程BFF的稳定性方案设计.pdf",
+        "高德信息工程BFF的稳定性方案设计.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心逻辑：客户端仅有 poiId 缺少行业信息，导致无法映射到行业逻辑和渲染模板，因此需在入口层补全。此外，实际回答还补充了实现方式（如通过 opendi 补充行业数据）和上下文（如动态页面链路），这些内容虽超出标准答案范围，但未偏离事实，且有资料依据（符合高德BFF架构常识）。整体正确、完整、有依据。"
+    },
+    {
+      "id": "doc-052-1",
+      "question": "为什么高德在选择前端框架时认为 Rax 相比 React 更适合无线端，且能以较低侵入性适配其自研的 AJX 渲染引擎？",
+      "expected_document": "高德前端框架思考与展望.pdf",
+      "reference": "资料中提到 Rax '非常适合作为无线端'，并指出通过 AJX 宿主 API 实现 driver 抽象可做到 '0 侵入 rax 本身'，同时大部分 React 生态可无缝接入。此外，AMap C 端业务对复用 React UI 库无强诉求，因此 Rax 的某些与 React 不完全兼容的问题（如 ref 卸载顺序）并不影响其适用性。",
+      "answer": "高德选择 Rax 而非 React 作为无线端前端框架，主要基于以下两点原因：\n\n1. **轻量性与无线端适配**：  \n   Rax 是一个专为移动跨端场景设计的渐进式 React 框架，相比 React 更加轻量，更适合资源受限的无线端环境。同时，Rax 实现了 80%+ 的 React API，能兼容大部分 React 生态（如 rax-redux、dva、mobx 等），在保留开发体验的同时显著降低运行时开销。\n\n2. **良好的跨平台抽象与低侵入性对接 AJX**：  \n   Rax 将虚拟 DOM（vdom）与调度逻辑解耦，并通过 driver 抽象层实现跨平台渲染。这使得只需实现符合 Rax 规范的 driver 接口，即可将应用运行在包括 AJX 在内的不同容器上，无需重写核心渲染逻辑，极大降低了对接自研 AJX 渲染引擎的侵入性和开发成本。\n\n综上，Rax 在保持 React 开发范式的同时，兼顾了无线端性能要求和对自研渲染引擎的灵活适配能力，因此被高德选为 FOX 框架的基础。",
+      "sources": [
+        "FOX学习心得.pdf",
+        "FOX学习心得.pdf",
+        "AJX学习与感想.pdf"
+      ],
+      "source_hit": false,
+      "judge_score": 4,
+      "judge_reason": "实际回答基本正确，涵盖了Rax轻量、兼容React生态、通过driver抽象实现低侵入对接AJX等关键点，与标准答案核心信息一致。但未提及标准答案中强调的两个细节：一是高德AMap C端业务对复用React UI库无强诉求，二是Rax与React不完全兼容的问题（如ref卸载顺序）不影响其适用性。这些信息虽非主干，但属于完整性的一部分，因此扣1分。"
+    },
+    {
+      "id": "doc-053-1",
+      "question": "在AJX落地POI业务时，团队为解决多人协作开发问题而构建的framework框架提供了什么级别的模块化能力？",
+      "expected_document": "高德前端这五年.pdf",
+      "reference": "为此我们完成了framework 框架，可以⽤ JSX 语法实现基本组件化，在组件这个级别进⾏「 CURD 」解决了模块化开发的问题。",
+      "answer": "在AJX落地POI业务时，团队为解决多人协作开发问题而构建的framework框架提供了**组件级别**的模块化能力。该框架支持使用JSX语法实现基本组件化，并在组件级别进行「CURD」操作，从而解决了模块化开发的问题。",
+      "sources": [
+        "高德前端这五年.pdf",
+        "高德前端这五年.pdf",
+        "高德前端这五年.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 5,
+      "judge_reason": "实际回答准确复现了标准答案的核心内容：明确指出模块化能力为'组件级别'，并说明该framework支持使用JSX语法实现基本组件化，且在组件级别进行CURD操作以解决模块化开发问题。信息完整、正确，且与提供的资料一致。"
+    },
+    {
+      "id": "doc-054-1",
+      "question": "AJX 打包生成的 .ajx 文件采用了哪些机制来减小热更新时的包体积？",
+      "expected_document": "高德地图AJX容器工具链从0到1建设.pdf",
+      "reference": "AJX打包产物为.ajx文件，AJX编译是把多个文件压缩到一个.ajx文件中，.ajx有一系列文件压缩和读取算法以减小包大小和提升文件读取速度，.ajx diff算法可以基于另外一个.ajx生成diff .ajx文件以减小热更的包体积大小。",
+      "answer": "AJX 打包生成的 .ajx 文件通过以下机制减小热更新时的包体积：\n\n- **.ajx diff 算法**：可以基于一个已有的 .ajx 文件生成差异（diff）的 .ajx 文件，仅包含变更部分，从而显著减小热更新包的体积。",
+      "sources": [
+        "AJXBundle介绍.pdf",
+        "AJX学习与感想.pdf",
+        "高德地图AJX容器工具链从0到1建设.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 4,
+      "judge_reason": "实际回答正确指出了 .ajx diff 算法用于生成差异包以减小热更新体积，符合标准答案的核心要点。但未提及 .ajx 文件本身采用的压缩和读取算法等其他机制，完整性略有欠缺。整体基本正确，有资料依据。"
+    },
+    {
+      "id": "doc-055-1",
+      "question": "在高德地图的动态化框架中，文件集成模块如何与资源管理模块协同以支持云化资源的动态更新？",
+      "expected_document": "高德架构升级：客户端动态框架篇.pdf",
+      "reference": "文件集成模块\n●负责动态化接口的请求、解析及处理\n●校验本地资源可用性\n●处理云化资源的热更、回滚、生效逻辑\n●scheme 处理\n●与加载模块协同，实现业务的场景化加载能力\n●与资源管理模块协同，触发云化资源的下载及优先级调整",
+      "answer": "在高德地图的动态化框架中，文件集成模块与资源管理模块协同的方式如下：\n\n- **触发云化资源的下载**：文件集成模块负责处理动态化接口的请求、解析及校验本地资源可用性，并在此基础上与资源管理模块协同，**触发云化资源的下载**。\n- **调整下载优先级**：文件集成模块还协同资源管理模块，对云化资源的下载进行**优先级调整**，以优化资源加载效率和用户体验。\n\n这种协同机制是实现云化资源热更、回滚及生效逻辑的重要组成部分。",
+      "sources": [
+        "高德架构升级：客户端动态框架篇.pdf",
+        "高德架构升级：客户端动态框架篇.pdf",
+        "AJXBundle介绍.pdf"
+      ],
+      "source_hit": true,
+      "judge_score": 4,
+      "judge_reason": "实际回答涵盖了标准答案中关于文件集成模块与资源管理模块协同的核心内容，包括触发云化资源下载和优先级调整，并提及了热更、回滚及生效逻辑。但未完整覆盖标准答案中的其他要点，如scheme处理、与加载模块协同实现场景化加载能力等。整体基本正确，有资料依据，但完整性略有欠缺。"
+    }
+  ]
+}
