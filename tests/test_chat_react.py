@@ -50,6 +50,25 @@ def test_wrap_tool_exception_becomes_tool_error():
     assert "network down" in text
 
 
+@pytest.mark.asyncio
+async def test_ainvoke_tool_with_timeout():
+    import asyncio
+
+    from app.agents.chat_graph import _ainvoke_tool_with_timeout
+
+    class SlowTool:
+        async def ainvoke(self, args):
+            await asyncio.sleep(2)
+            return "ok"
+
+    with patch("app.agents.chat_graph.settings") as mock_settings:
+        mock_settings.tool_timeout_sec = 0.05
+        text = await _ainvoke_tool_with_timeout(SlowTool(), {}, "slow_tool")
+    assert text.startswith(TOOL_ERROR_PREFIX)
+    assert "超时" in text
+    assert "slow_tool" in text
+
+
 def test_collect_tool_errors():
     msgs = [
         ToolMessage(

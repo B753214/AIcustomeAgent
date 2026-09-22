@@ -10,7 +10,7 @@ import uvicorn
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException,Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.responses import JSONResponse, StreamingResponse, HTMLResponse
+from starlette.responses import JSONResponse, StreamingResponse, HTMLResponse, FileResponse
 
 from app.agents.tools import CREW_TOOLS_READY
 from app.config import PROJECT_ROOT, settings
@@ -25,6 +25,7 @@ from app.services.session_service import get_sessions, load_session_history, cre
 from app.services.tracing import traces
 
 SAMPLE_KB = PROJECT_ROOT / "data" / "knowledge_base.md"
+FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 
 
 @asynccontextmanager
@@ -131,8 +132,33 @@ async def session_memory(db: AsyncSession = Depends(get_db)):
 
 @app.get("/dashboard")
 async def dashboard():
+    """旧版单页控制台（app/static/dashboard.html）。"""
     html = (PROJECT_ROOT / "app" / "static" / "dashboard.html").read_text(encoding="utf-8")
     return HTMLResponse(html)
+
+
+@app.get("/console")
+@app.get("/console/")
+@app.get("/console/{full_path:path}")
+async def react_console(full_path: str = ""):
+    """React 18 控制台（frontend/dist）；需先在 frontend 目录执行 npm run build。"""
+    index = FRONTEND_DIST / "index.html"
+    if not index.is_file():
+        return HTMLResponse(
+            "<!DOCTYPE html><html><body style='font-family:sans-serif;padding:24px'>"
+            "<h2>React 控制台尚未构建</h2>"
+            "<p>请执行：</p>"
+            "<pre>cd frontend\nnpm install\nnpm run build</pre>"
+            "<p>或开发态：<code>npm run dev</code> 后访问 Vite 地址（默认 :5173）。</p>"
+            "<p><a href='/dashboard'>返回旧版控制台</a></p>"
+            "</body></html>",
+            status_code=503,
+        )
+    # SPA：非静态资源一律回退到 index.html
+    candidate = FRONTEND_DIST / full_path if full_path else index
+    if full_path and candidate.is_file() and ".." not in Path(full_path).parts:
+        return FileResponse(candidate)
+    return FileResponse(index)
 
 
 @app.post("/login")
