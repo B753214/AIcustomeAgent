@@ -67,14 +67,14 @@ app/api/            # 可后期再搬
 
 ### H1 核心契约
 
-- [ ] H1-1 `RunRequest`
-- [ ] H1-2 `RunContext`
-- [ ] H1-3 `RunEvent`
-- [ ] H1-4 `RunResult`
-- [ ] H1-5 `AgentExecutor` 协议
-- [ ] H1-6 `ToolSpec`
-- [ ] H1-7 `HarnessError` + 事件类型常量
-- [ ] H1-T 契约单测
+- [x] H1-1 `RunRequest`
+- [x] H1-2 `RunContext`
+- [x] H1-3 `RunEvent`
+- [x] H1-4 `RunResult`
+- [x] H1-5 `AgentExecutor` 协议
+- [x] H1-6 `ToolSpec`
+- [x] H1-7 `HarnessError` + 事件类型常量
+- [x] H1-T 契约单测
 
 ### H2 Runtime 门面
 
@@ -138,20 +138,195 @@ app/api/            # 可后期再搬
 
 ### H1：核心契约
 
-在 `app/harness/contracts/` 落地（Pydantic 模型 + Protocol）。
+在 `app/harness/contracts/` 落地（Pydantic 模型 + Protocol）。  
+**本阶段只定义「形状」与单测，不接 Runtime、不改业务路由。**
+
+#### H1 模块总览（先建立概念）
+
+```text
+外部调用方                执行过程中                 执行结束
+─────────                ─────────                 ─────────
+RunRequest  ──创建→  RunContext ──产生→ RunEvent* ──汇总→ RunResult
+                              │
+                              └── AgentExecutor.astream(ctx)
+                                        │
+                                   按 ToolSpec 调工具
+                                   失败用 HarnessError 分类
+```
+
+| 契约 | 一句话职责 | 谁创建 / 谁消费 |
+|---|---|---|
+| **RunRequest** | 「这次想跑什么」的入参 | API/Eval/CLI 创建；Runtime 接收 |
+| **RunContext** | 「这次正在跑」的运行态 | Runtime 创建；Executor / Policy / ToolRunner 读写 |
+| **RunEvent** | 过程中的标准事件（SSE/日志/看板同一套） | Executor/Runtime 发出；前端与 JSON 聚合器消费 |
+| **RunResult** | 跑完后的统一结果 | Runtime 从事件流汇总；API 映射成旧 ChatResponse |
+| **AgentExecutor** | 某个 Agent 的执行接口 | Chat/Knowledge/Alarm 各自实现；Runtime 只认接口 |
+| **ToolSpec** | 工具的静态说明书 | Registry 保存；ToolRunner 按说明书校验/超时 |
+| **HarnessError** | 错误分类，避免只靠字符串前缀 | ToolRunner/Runtime 抛出或写入 event/result |
+
+**为什么要拆 Request / Context / Result / Event？**  
+- Request 是调用方可见、可落审计的「意图」；不要把 deadline、权限缓存塞进去。  
+- Context 是进程内运行态，可含不可序列化或不该回传客户端的东西（后续可扩展 cancellation）。  
+- Event 让 JSON 与 SSE **共用一条执行链**：SSE 原样推事件，JSON 收齐再变成 Result。  
+- Result 对齐现有 `reply/sources/intent`，迁移期不必改前端契约。
+
+---
+
+#### H1-1 `RunRequest` — 入参
+
+**功能：** 描述一次 Agent 调用的输入；可校验、可序列化、可进日志（脱敏后）。  
+**文件建议：** `app/harness/contracts/run_request.py`
+
+| 字段 | 类型建议 | 默认 | 为什么要有 |
+|---|---|---|---|
+| `agent_id` | `str \| None` | `None` | 指定跑哪个 Executor；允许空则由 Router 填写 |
+| `input` | `str` | 必填，`min_length=1` | 用户原文；避免空跑 |
+| `session_id` | `str \| None` | `None` | 关联短时记忆 / 会话表 |
+| `caller` | `str` | `"api"` | 区分 `api` / `eval` / `cli` |
+| `options` | `dict[str, Any]` | `{}`（`default_factory`） | 扩展口，避免每加开关就改模型 |
+
+**过关：** 可 `model_dump`；空 `input` 校验失败。
+
+---
+
+#### H1-2 `RunContext` — 运行态
+
+**功能：** 一次 Run 执行期间的上下文；**只活在 Runtime 内**，不要放进 Agent Registry。  
+**文件建议：** `app/harness/contracts/run_context.py`
+
+| 字段 | 类型建议 | 默认 | 为什么要有 |
+|---|---|---|---|
+| `run_id` | `str` | 必填 | 贯穿事件、日志、落库的主键 |
+| `trace_id` | `str \| None` | `None` | 跨段调用关联；可只用 run_id |
+| `request` | `RunRequest` | 必填 | 原始入参；Executor 读 input/options |
+| `messages` | `list[dict[str, Any]]` | `[]` | 已装配的对话历史 |
+| `permissions` | `dict[str, Any]` | `{}` | 本 Run 允许的 Agent/工具范围 |
+| `deadline` | `datetime \| None` | `None` | 整次 Run 截止时间 |
+| `budget` | `dict[str, Any]` | `{}` | 如 `max_tool_calls` / `max_tokens` |
+| `metadata` | `dict[str, Any]` | `{}` | 路由结果、开关、调试标记 |
+
+**过关：** 能挂上 `RunRequest` 构造；dict/list 用 `default_factory`。
+
+---
+
+#### H1-3 `RunEvent` — 过程事件
+
+**功能：** 执行过程的标准通知。Dashboard / SSE / Trace 都消费它。  
+**文件建议：** `app/harness/contracts/run_event.py`
+
+| 字段 | 类型建议 | 默认 | 为什么要有 |
+|---|---|---|---|
+| `type` | `str` | 必填 | 事件种类；优先用下方常量 |
+| `timestamp` | `datetime` | `default_factory` → UTC now | 排序与耗时 |
+| `run_id` | `str` | 必填 | 归属哪一次 Run |
+| `sequence` | `int`（`ge=0`） | 必填 | 同 run 内递增，便于排序去重 |
+| `payload` | `dict[str, Any]` | `{}` | token / 工具名 / step / 错误摘要 |
+| `visibility` | `Literal["public", "internal"]` | `"public"` | 控制是否透出给前端 |
+
+**约定事件名常量（`str` + 常量即可，不必强 Enum）：**  
+`run.started`、`route.selected`、`model.started`、`model.token`、`model.completed`、`tool.started`、`tool.completed`、`tool.failed`、`workflow.step`、`run.completed`、`run.failed`。
+
+**过关：** 模型可构造；事件名常量可 import。
+
+---
+
+#### H1-4 `RunResult` — 终态结果
+
+**功能：** 一次 Run 的最终对外结果；可映射现有 `ChatResponse`。  
+**文件建议：** `app/harness/contracts/run_result.py`
+
+| 字段 | 类型建议 | 默认 | 为什么要有 |
+|---|---|---|---|
+| `status` | `Literal["succeeded", "failed", "cancelled"]` | 必填 | 机器可分支；超时用 `failed` + `error.type=timeout` |
+| `output` | `str \| None` | `None` | 主回复（≈ `reply`） |
+| `sources` | `list[dict[str, Any]]` | `[]` | RAG 引用（API 层可再压成 str 列表） |
+| `artifacts` | `list[dict[str, Any]]` | `[]` | 大产物引用（报告路径等） |
+| `usage` | `dict[str, Any]` | `{}` | tokens / tool_calls / latency_ms |
+| `error` | `dict[str, Any] \| None` | `None` | 结构化错误，对齐 HarnessError |
+| `metadata` | `dict[str, Any]` | `{}` | intent / engine / cache_hit |
+
+**过关：** 能覆盖旧 chat 成功/失败响应的映射需求。
+
+---
+
+#### H1-5 `AgentExecutor` — 执行器协议
+
+**功能：** 规定「领域 Agent 如何被 Runtime 调用」。  
+**文件建议：** `app/harness/contracts/executor.py`  
+**类型：** `typing.Protocol`
+
+```text
+async def astream(self, ctx: RunContext) -> AsyncIterator[RunEvent]: ...
+```
+
+| 约定 | 为什么 |
+|---|---|
+| 只通过 Context 取输入 | 禁止 Executor 旁路全局状态 |
+| 只产出 RunEvent | JSON/SSE 才能统一 |
+| 取消信号由 H2 挂到 Context | 客户端断开后停 model/tool |
+| 不强制返回 RunResult | 由 `run.completed` / `run.failed` payload 聚合 |
+
+**过关：** Protocol + 文档字符串清晰。
+
+---
+
+#### H1-6 `ToolSpec` — 工具说明书
+
+**功能：** 工具静态元数据；与函数实现分离。  
+**文件建议：** `app/harness/contracts/tool_spec.py`
+
+| 字段 | 类型建议 | 默认 | 为什么要有 |
+|---|---|---|---|
+| `name` | `str` | 必填 | 唯一名（如 `query_order`） |
+| `version` | `str` | `"1.0"` | schema 变更可灰度 |
+| `description` | `str` | 必填 | 给模型/文档看 |
+| `input_schema` | `dict[str, Any]` | `{}` | JSON Schema 或等价参数描述 |
+| `permissions` | `dict[str, Any]` | `{}` | 哪些 caller/agent 能调 |
+| `timeout_sec` | `float`（`gt=0`） | `30.0` | 单工具超时（对齐 `TOOL_TIMEOUT_SEC`） |
+| `retry` | `int`（`ge=0`） | `0` | 额外重试次数 |
+| `idempotent` | `bool` | `False` | 重试/恢复是否安全 |
+
+**过关：** 能描述 `query_order` / `query_weather` 至少一个。
+
+---
+
+#### H1-7 `HarnessError` + 事件常量
+
+**功能：** 把失败分成可处理的类别，替代只靠 `[TOOL_ERROR]` 字符串前缀。  
+**文件建议：** `app/harness/contracts/harness_error.py`  
+（事件名常量已在 `run_event.py`，本步重点是 Error。）
+
+| 符号 | 类型建议 | 说明 |
+|---|---|---|
+| `HarnessErrorCategory` | `StrEnum` | `validation` / `model` / `tool` / `policy` / `timeout` / `storage` / `internal` |
+| `HarnessError` | 继承 `Exception` 或 Pydantic 模型 | 至少含 `category`、`message`；可选 `details: dict[str, Any]` |
+
+| 类别 | 典型场景 |
+|---|---|
+| `validation` | 参数不合法 |
+| `model` | LLM 调用失败 |
+| `tool` | 工具业务/执行失败 |
+| `policy` | 权限/预算拒绝 |
+| `timeout` | Run 或工具超时 |
+| `storage` | PG/Milvus 读写失败 |
+| `internal` | 未归类内部错误 |
+
+**过关：** Enum 与 Error 可 import；能写入 `RunResult.error` / `tool.failed` payload。
+
+---
+
+#### H1 任务勾选与过关表
 
 | 编号 | 内容 | 过关 |
 |---|---|---|
-| **H1-1** | `RunRequest`：`agent_id`、input、`session_id`、caller、options | 可序列化/校验 |
-| **H1-2** | `RunContext`：`run_id`、`trace_id`、消息、权限、deadline、预算、metadata | 运行态不进 Registry |
-| **H1-3** | `RunEvent`：type、timestamp、run_id、sequence、payload、visibility | 含约定事件名常量 |
-| **H1-4** | `RunResult`：status、output、sources、artifacts、usage、error、metadata | 与旧 chat 响应可映射 |
-| **H1-5** | `AgentExecutor`：`astream(ctx) -> AsyncIterator[RunEvent]`；取消约定 | Protocol + 文档字符串 |
-| **H1-6** | `ToolSpec`：schema、权限、超时、重试、幂等 | 能描述现有 tool |
-| **H1-7** | `HarnessError` 分类枚举 | validation/model/tool/policy/timeout/storage/internal |
+| **H1-1** | `RunRequest` | 可序列化/校验 |
+| **H1-2** | `RunContext` | 运行态字段齐全；引用 Request |
+| **H1-3** | `RunEvent` + 事件名常量 | 可构造；常量覆盖约定词表 |
+| **H1-4** | `RunResult` | 可映射旧 chat 响应关键字段 |
+| **H1-5** | `AgentExecutor` Protocol | 有 `astream` 签名与取消说明 |
+| **H1-6** | `ToolSpec` | 能描述现有 tool |
+| **H1-7** | `HarnessError` | 七类错误可 import |
 | **H1-T** | `tests/test_harness_contracts.py` | 构造/校验/事件枚举单测通过 |
-
-统一事件名：`run.started`、`route.selected`、`model.started`、`model.token`、`model.completed`、`tool.started`、`tool.completed`、`tool.failed`、`workflow.step`、`run.completed`、`run.failed`。
 
 ### H2：Runtime 门面
 
@@ -255,3 +430,6 @@ app/api/            # 可后期再搬
 | 2026-09-22 | **完成 H0-4**：明确 PG/Milvus 双必选；lifespan fail-fast；`/health` 带 required；新增 `docs/deps.md` |
 | 2026-09-22 | **完成 H0-5**：修 flaky `query_order`；pytest basetemp；新增 `.github/workflows/offline-tests.yml`；`141 passed` |
 | 2026-09-22 | **完成 H0-6**：`tests/golden/{chat,knowledge,alarm}.json` + `test_golden_scenarios.py`（10 passed）；**H0 里程碑完成** |
+| 2026-09-22 | 扩充 H1 计划：各契约模块职责 + 字段设计原因（跟做用） |
+| 2026-09-22 | H1 字段表补回「类型建议 / 默认」列，并与当前实现对齐 |
+| 2026-09-22 | **完成 H1**：contracts 齐备 + `tests/test_harness_contracts.py`（9 passed） |
