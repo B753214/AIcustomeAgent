@@ -1,25 +1,35 @@
 from __future__ import annotations
 
-from typing import AsyncIterator
-
-from app.harness.contracts import (
-    RUN_COMPLETED,
-    RunContext,
-    RunEvent,
-    RunRequest,
-    RunResult,
-)
+from app.database import AsyncSession
+from app.harness.contracts import RunRequest, RunResult
+from app.harness.registry import get_builtin_agent_registry
+from app.harness.routing import classify
 from app.harness.runtime import AgentRuntime
+from app.rag.retriever import KnowledgeBase
 from app.schemas import ChatRequest, ChatResponse
 
 
-def to_run_request(req: ChatRequest) -> RunRequest:
+def to_run_request(
+    req: ChatRequest,
+    kb: KnowledgeBase | None = None,
+    db: AsyncSession | None = None,
+    *,
+    agent_id: str = "chat",
+    route: dict | None = None,
+) -> RunRequest:
     """HTTP ChatRequest → Harness RunRequest。"""
+    options: dict = {
+        "kb": kb,
+        "db": db,
+    }
+    if route:
+        options["route"] = route
     return RunRequest(
         input=req.message,
         session_id=req.session_id,
-        agent_id="chat",  # H2 先写死；H4 再接 Router
+        agent_id=agent_id,
         caller="api",
+        options=options,
     )
 
 
@@ -54,26 +64,30 @@ def to_chat_response(result: RunResult) -> ChatResponse:
     )
 
 
-class EchoExecutor:
-    """H2-3 占位执行器；H4 换成 ChatExecutor。"""
-
-    async def astream(self, ctx: RunContext) -> AsyncIterator[RunEvent]:
-        yield RunEvent(
-            type=RUN_COMPLETED,
-            run_id=ctx.run_id,
-            sequence=1,
-            payload={
-                "output": f"harness:{ctx.request.input}",
-                "metadata": {"engine": "harness", "intent": None},
-            },
-        )
+def build_chat_runtime(agent_id: str) -> AgentRuntime:
+    """按 agent_id 从内置 Registry 取 Executor；未知 id 回退 chat。"""
+    registry = get_builtin_agent_registry()
+    resolved = agent_id if agent_id in registry.list_ids() else "chat"
+    defn = registry.get(resolved)
+    return AgentRuntime(defn.executor)
 
 
-def build_chat_runtime() -> AgentRuntime:
-    return AgentRuntime(EchoExecutor())
-
-
-async def chat_harness_http(req: ChatRequest) -> ChatResponse:
-    """JSON chat：走 Runtime（开关打开时由 main 调用）。"""
-    result = await build_chat_runtime().execute(to_run_request(req))
+async def chat_harness_http(
+    req: ChatRequest,
+    kb: KnowledgeBase,
+    db: AsyncSession,
+) -> ChatResponse:
+    """JSON chat：先 Router，再按 agent_id 选 Executor 跑 Runtime。"""
+    decision = await classify(req.message)
+    run_req = to_run_request(
+        req,
+        kb,
+        db,
+        agent_id=decision.agent_id,
+        route={
+            "reason": decision.reason,
+            "confidence": decision.confidence,
+        },
+    )
+    result = await build_chat_runtime(decision.agent_id).execute(run_req)
     return to_chat_response(result)

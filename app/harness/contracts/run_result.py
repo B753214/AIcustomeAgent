@@ -26,9 +26,9 @@ class RunResult(BaseModel):
         default=None,
         description="对用户的主回复文本（≈ reply）",
     )
-    sources: list[dict[str, Any]] = Field(
+    sources: list[Any] = Field(
         default_factory=list,
-        description="RAG 引用来源，如 {title, uri, snippet}",
+        description="RAG 引用来源：str 或 {title, uri, snippet} 等",
     )
     artifacts: list[dict[str, Any]] = Field(
         default_factory=list,

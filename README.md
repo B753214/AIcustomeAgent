@@ -1,7 +1,7 @@
 # AI Custome Robort 智能客服
 
-基于 **FastAPI + LangChain + Milvus + CrewAI** 构建的生产级智能客服服务，
-支持意图识别路由、RAG 检索增强生成、多智能体协作、SSE 流式对话、语义缓存等核心能力。
+基于 **FastAPI + LangChain + Milvus** 构建的智能客服服务（CrewAI 为可选遗留，默认关闭，不纳入 Harness），
+支持意图识别路由、RAG 检索增强生成、SSE 流式对话、语义缓存等核心能力。
 
 ![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.12%20(rec.%203.12)-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688)
@@ -29,7 +29,7 @@
 |------|------|----------|
 | **意图路由** | LLM 分类为 knowledge / order / chat，自动选择处理链路 | `app/services/chat.py` |
 | **RAG 知识库** | PDF/DOCX/MD/TXT 解析 → 分块 → 向量 + BM25 双路检索 → 重排 → 生成 | `app/rag/` |
-| **多智能体** | CrewAI 双 Agent；工具：RAG/订单/天气/售后/告警 + 可选高德（Crew 包装）；失败降级 LangChain | `app/agents/crew.py` |
+| **多智能体** | CrewAI 双 Agent 为**可选遗留**（`USE_CREW`，默认关）；**不进入 Harness Registry**。Harness 主路径为 chat / knowledge / alarm | `app/agents/crew.py`（遗留）· `app/agents/harness_*` |
 | **会话记忆** | PostgreSQL 持久化多轮对话，支持上下文追问 | `app/services/session_service.py` |
 | **SSE 流式** | 闲聊：`astream_events` 推 tool stage + LLM token；RAG/告警亦支持流式 | `app/agents/chat_react.py` / `app/main.py` |
 | **闲聊 Agent** | 手写 LangGraph `StateGraph`（`call_model` ⇄ `call_tools`）；工具：订单 / 本地天气 / 可选高德 MCP | `app/agents/chat_graph.py` |

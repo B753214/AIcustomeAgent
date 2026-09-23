@@ -69,7 +69,7 @@ AgentExecutor.astream(ctx)
 - Chat 继续 LangGraph ReAct；Alarm 继续 Pipeline + Replan。
 - JSON 与 SSE **同一执行链**（都走 Runtime，禁止两套业务 if）。
 - 渐进迁移；旧 API 兼容；特性开关切流。
-- CrewAI：插件接入或下线，禁止长期不可测双轨。
+- CrewAI：**不下沉 Harness**（H4-5）；旧 `run` 可选遗留，默认关。
 
 目标目录（最终态，中间可先只建 `harness/`）：
 
@@ -141,19 +141,19 @@ tests/test_agent_runtime.py
 
 ### H3 Registry 与 Gateway
 
-- [ ] H3-1 Agent Registry
-- [ ] H3-2 Model Gateway（router/worker/judge）
-- [ ] H3-3 Tool Registry
-- [ ] H3-4 Tool Runner（校验/超时/类型化错误/事件）
-- [ ] H3-5 Policy Registry（先注册结构，策略可薄）
+- [x] H3-1 Agent Registry
+- [x] H3-2 Model Gateway（router/worker/judge）
+- [x] H3-3 Tool Registry
+- [x] H3-4 Tool Runner（校验/超时/类型化错误/事件）
+- [x] H3-5 Policy Registry（先注册结构，策略可薄）
 
 ### H4 Agent 迁移
 
-- [ ] H4-1 ChatExecutor + 特性开关
-- [ ] H4-2 KnowledgeExecutor
-- [ ] H4-3 AlarmExecutor
-- [ ] H4-4 Router 抽出
-- [ ] H4-5 CrewAI：插件或下线决策并落地
+- [x] H4-1 ChatExecutor + 特性开关
+- [x] H4-2 KnowledgeExecutor
+- [x] H4-3 AlarmExecutor
+- [x] H4-4 Router 抽出
+- [x] H4-5 CrewAI：不下沉 Harness（遗留可选）
 
 ### H5 状态与恢复
 
@@ -760,11 +760,13 @@ app/harness/tools/
 建议目录：
 
 ```text
-app/agents/chat/executor.py
-app/agents/knowledge/executor.py
-app/agents/alarm/executor.py
+app/agents/harness_chat/executor.py       # ChatExecutor（包装 chat_react/chat_graph）
+app/agents/harness_knowledge/executor.py  # KnowledgeExecutor
+app/agents/harness_alarm/executor.py      # AlarmExecutor（与旧 alarm/ 包并存）
 app/harness/routing/router.py
 ```
+
+> **命名约定：** Harness 新增执行器放在 `app/agents/harness_*` **目录**下（目录带 `harness_` 前缀），与既有 `chat_graph.py` / `chat_react.py` / `alarm/` 区分；旧文件不改名、不搬家。包内文件可用普通名 `executor.py`。
 
 ---
 
@@ -774,7 +776,7 @@ app/harness/routing/router.py
 
 **痛点：** 业务堆在 service 层，和 Runtime 标准事件对不上。
 
-**类与方法：**
+**文件建议：** `app/agents/harness_chat/executor.py`（类名 `ChatExecutor`）
 
 | 方法 | 干什么 |
 |---|---|
@@ -782,16 +784,18 @@ app/harness/routing/router.py
 | `astream(ctx)` | 驱动现有 graph；把内部流式 chunk **翻译**成 `RunEvent` |
 | `_map_chunk_to_events`（建议私有） | 集中「旧事件 → 标准事件」，避免 astream 里一堆 if |
 
-**开关建议：** `HARNESS_CHAT=1` 走 Runtime；关掉走旧路径。
+**开关建议：** 继续用现有 `HARNESS_RUNTIME`（或另加 `HARNESS_CHAT`）：开 → Runtime + `ChatExecutor`；关 → 旧 `services.chat.run`。Echo 换成真 `ChatExecutor`，**不要删**开关与旧分支。
 
-**验收：** 闲聊 / 订单 / 天气 / 工具失败 / 流式 token；对照 `tests/golden/chat.json`。  
-**本步不要做：** 不要顺手重写 ReAct 算法。
+**验收：** 闲聊 / 订单 / 天气 / 工具失败 / 流式 token；对照 `tests/golden/chat.json`；开关关时旧路径仍可用。  
+**本步不要做：** 不要顺手重写 ReAct 算法；不要强行全量切、去掉回滚开关。
 
 ---
 
 #### H4-2 `KnowledgeExecutor` — RAG 问答
 
 **人话：** 检索继续用 `app/rag`；外面加 Executor：检索 → 生成 → 带 `sources` 的完成事件。
+
+**文件建议：** `app/agents/harness_knowledge/executor.py`
 
 **类与方法：**
 
@@ -808,6 +812,8 @@ app/harness/routing/router.py
 #### H4-3 `AlarmExecutor` — Pipeline + Replan
 
 **人话：** 告警流水线逻辑保留；每一步边界打成 `workflow.step`；补页 / 换 playbook / 跳过要在事件里能看出来。
+
+**文件建议：** `app/agents/harness_alarm/executor.py`
 
 **类与方法：**
 
@@ -843,8 +849,15 @@ app/harness/routing/router.py
 
 **人话：** 主路径不能长期「Crew 一套、Graph 一套」还测不干净。要么注册成默认关闭的第四 Executor，要么文档写明废弃 + 默认走主路径。
 
-**验收：** README/本计划有明确决策；默认路径可离线测；无隐式双轨。  
-**本步不要做：** 「先留着以后再说」却不给开关。
+**决策（2026-09-23）：不下沉到 Harness。**
+
+- Harness 只注册 `chat` / `knowledge` / `alarm`，**不**增加 `CrewExecutor`。
+- 主路径：`HARNESS_RUNTIME` → Router → 上述三个 Executor。
+- `app/agents/crew.py` + `USE_CREW` 仅作为**旧 `services.chat.run` 上的可选遗留**（默认 `false`）；不作为 Harness 能力，不进 `AgentRegistry`。
+- 后续若物理删除 Crew，另开任务；本步只定边界。
+
+**验收：** 本计划 + README 写明决策；默认 `USE_CREW=false` 可离线测；Registry 无 crew。  
+**本步不要做：** 不要把 Crew 包进 `harness_*`；不要「先留着以后再说」又不写决策。
 
 ---
 
@@ -856,7 +869,7 @@ app/harness/routing/router.py
 | H4-2 | Knowledge 来源/无答案/流式 OK |
 | H4-3 | Alarm 步骤事件 + 关键路径 OK |
 | H4-4 | Router 可单测、可回退 |
-| H4-5 | Crew 插件或下线已落地 |
+| H4-5 | 决策：Crew 不下沉 Harness；文档已写明 |
 
 ---
 
@@ -1170,3 +1183,18 @@ app/harness/observability/
 | 2026-09-22 | **完成 H2-3**：`adapter/chat_http.py` + `HARNESS_RUNTIME` 开关；Echo 占位；adapter 单测 |
 | 2026-09-22 | **完成 H2-4**：取消令牌 + Runtime 检查；破环依赖；`tests/test_cancellation.py`（23 相关测全绿） |
 | 2026-09-22 | **完成 H2-5（约定）**：注释固化短事务；完整 SSE 改造延期至 H4 后；**H2 里程碑约定层收口** |
+| 2026-09-23 | **完成 H3-1**：`AgentRegistry` + `AgentDefinition` + `tests/test_agent_registry.py` |
+| 2026-09-23 | **完成 H3-2**：`ModelGateway`（角色映射/缓存/用量薄记账）+ `tests/test_model_gateway.py` |
+| 2026-09-23 | 开始引导 **H3-3 Tool Registry** |
+| 2026-09-23 | **完成 H3-3**：`ToolRegistry` + `register_builtin_tools`（order/weather）+ 单测 |
+| 2026-09-23 | **完成 H3-4**：`ToolRunner.arun`（校验/白名单/超时/截断/HarnessError）+ 单测 7 passed |
+| 2026-09-23 | **完成 H3-5**：PolicySet/PolicyRegistry + 默认策略 + Runtime 前置钩子；**H3 收口** |
+| 2026-09-23 | H4 曾拟「全量无开关」；**已改回**：保留 `HARNESS_RUNTIME` 双轨，开→ChatExecutor，关→旧 `run` |
+| 2026-09-23 | **完成 H4-1**：`harness_chat/executor.py` + adapter 传入 kb/db；开关保留；adapter/executor 单测 |
+| 2026-09-23 | **完成 H4-2**：`KnowledgeExecutor` + `knowledge_http` + `/retrieval` 开关；`RunResult.sources` 允许 str；单测 |
+| 2026-09-23 | **完成 H4-3（Executor）**：`harness_alarm/executor.py` 包装 `run_alarm_agent`；单测 2 passed；HTTP 接线待做 |
+| 2026-09-23 | **完成 H4-3 HTTP**：`alarm_http` + `/api/v1/alarm` 开关；adapter 单测 |
+| 2026-09-23 | **完成 H4-4（模块）**：`harness/routing` + `classify`；复用 is_alarm/classify_intent；单测；Adapter 接入待做 |
+| 2026-09-23 | **H4-4 接入 Chat Adapter**：`chat_harness_http` 先 classify 再填 `agent_id`/`options.route`；单测 mock 路由 |
+| 2026-09-23 | **H4-4 分发**：`register_builtin_agents` + `build_chat_runtime(agent_id)` 选 Executor；未知回退 chat；分发单测 |
+| 2026-09-23 | **H4-5 决策**：CrewAI **不下沉** Harness；Registry 仅 chat/knowledge/alarm；Crew 为旧 `run` 可选遗留（默认关） |

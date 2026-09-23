@@ -15,6 +15,7 @@ from app.harness.contracts import (
     RunRequest,
     RunResult,
 )
+from app.harness.registry import PolicyRegistry
 from app.harness.runtime.cancellation import CancellationToken
 
 _TERMINAL = frozenset({RUN_COMPLETED, RUN_FAILED})
@@ -32,19 +33,35 @@ def _cancelled_payload() -> dict[str, Any]:
 class AgentRuntime:
     """统一开跑门面：建 Run、转发 Executor 事件、归一失败。"""
 
-    def __init__(self, executor: AgentExecutor) -> None:
-        # H3 再换成从 Registry 按 agent_id 取
+    def __init__(
+        self,
+        executor: AgentExecutor,
+        *,
+        policy_registry: PolicyRegistry | None = None,
+        policy_set: str = "default",
+    ) -> None:
+        # executor 仍可直接注入；H4 再换成从 AgentRegistry 按 agent_id 取
         self.executor = executor
+        self._policy_registry = policy_registry
+        self._policy_set = policy_set
 
     def _apply_pre_policies(self, ctx: RunContext) -> RunContext:
-        """薄前置钩子（H3/H6 再挂限流、预算等）；H2 原样返回。"""
-        return ctx
+        """Executor 运行前的策略钩子。
+
+        - 未传入 policy_registry：跳过（兼容 AgentRuntime(executor)）。
+        - 已传入：按 policy_set 名取 PolicySet 并 apply_before。
+        - 策略名未注册：透传 PolicyRegistry.get 的 ValueError。
+        """
+        if self._policy_registry is None:
+            return ctx
+        return self._policy_registry.get(self._policy_set).apply_before(ctx)
 
     async def execute_stream(self, request: RunRequest) -> AsyncIterator[RunEvent]:
         """把一次 RunRequest 变成有序 RunEvent 流。
 
         SSE / DB 事务约定（H2-5）：
         - Runtime 与 Executor 默认不持有 SQLAlchemy AsyncSession。
+        - 禁止用「同一个 session」包住整段 async for 事件推流。
         - 禁止用「同一个 session」包住整段 async for 事件推流。
         - 若需读写会话/Run：在 Adapter 或仓储层短开短关（打开→读写→关闭），
           再继续推流；完整 SSE 改造（拆 Depends(get_db)、接 Runtime）延期到

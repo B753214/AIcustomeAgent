@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from app.agents.alarm import run_alarm_agent_stream
+from app.agents.alarm.runner import run_alarm_agent
+from app.harness.adapter.alarm_http import alarm_harness_http
 from app.harness.adapter.chat_http import chat_harness_http
+from app.harness.adapter.knowledge_http import knowledge_harness_http
 from app.services.auth import verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
@@ -145,9 +148,10 @@ async def health():
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat_ep(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
-    if settings.harness_runtime:
-        return await chat_harness_http(req)
     kb = get_kb_instance(db)
+    if settings.harness_runtime:
+        return await chat_harness_http(req, kb, db)
+
     result = await run(req.message, req.session_id, kb, db)
     return ChatResponse(**result)
 
@@ -237,8 +241,11 @@ async def session_history(session_id: str, db: AsyncSession = Depends(get_db)):
 @app.get("/retrieval/{query}")
 async def retrieval(query: str, db: AsyncSession = Depends(get_db)):
     kb = get_kb_instance(db)
-    answer, sources = await aanswer_with_rag(query, kb)
-    return {"reply": answer, "sources": sources}
+    if settings.harness_runtime:
+        return await knowledge_harness_http(query, kb)
+    else:
+        answer, sources = await aanswer_with_rag(query, kb)
+        return {"reply": answer, "sources": sources}
 
 
 @app.post("/api/v1/ingest", response_model=IngestResponse, )
@@ -401,6 +408,18 @@ async def api_analyze(request: Request):
             "Access-Control-Allow-Origin": "*",  # 工作台跨端口时需要；若已有全局 CORS 可去掉
         },
     )
+
+@app.post("/api/v1/alarm")
+async def alarm_ep(req: ChatRequest, _: None = Depends(verify_api_key)):
+    if settings.harness_runtime:
+        return await alarm_harness_http(req.message)
+    res = await run_alarm_agent(req.message)
+    return {
+        "reply": res.get("reply") or "",
+        "sources": res.get("sources") or [],
+        "intent": res.get("intent"),
+        "engine": res.get("engine", "alarm"),
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
