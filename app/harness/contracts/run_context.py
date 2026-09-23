@@ -1,13 +1,16 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .run_request import RunRequest
 
 
 class RunContext(BaseModel):
     """通用 Agent 运行上下文（执行态；不进入 Registry）。"""
+
+    # CancellationToken 等非 JSON 类型允许挂在字段上（勿从 runtime 反向 import，避免环依赖）
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     run_id: str = Field(
         ...,
@@ -40,4 +43,8 @@ class RunContext(BaseModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="其它元数据",
+    )
+    cancellation_token: Any | None = Field(
+        default=None,
+        description="取消令牌（CancellationToken）；由 Runtime 注入",
     )

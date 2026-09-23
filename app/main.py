@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from app.agents.alarm import run_alarm_agent_stream
+from app.harness.adapter.chat_http import chat_harness_http
 from app.services.auth import verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
@@ -144,6 +145,8 @@ async def health():
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
 async def chat_ep(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
+    if settings.harness_runtime:
+        return await chat_harness_http(req)
     kb = get_kb_instance(db)
     result = await run(req.message, req.session_id, kb, db)
     return ChatResponse(**result)
@@ -273,6 +276,9 @@ def _sse(payload: dict) -> str:
 
 @app.post("/api/v1/chat/stream")
 async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
+    # H2-5：当前 Depends(get_db) 会随 StreamingResponse 活到流结束，属于长持有 session。
+    # 完整改造（短开短关 + Runtime SSE Adapter + 断开取消）延期到 H4 ChatExecutor 之后；
+    # 约定见 AgentRuntime.execute_stream 文档字符串。本入口暂保持旧 run_astream 行为。
     kb = get_kb_instance(db)
 
     async def gen():

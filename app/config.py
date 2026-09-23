@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     alarm_replan_max_pages: int = 2
     alarm_replan_max_playbook_switch: int = 1
 
+    # ---------- Harness ----------
+    harness_runtime: bool = False
+
     # ---------- 闲聊工具 ----------
     amap_mcp_enabled: bool = False
     amap_maps_api_key: str = ""
