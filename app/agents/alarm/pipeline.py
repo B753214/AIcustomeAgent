@@ -59,6 +59,7 @@ def initial_state(message: str) -> dict:
         "fetch_meta": {},
         "replans": [],
         "plan": [],
+        "idempotency_keys": []
     }
 
 
@@ -141,6 +142,15 @@ async def _step_fetch(state: dict, step: dict, *, on_progress: ProgressCb | None
             "pageSize": page_size,
         }
         return
+    keys = state.setdefault("idempotency_keys", [])
+    fetched_pages = state.setdefault("fetched_pages", [])
+    key = f"fetch:{config_id}:p{page}"
+    if key in keys:
+        state["page"] = page
+        if page not in fetched_pages:
+            fetched_pages.append(page)
+        await _emit(on_progress, f"跳过重复拉取 {key}")
+        return
 
     res = await fetch_monitor_data(
         market_config_id=config_id,
@@ -152,10 +162,13 @@ async def _step_fetch(state: dict, step: dict, *, on_progress: ProgressCb | None
         page=page,
         page_size=page_size,
     )
+    # 外部调用已发生即记键（含失败），恢复/重试不再打接口
+    keys.append(key)
+
     state["fetch_res"] = res
     state["page"] = page
-    if page not in state["fetched_pages"]:
-        state["fetched_pages"].append(page)
+    if page not in fetched_pages:
+        fetched_pages.append(page)
 
     if not res:
         state["pagination"] = None

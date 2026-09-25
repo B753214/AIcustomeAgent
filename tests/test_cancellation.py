@@ -122,3 +122,25 @@ async def test_execute_maps_cancel_to_cancelled_status():
     assert result.status == "cancelled"
     assert result.error is not None
     assert result.error.get("cancelled") is True
+
+
+@pytest.mark.asyncio
+async def test_external_cancellation_token_in_options():
+    """main/Adapter 注入的 token 与 Runtime 使用同一对象。"""
+    token = CancellationToken()
+    executor = SlowExecutor()
+    runtime = AgentRuntime(executor)
+    stream = runtime.execute_stream(
+        RunRequest(input="hi", options={"cancellation_token": token})
+    )
+
+    assert (await stream.__anext__()).type == RUN_STARTED
+    assert (await stream.__anext__()).payload.get("content") == "A"
+
+    token.cancel()
+    rest = [ev async for ev in stream]
+    assert executor.seen_tokens[0] is token
+    assert any(ev.type == RUN_FAILED and ev.payload.get("cancelled") for ev in rest)
+    assert not any(
+        ev.type == "model.token" and ev.payload.get("content") == "B" for ev in rest
+    )

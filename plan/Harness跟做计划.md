@@ -135,9 +135,9 @@ tests/test_agent_runtime.py
 
 - [x] H2-1 `AgentRuntime.execute_stream`
 - [x] H2-2 JSON 消费同一事件流
-- [x] H2-3 FastAPI 降为 Transport Adapter（可先接 Fake/单 Agent）
-- [x] H2-4 取消语义
-- [x] H2-5 SSE 短事务边界（仅约定；完整改造延期）
+- [x] H2-3 FastAPI 降为 Transport Adapter（JSON 已接；**SSE 端点待接 Runtime**）
+- [x] H2-4 取消语义（单测已有；**真实 SSE 断开钩子待接**）
+- [ ] H2-5 SSE 短事务边界（约定已有；**完整改造未完成：拆长 session + SSE Adapter + 断开取消**）
 
 ### H3 Registry 与 Gateway
 
@@ -157,11 +157,11 @@ tests/test_agent_runtime.py
 
 ### H5 状态与恢复
 
-- [ ] H5-1 Run 表与仓储
-- [ ] H5-2 Checkpoint 接口 + PG JSONB
-- [ ] H5-3 Artifact 元数据
-- [ ] H5-4 Trace Event 落库（初期 PG）
-- [ ] H5-5 Alarm 可恢复步骤 + 幂等键 + 恢复测试
+- [x] H5-1 Run 表与仓储
+- [x] H5-2 Checkpoint 接口 + PG JSONB
+- [ ] H5-3 Artifact 元数据（**不做**：告警仅文字报告，无文件型产物）
+- [ ] H5-4 Trace Event 落库（仓储 ✓；**Runtime 双入口 + JSON/SSE 均可回放未完成**）
+- [x] H5-5 Alarm 可恢复步骤 + 幂等键 + 恢复测试
 
 ### H6 策略与观测
 
@@ -548,19 +548,27 @@ H2-3 可先接 **FakeExecutor 或单一占位**，证明 Adapter 形状；真 Ch
 
 #### H2-5 SSE 短事务边界
 
-**功能：** 约定「流式响应期间不长持有同一个 DB AsyncSession」。  
-**本轮实际做法（2026-09-22 决策）：**
+**功能：** 流式响应期间**不长持有**同一个 DB `AsyncSession`；SSE 与 JSON **同一 Runtime 链**。
 
-- **先不改** `/api/v1/chat/stream` 行为（已确认：`Depends(get_db)` + `StreamingResponse` = 长持有）。
-- 在 `AgentRuntime.execute_stream` 与 `chat_stream` 入口写清约定注释。
-- **完整 SSE 改造延期**到 H4 `ChatExecutor` 能流式出 token 之后，单独做：
-  1. 拆长生命周期 `get_db`
-  2. Runtime SSE Adapter + 特性开关
-  3. 断开 → `cancellation_token.cancel()`
-- Redis 不纳入本轮；以后若上 Redis，可与短事务同一波，但 Redis **不能替代**拆 session。
+**现状（须收口，不再延期排除 SSE）：**
 
-**过关（本轮）：** 注释/计划约定到位即可。  
-**过关（延期项）：** 见上「完整 SSE 改造」清单。
+- `/api/v1/chat/stream`、`/api/analyze` 等 **已有正式 SSE HTTP**，完整系统必须纳入，不得只接 JSON。
+- 当前仍存在：`Depends(get_db)` + `StreamingResponse` = 长持有（违规形态）。
+- 约定注释已写在 `execute_stream` / `chat_stream`；**代码改造未完成**。
+
+**完整改造清单（H2-5 + 与 H5-4 一并做完）：**
+
+| # | 做什么 |
+|---|---|
+| 1 | 拆长生命周期 `get_db`：SSE 路径用短开短关 / `session_factory`，禁止一个 session 包整场流 |
+| 2 | Chat / Alarm（及已有）SSE Adapter：`execute_stream` → SSE 帧；`HARNESS_RUNTIME` 可切回旧路径 |
+| 3 | 断开 → `cancellation_token.cancel()`（把 H2-4 接到真实 SSE） |
+| 4 | 与 H5-4：流式路径短事务 `append_event`（及 Run 起止），按 `run_id` 可回放 |
+
+- Redis 不纳入本步；以后若上 Redis，可与短事务同一波，但 Redis **不能替代**拆 session。
+
+**验收：** 上表 1～4 全绿；开关关时旧 SSE 仍可用。  
+**本步不要做：** 不要「只改 JSON、SSE 以后再说」；不要为省事把长 session 塞进整段 `execute_stream`。
 
 ---
 
@@ -570,9 +578,9 @@ H2-3 可先接 **FakeExecutor 或单一占位**，证明 Adapter 形状；真 Ch
 |---|---|---|
 | **H2-1** | `AgentRuntime.execute_stream`：建 Run → 前置钩子 → 调 Executor → 归一 sequence → 失败变 `run.failed` | FakeExecutor 单测通过 |
 | **H2-2** | `execute()` 只消费 `execute_stream` 聚合 `RunResult` | 无第二套业务分支 |
-| **H2-3** | 一端点改为 Adapter + 特性开关 | 开关可切 Runtime / 旧路径 |
-| **H2-4** | 取消令牌挂 Context；断开后停后续调用 | 单测或手工验证 |
-| **H2-5** | SSE 不长持有 AsyncSession 的文档/注释约定 | 本轮：注释+延期记录；完整改造待 H4 后 |
+| **H2-3** | Adapter + 特性开关 | JSON ✓；**SSE 端点须同样过关**（见 H2-5） |
+| **H2-4** | 取消令牌挂 Context；断开后停后续调用 | 单测 ✓；**真实 SSE 断开钩子见 H2-5** |
+| **H2-5** | SSE 短事务 + Runtime SSE Adapter + 断开取消 | **未完成**；不得排除现有 SSE HTTP |
 
 ### H3：Registry、模型与工具
 
@@ -880,11 +888,12 @@ app/harness/routing/router.py
 建议目录：
 
 ```text
-app/harness/storage/
+app/harness_storage/          # 与 app/models、app/services 区分；目录带 harness_ 前缀
+  models.py                   # HarnessRun → 表 harness_runs
   run_repository.py
-  checkpoint_repository.py
-  artifact_repository.py
-  event_repository.py
+  checkpoint_repository.py    # H5-2
+  artifact_repository.py      # H5-3
+  event_repository.py         # H5-4
 ```
 
 ---
@@ -932,22 +941,62 @@ app/harness/storage/
 
 **人话：** 报告、抓取结果等大家伙：库里只存元数据（路径、类型、大小、归属 run），文件放磁盘或对象存储。
 
-**方法：** `register_artifact(...)` / `get_artifact(id)` / `list_by_run(run_id)`
+**决策（2026-09-23）：本项目不做。**  
+告警最终产物是文字报告（写入会话 / Run.`output`），没有可下载 HTML/附件归档需求；中间续跑状态用 Checkpoint 即可。若以后出现文件型交付物，再单独立项，不在本 Harness 跟做范围默认必做。
 
-**验收：** 告警报告能关联到 `run_id`。  
-**本步不要做：** 不要把数兆 HTML 塞进 PG 一行。
+**验收：** —（跳过）  
+**本步不要做：** 不要为「计划里有」而空建 Artifact 表。
 
 ---
 
 #### H5-4 关键 `RunEvent` 落库
 
-**人话：** 把过滤后的标准事件按序存下，按 `run_id` 能回放。
+**人话：** 把过滤后的标准事件按序存下，按 `run_id` 能回放。  
+**完整系统：** JSON **与 SSE** 同一条执行链都能落库、都能回放；**不得**只接 `execute`、排除现有 SSE HTTP。
 
-**方法：** `append_event(ev)` / `list_events(run_id)`
+**现状：**
 
-**注意：** `visibility=internal` 是否入库要有策略；写入前脱敏（与 H6 衔接）。
+| 块 | 状态 |
+|---|---|
+| `HarnessRunEvent` + `append_event` / `list_events` | ✓ |
+| 仓储单测（含 skip internal） | ✓ |
+| 短事务 persist helper（`session_factory`） | 待做 |
+| Runtime：`execute` **与** `execute_stream` 共用落库 | 待做 |
+| Chat SSE / Alarm SSE（`/api/v1/chat/stream`、`/api/analyze`）进 Runtime | 待做（与 H2-5） |
+| 按 `run_id` 查询回放入口 | 待做 |
 
-**验收：** 一次 Run 后，库中事件与内存关键事件一致（允许过滤后的子集）。
+**方法：**
+
+| 方法 / 能力 | 干什么 |
+|---|---|
+| `append_event` / `list_events` | 单条写入与按序回放（已有） |
+| persist helper | 短开 session → 调仓储 → commit；`factory is None` 跳过 |
+| Runtime 双入口 | `execute` 与 `execute_stream` **共用** helper，禁止两套落库逻辑 |
+| SSE Adapter | `async for ev in execute_stream` → SSE；落库走短事务（H2-5） |
+| 回放 | 运维/调试按 `run_id` 取 Run + 事件列表 |
+
+**注意：**
+
+- `visibility=internal` 不入库（策略已定）。
+- 写入前脱敏与 H6 衔接；本步可先落库，H6 收紧脱敏。
+- 遵守 H2-5：禁止同一个 `AsyncSession` 包住整段 SSE。
+
+**验收：**
+
+- JSON 与 SSE 各至少一条路径：跑完后库中事件与内存流一致（允许过滤 internal）。
+- 现有 SSE 端点在 `HARNESS_RUNTIME=1` 时走 Runtime；开关关时旧路径可用。
+- 不得以「先只做 JSON」作为本步过关条件。
+
+**本步不要做：** 不要擅自缩小为仅 `execute`；不要空建 Artifact；不要做 Alarm Checkpoint 恢复（H5-5）。
+
+**建议实现顺序（完整路径）：**
+
+1. 短事务 persist helper + 单测  
+2. Runtime 双入口共用 helper  
+3. Chat SSE Adapter + `/api/v1/chat/stream` + 拆长 session  
+4. Alarm SSE + `/api/analyze`  
+5. SSE 断开 → cancel  
+6. 回放查询 + 双路径验收测  
 
 ---
 
@@ -976,8 +1025,8 @@ app/harness/storage/
 |---|---|
 | H5-1 | Run 可查 |
 | H5-2 | Checkpoint 可读写 |
-| H5-3 | Artifact 可关联报告 |
-| H5-4 | 按 run_id 回放事件 |
+| H5-3 | **跳过**（无文件型产物） |
+| H5-4 | JSON **与 SSE** 均可按 run_id 回放；短事务；现有 SSE HTTP 进 Runtime（与 H2-5） |
 | H5-5 | Alarm 恢复测试通过 |
 
 ---
@@ -1198,3 +1247,9 @@ app/harness/observability/
 | 2026-09-23 | **H4-4 接入 Chat Adapter**：`chat_harness_http` 先 classify 再填 `agent_id`/`options.route`；单测 mock 路由 |
 | 2026-09-23 | **H4-4 分发**：`register_builtin_agents` + `build_chat_runtime(agent_id)` 选 Executor；未知回退 chat；分发单测 |
 | 2026-09-23 | **H4-5 决策**：CrewAI **不下沉** Harness；Registry 仅 chat/knowledge/alarm；Crew 为旧 `run` 可选遗留（默认关） |
+| 2026-09-23 | **完成 H5-1**：`app/harness_storage`（`HarnessRun`/`harness_runs`）+ `run_repository`；init_db 挂载；单测 |
+| 2026-09-23 | **H5-1 接线**：`AgentRuntime.execute` 有 `options.db` 时 create/update Run；共用 run_id；无 db 跳过 |
+| 2026-09-23 | **完成 H5-2**：`HarnessCheckpoint` + `save/load/list_checkpoint`；单测 |
+| 2026-09-23 | **H5-3 决策：不做** Artifact（告警仅文字报告；最终进会话/Run.output，中间用 Checkpoint） |
+| 2026-09-23 | **完成 H5-4 仓储**：`HarnessRunEvent` + `append_event`/`list_events`；跳过 internal；单测 |
+| 2026-09-23 | **范围纠正**：完整系统含现有 SSE HTTP；H2-5 / H5-4 **不得排除 SSE**；取消「SSE 改造延期」；H5-4 过关=JSON+SSE 均可回放；清单 H2-5/H5-4 改回未完成 |

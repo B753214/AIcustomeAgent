@@ -1,7 +1,7 @@
 """告警 Agent：pipeline 拉数 + Replan + LLM 报告（非流式 / SSE）。"""
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from langchain.chat_models import init_chat_model
@@ -9,9 +9,17 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.alarm.format import format_detail_for_llm
 from app.agents.alarm.load_playbooks import load_playbook
-from app.agents.alarm.pipeline import run_initial_pipeline, run_step, STEP_SKIP_REPORT
+from app.agents.alarm.pipeline import (
+    initial_state,
+    run_initial_pipeline,
+    run_step,
+    STEP_SKIP_REPORT,
+)
 from app.agents.alarm.report import analyze_error_details, build_url_report
+from app.agents.harness_alarm.checkpoint import ALARM_AFTER_FETCH, ALARM_BEFORE_REPORT
 from app.config import settings
+
+CheckpointCb = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 _OUTPUT_FORMAT = """
 你必须严格按以下格式输出，不要加任何 markdown 符号（不要用 ##、** 等），不要输出额外内容：
@@ -193,14 +201,57 @@ def _result_from_state(state: dict, *, skip: bool | None = None) -> dict:
     )
 
 
+def _checkpoint_payload(state: dict) -> dict[str, Any]:
+    """可恢复步骤边界落库用的 state 子集（勿含密码明文）。"""
+    return {
+        "message": state.get("message"),
+        "parsed": state.get("parsed") or {},
+        "skill_key": state.get("skill_key"),
+        "skill_key_initial": state.get("skill_key_initial"),
+        "skill_meta": state.get("skill_meta") or {},
+        "config_id": state.get("config_id") or "",
+        "biz_type": state.get("biz_type"),
+        "start_time": state.get("start_time"),
+        "end_time": state.get("end_time"),
+        "sources": state.get("sources") or [],
+        "fetch_meta": state.get("fetch_meta") or {},
+        "fetch_res": state.get("fetch_res"),
+        "monitor_rate": state.get("monitor_rate") or {},
+        "monitor_detail": state.get("monitor_detail"),
+        "pagination": state.get("pagination"),
+        "error_analysis": state.get("error_analysis"),
+        "skip_reason": state.get("skip_reason"),
+        "fetched_pages": state.get("fetched_pages") or [],
+        "replans": state.get("replans") or [],
+        "playbook_switched": state.get("playbook_switched"),
+        "idempotency_keys": state.get("idempotency_keys") or [],
+    }
+
+
+def _state_from_resume(message: str, resume: dict) -> dict:
+    """用检查点 payload 重建 state；缺键用 initial_state 补齐。"""
+    state = {**initial_state(message), **resume}
+    state["message"] = message
+    return state
+
+
 async def run_alarm_agent(message: str) -> dict:
     """非流式：供 JSON /chat、Crew Tool 使用。"""
     state = await run_initial_pipeline(message)
     return _result_from_state(state)
 
 
-async def run_alarm_agent_stream(message: str) -> AsyncIterator[dict]:
-    """流式：stage →（skip 或 token）→ done。"""
+async def run_alarm_agent_stream(
+    message: str,
+    *,
+    resume: dict | None = None,
+    on_checkpoint: CheckpointCb | None = None,
+) -> AsyncIterator[dict]:
+    """流式：stage →（skip 或 token）→ done。
+
+    resume：Executor 从 DB 读出的 checkpoint payload；有则跳过 fetch pipeline。
+    on_checkpoint：步骤边界回调（由 Executor 短事务 persist_checkpoint）。
+    """
     progress_events: list[dict] = []
     replan_events: list[dict] = []
 
@@ -220,25 +271,37 @@ async def run_alarm_agent_stream(message: str) -> AsyncIterator[dict]:
             {"type": "stage", "stage": "alarm_fetch", "msg": msg, "ok": True}
         )
 
-    yield {
-        "type": "stage",
-        "stage": "alarm_fetch",
-        "msg": "正在解析告警并尝试拉取监控数据…",
-        "ok": True,
-    }
-    state = await run_initial_pipeline(
-        message,
-        on_progress=on_progress,
-        on_stage=on_stage,
-        stop_before_report=True,
-    )
+    if resume:
+        yield {
+            "type": "stage",
+            "stage": "alarm_fetch",
+            "msg": "从检查点恢复，跳过已完成抓取…",
+            "ok": True,
+        }
+        state = _state_from_resume(message, resume)
+    else:
+        yield {
+            "type": "stage",
+            "stage": "alarm_fetch",
+            "msg": "正在解析告警并尝试拉取监控数据…",
+            "ok": True,
+        }
+        state = await run_initial_pipeline(
+            message,
+            on_progress=on_progress,
+            on_stage=on_stage,
+            stop_before_report=True,
+        )
+        if on_checkpoint:
+            await on_checkpoint(ALARM_AFTER_FETCH, _checkpoint_payload(state))
+
     for ev in progress_events:
         yield ev
     for ev in replan_events:
         yield ev
 
-    parsed = state["parsed"]
-    cls = state["skill_meta"]
+    parsed = state.get("parsed") or {}
+    cls = state.get("skill_meta") or {}
     fetch_meta = state.get("fetch_meta") or {}
 
     if state.get("skip_reason"):
@@ -261,13 +324,16 @@ async def run_alarm_agent_stream(message: str) -> AsyncIterator[dict]:
         "monitorDetail": state.get("monitor_detail"),
     }
     messages, sources, fetch_meta, _ = _assemble(
-        message, parsed, cls, state["config_id"], res
+        message, parsed, cls, state.get("config_id") or "", res
     )
 
     yield {
         "type": "stage",
         "stage": "alarm",
-        "msg": f"告警排查中（{cls.get('type') or cls.get('key') or 'generic'}，{fetch_meta.get('fetch_channel')}）",
+        "msg": (
+            f"告警排查中（{cls.get('type') or cls.get('key') or 'generic'}，"
+            f"{fetch_meta.get('fetch_channel')}）"
+        ),
         "ok": True,
         "meta": {
             "skill_key": cls.get("key"),
@@ -276,6 +342,9 @@ async def run_alarm_agent_stream(message: str) -> AsyncIterator[dict]:
             "replans": state.get("replans") or [],
         },
     }
+    if on_checkpoint:
+        await on_checkpoint(ALARM_BEFORE_REPORT, _checkpoint_payload(state))
+
     llm = _build_llm()
     full_ai = ""
     async for chunk in llm.astream(messages):
@@ -302,7 +371,9 @@ async def run_alarm_agent_stream(message: str) -> AsyncIterator[dict]:
     yield {"type": "done", **_result_from_state(state)}
 
 
-async def _demo_stream(message: str) -> None:
+async def _demo_stream(
+        message: str,
+) -> None:
     from app.agents.alarm.browser import close_browser
 
     fmt_rca = (settings.alarm_report_format or "").lower() == "rca"

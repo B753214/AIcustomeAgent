@@ -1,19 +1,31 @@
-"""H4-1：Chat HTTP Adapter + ChatExecutor（mock run，不打真实 LLM）。"""
+"""H4-1：Chat HTTP Adapter + ChatExecutor（mock run_astream，不打真实 LLM）。"""
 from __future__ import annotations
 
+from typing import Any, AsyncIterator
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.agents.harness_chat.executor import ChatExecutor
 from app.harness.adapter.chat_http import (
     build_chat_runtime,
     chat_harness_http,
+    run_event_to_sse_dict,
     to_chat_response,
     to_run_request,
 )
-from app.harness.contracts import RUN_COMPLETED, RunContext, RunRequest, RunResult
+from app.harness.contracts import (
+    MODEL_TOKEN,
+    RUN_COMPLETED,
+    RUN_FAILED,
+    RUN_STARTED,
+    WORKFLOW_STEP,
+    RunContext,
+    RunEvent,
+    RunRequest,
+    RunResult,
+)
 from app.harness.routing import RouteDecision
-from app.agents.harness_chat.executor import ChatExecutor
 from app.schemas import ChatRequest
 
 
@@ -32,6 +44,7 @@ def test_to_run_request_maps_message_and_options():
     assert req.caller == "api"
     assert req.options["kb"] is kb
     assert req.options["db"] is db
+    assert req.options["session_factory"] is not None
     assert req.options["route"]["reason"] == "classify_intent"
 
 
@@ -52,9 +65,65 @@ def test_to_chat_response_maps_result_fields():
     assert resp.meta.get("usage") == {"tokens": 3}
 
 
-@pytest.mark.asyncio
-async def test_chat_executor_maps_run_result():
-    fake = {
+def test_run_event_to_sse_dict_mapping():
+    assert (
+        run_event_to_sse_dict(
+            RunEvent(type=RUN_STARTED, run_id="r", sequence=0, payload={})
+        )
+        is None
+    )
+    assert run_event_to_sse_dict(
+        RunEvent(
+            type=MODEL_TOKEN,
+            run_id="r",
+            sequence=1,
+            payload={"content": "你"},
+        )
+    ) == {"type": "token", "content": "你"}
+    assert run_event_to_sse_dict(
+        RunEvent(
+            type=WORKFLOW_STEP,
+            run_id="r",
+            sequence=2,
+            payload={"stage": "intent", "message": "ok", "ok": True, "ms": 1},
+        )
+    ) == {"type": "stage", "stage": "intent", "msg": "ok", "ok": True, "ms": 1}
+    assert run_event_to_sse_dict(
+        RunEvent(
+            type=RUN_COMPLETED,
+            run_id="r",
+            sequence=3,
+            payload={
+                "output": "你好",
+                "sources": ["a"],
+                "metadata": {"intent": "chat", "engine": "harness", "cache_hit": False},
+            },
+        )
+    ) == {
+        "type": "done",
+        "run_id": "r",
+        "reply": "你好",
+        "sources": ["a"],
+        "intent": "chat",
+        "engine": "harness",
+        "cache_hit": False,
+    }
+    assert run_event_to_sse_dict(
+        RunEvent(
+            type=RUN_FAILED,
+            run_id="r",
+            sequence=4,
+            payload={"message": "boom"},
+        )
+    ) == {"type": "error", "run_id": "r", "message": "boom"}
+
+
+async def _fake_run_astream(*_args: Any, **_kwargs: Any) -> AsyncIterator[dict]:
+    yield {"type": "stage", "stage": "intent", "msg": "意图识别为 chat", "ms": 1, "ok": True}
+    yield {"type": "token", "content": "hel"}
+    yield {"type": "token", "content": "lo"}
+    yield {
+        "type": "done",
         "reply": "hello",
         "intent": "chat",
         "sources": ["a"],
@@ -63,9 +132,13 @@ async def test_chat_executor_maps_run_result():
         "used_crew": False,
         "meta": {"tool_calls": []},
     }
+
+
+@pytest.mark.asyncio
+async def test_chat_executor_maps_run_astream_chunks():
     with patch(
-        "app.agents.harness_chat.executor.run",
-        new=AsyncMock(return_value=fake),
+        "app.agents.harness_chat.executor.run_astream",
+        new=_fake_run_astream,
     ) as mocked:
         ctx = RunContext(
             run_id="r1",
@@ -78,27 +151,23 @@ async def test_chat_executor_maps_run_result():
         )
         events = [ev async for ev in ChatExecutor().astream(ctx)]
 
-    assert len(events) == 1
-    ev = events[0]
-    assert ev.type == RUN_COMPLETED
-    assert ev.payload["output"] == "hello"
-    assert ev.payload["sources"] == ["a"]
-    assert ev.payload["metadata"]["engine"] == "chat_react"
-    assert ev.payload["metadata"]["tool_calls"] == []
-    mocked.assert_awaited_once_with("hi", "s1", "kb", "db")
+    assert [e.type for e in events] == [WORKFLOW_STEP, MODEL_TOKEN, MODEL_TOKEN, RUN_COMPLETED]
+    assert events[0].payload["stage"] == "intent"
+    assert events[0].payload["message"] == "意图识别为 chat"
+    assert events[1].payload["content"] == "hel"
+    assert events[2].payload["content"] == "lo"
+    done = events[-1]
+    assert done.type == RUN_COMPLETED
+    assert done.run_id == "r1"
+    assert done.payload["output"] == "hello"
+    assert done.payload["sources"] == ["a"]
+    assert done.payload["metadata"]["engine"] == "chat_react"
+    assert done.payload["metadata"]["tool_calls"] == []
+    assert mocked is _fake_run_astream
 
 
 @pytest.mark.asyncio
 async def test_chat_harness_http_uses_executor():
-    fake = {
-        "reply": "pong",
-        "intent": "chat",
-        "sources": [],
-        "engine": "chat_react",
-        "cache_hit": False,
-        "used_crew": False,
-        "meta": {},
-    }
     with (
         patch(
             "app.harness.adapter.chat_http.classify",
@@ -111,16 +180,20 @@ async def test_chat_harness_http_uses_executor():
             ),
         ),
         patch(
-            "app.agents.harness_chat.executor.run",
-            new=AsyncMock(return_value=fake),
+            "app.agents.harness_chat.executor.run_astream",
+            new=_fake_run_astream,
         ),
+        # to_run_request 默认挂了真实 PG session_factory；单测跳过落库
+        patch("app.harness.runtime.agent_runtime.persist_run_start", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_event", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_run_end", new=AsyncMock()),
     ):
         resp = await chat_harness_http(
             ChatRequest(message="ping", session_id="t"),
             kb=object(),
             db=object(),
         )
-    assert resp.reply == "pong"
+    assert resp.reply == "hello"
     assert resp.engine == "chat_react"
     assert resp.intent == "chat"
 
@@ -185,9 +258,12 @@ async def test_chat_harness_http_dispatches_knowledge_executor():
             new=AsyncMock(return_value=("kb-answer", ["doc#0"])),
         ) as rag_mock,
         patch(
-            "app.agents.harness_chat.executor.run",
+            "app.agents.harness_chat.executor.run_astream",
             new=AsyncMock(),
-        ) as chat_run_mock,
+        ) as chat_stream_mock,
+        patch("app.harness.runtime.agent_runtime.persist_run_start", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_event", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_run_end", new=AsyncMock()),
     ):
         resp = await chat_harness_http(
             ChatRequest(message="如何配置？", session_id="t"),
@@ -196,7 +272,7 @@ async def test_chat_harness_http_dispatches_knowledge_executor():
         )
 
     rag_mock.assert_awaited()
-    chat_run_mock.assert_not_awaited()
+    chat_stream_mock.assert_not_called()
     assert resp.reply == "kb-answer"
     assert resp.sources == ["doc#0"]
     assert resp.intent == "knowledge"
@@ -205,15 +281,18 @@ async def test_chat_harness_http_dispatches_knowledge_executor():
 
 @pytest.mark.asyncio
 async def test_chat_harness_http_dispatches_alarm_executor():
-    fake = {
-        "reply": "alarm-report",
-        "intent": "alarm",
-        "sources": ["mon#1"],
-        "engine": "alarm",
-        "cache_hit": False,
-        "skip": False,
-        "meta": {},
-    }
+    async def fake_alarm_stream(*_a, **_k):
+        yield {
+            "type": "done",
+            "reply": "alarm-report",
+            "intent": "alarm",
+            "sources": ["mon#1"],
+            "engine": "alarm",
+            "cache_hit": False,
+            "skip": False,
+            "meta": {},
+        }
+
     with (
         patch(
             "app.harness.adapter.chat_http.classify",
@@ -226,13 +305,16 @@ async def test_chat_harness_http_dispatches_alarm_executor():
             ),
         ),
         patch(
-            "app.agents.harness_alarm.executor.run_alarm_agent",
-            new=AsyncMock(return_value=fake),
-        ) as alarm_mock,
+            "app.agents.harness_alarm.executor.run_alarm_agent_stream",
+            new=fake_alarm_stream,
+        ),
         patch(
-            "app.agents.harness_chat.executor.run",
+            "app.agents.harness_chat.executor.run_astream",
             new=AsyncMock(),
-        ) as chat_run_mock,
+        ) as chat_stream_mock,
+        patch("app.harness.runtime.agent_runtime.persist_run_start", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_event", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_run_end", new=AsyncMock()),
     ):
         resp = await chat_harness_http(
             ChatRequest(message="告警原文", session_id="t"),
@@ -240,8 +322,7 @@ async def test_chat_harness_http_dispatches_alarm_executor():
             db=object(),
         )
 
-    alarm_mock.assert_awaited_once_with("告警原文")
-    chat_run_mock.assert_not_awaited()
+    chat_stream_mock.assert_not_called()
     assert resp.reply == "alarm-report"
     assert resp.intent == "alarm"
     assert resp.engine == "alarm"
@@ -251,4 +332,3 @@ async def test_chat_harness_http_dispatches_alarm_executor():
 async def test_build_chat_runtime_falls_back_unknown_agent():
     runtime = build_chat_runtime("nope")
     assert runtime.executor.__class__.__name__ == "ChatExecutor"
-

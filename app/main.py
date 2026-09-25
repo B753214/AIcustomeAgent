@@ -6,8 +6,11 @@ from pathlib import Path
 from app.agents.alarm import run_alarm_agent_stream
 from app.agents.alarm.runner import run_alarm_agent
 from app.harness.adapter.alarm_http import alarm_harness_http
-from app.harness.adapter.chat_http import chat_harness_http
+from app.harness.adapter.chat_http import chat_harness_http, chat_harness_stream
 from app.harness.adapter.knowledge_http import knowledge_harness_http
+from app.harness.adapter.run_http import event_to_dict, run_to_dict
+from app.harness.runtime.cancellation import CancellationToken
+from app.harness_storage import get_run, list_events
 from app.services.auth import verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
@@ -282,20 +285,48 @@ def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 @app.post("/api/v1/chat/stream")
-async def chat_stream(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
-    # H2-5：当前 Depends(get_db) 会随 StreamingResponse 活到流结束，属于长持有 session。
-    # 完整改造（短开短关 + Runtime SSE Adapter + 断开取消）延期到 H4 ChatExecutor 之后；
-    # 约定见 AgentRuntime.execute_stream 文档字符串。本入口暂保持旧 run_astream 行为。
+async def chat_stream(
+    req: ChatRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_api_key),
+):
+    # H2-5：Depends(get_db) 仍会随 StreamingResponse 活到流结束（长持有）。
+    # Harness 落库已走 options.session_factory 短事务；完全拆掉 Depends 可后续再收。
+    # 开关开：Runtime SSE；关：旧 run_astream。
+    _sse_headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     kb = get_kb_instance(db)
 
-    async def gen():
+    if settings.harness_runtime:
+        token = CancellationToken()
+
+        async def gen_harness():
+            try:
+                async for chunk in chat_harness_stream(
+                    req, kb, db, cancellation_token=token
+                ):
+                    if await request.is_disconnected():
+                        token.cancel()
+                        break
+                    yield _sse(chunk)
+            finally:
+                token.cancel()
+
+        return StreamingResponse(
+            gen_harness(),
+            media_type="text/event-stream",
+            headers=_sse_headers,
+        )
+
+    async def gen_legacy():
         async for chunk in run_astream(req.message, req.session_id, kb, db):
             yield _sse(chunk)
 
     return StreamingResponse(
-        gen(),
+        gen_legacy(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},)
+        headers=_sse_headers,
+    )
 
 @app.get("/api/v1/stats", response_model=StatsResponse)
 async def stats_ep(db: AsyncSession = Depends(get_db)):
@@ -338,6 +369,7 @@ async def api_analyze(request: Request):
     async def gen():
         from app.agents.alarm.chat_intent import iter_resolve_analyze_url
         from app.agents.alarm.parse import extract_monitor_url
+        from app.harness.adapter.alarm_http import alarm_harness_stream
 
         try:
             yield _sse({"type": "progress", "message": "开始分析..."})
@@ -376,23 +408,36 @@ async def api_analyze(request: Request):
                     yield "data: [DONE]\n\n"
                     return
 
-            async for ev in run_alarm_agent_stream(analyze_input):
-                et = ev.get("type")
-                if et == "stage":
-                    yield _sse({"type": "progress", "message": ev.get("msg") or ""})
-                elif et == "token":
-                    yield _sse({"type": "chunk", "content": ev.get("content") or ""})
-                elif et == "done":
-                    payload = {
-                        "type": "done",
-                        "report": ev.get("reply") or "",
-                        "meta": ev.get("meta") or {},
-                    }
-                    if ev.get("skip"):
-                        payload["skip"] = True
-                    yield _sse(payload)
-                else:
-                    yield _sse(ev)
+            if settings.harness_runtime:
+                token = CancellationToken()
+                try:
+                    async for chunk in alarm_harness_stream(
+                        analyze_input, cancellation_token=token
+                    ):
+                        if await request.is_disconnected():
+                            token.cancel()
+                            break
+                        yield _sse(chunk)
+                finally:
+                    token.cancel()
+            else:
+                async for ev in run_alarm_agent_stream(analyze_input):
+                    et = ev.get("type")
+                    if et == "stage":
+                        yield _sse({"type": "progress", "message": ev.get("msg") or ""})
+                    elif et == "token":
+                        yield _sse({"type": "chunk", "content": ev.get("content") or ""})
+                    elif et == "done":
+                        payload = {
+                            "type": "done",
+                            "report": ev.get("reply") or "",
+                            "meta": ev.get("meta") or {},
+                        }
+                        if ev.get("skip"):
+                            payload["skip"] = True
+                        yield _sse(payload)
+                    else:
+                        yield _sse(ev)
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield _sse({"type": "error", "message": str(e)})
@@ -419,6 +464,22 @@ async def alarm_ep(req: ChatRequest, _: None = Depends(verify_api_key)):
         "sources": res.get("sources") or [],
         "intent": res.get("intent"),
         "engine": res.get("engine", "alarm"),
+    }
+
+@app.get("/api/v1/harness/runs/{run_id}")
+async def harness_runs_ep(
+    run_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_api_key),
+):
+    """按 run_id 回放：Run 台账 + 有序事件列表。"""
+    row = await get_run(db, run_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="运行不存在")
+    events = await list_events(db, run_id)
+    return {
+        "run": run_to_dict(row),
+        "events": [event_to_dict(e) for e in events],
     }
 
 if __name__ == "__main__":

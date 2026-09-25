@@ -129,3 +129,70 @@ async def test_execute_aggregates_tokens_when_completed_has_no_output():
     )
     assert result.status == "succeeded"
     assert result.output == "你好"
+    assert result.metadata.get("run_id")
+
+
+@pytest.mark.asyncio
+async def test_execute_persists_when_session_factory():
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from app.database import Base
+    from app.harness_storage import get_run, list_events
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    result = await AgentRuntime(OkExecutor()).execute(
+        RunRequest(
+            input="hi",
+            agent_id="chat",
+            session_id="s1",
+            options={"session_factory": factory},
+        )
+    )
+
+    async with factory() as session:
+        row = await get_run(session, result.metadata["run_id"])
+        events = await list_events(session, result.metadata["run_id"])
+
+    await engine.dispose()
+
+    assert result.status == "succeeded"
+    assert row is not None
+    assert row.status == "succeeded"
+    assert row.input == "hi"
+    assert row.output == "你好"
+    assert row.agent_id == "chat"
+    assert row.session_id == "s1"
+    assert row.ended_at is not None
+    assert [e.type for e in events] == [RUN_STARTED, RUN_COMPLETED]
+    assert [e.sequence for e in events] == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_execute_stream_persists_when_session_factory():
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from app.database import Base
+    from app.harness_storage import get_run, list_events
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+    req = RunRequest(input="hi", options={"session_factory": factory})
+    events = [e async for e in AgentRuntime(OkExecutor()).execute_stream(req)]
+    run_id = events[0].run_id
+
+    async with factory() as session:
+        row = await get_run(session, run_id)
+        rows = await list_events(session, run_id)
+
+    await engine.dispose()
+
+    assert row is not None and row.status == "succeeded"
+    assert [e.type for e in events] == [e.type for e in rows]
+    assert [e.sequence for e in events] == [e.sequence for e in rows]
