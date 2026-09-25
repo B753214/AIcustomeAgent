@@ -172,9 +172,9 @@ tests/test_agent_runtime.py
 
 ### H7 评测与扩展
 
-- [ ] H7-1 Contract / Unit / Golden / Replay / Failure 测试层
-- [ ] H7-2 Eval 指标挂钩（RAG/路由/工具/Alarm）
-- [ ] H7-3 示例新 Agent（只注册、不改 Runtime）
+- [x] H7-1 Contract / Unit / Golden / Replay / Failure 测试层
+- [x] H7-2 Eval 指标挂钩（RAG/路由/工具/Alarm）
+- [x] H7-3 示例新 Agent（只注册、不改 Runtime）
 
 ---
 

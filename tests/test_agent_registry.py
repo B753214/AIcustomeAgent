@@ -76,14 +76,15 @@ def test_register_id_mismatch_raises():
 
 def test_register_builtin_agents_ids():
     registry = register_builtin_agents(AgentRegistry())
-    assert set(registry.list_ids()) == {"chat", "knowledge", "alarm"}
+    assert set(registry.list_ids()) == {"chat", "knowledge", "alarm", "echo"}
     assert hasattr(registry.get("chat").executor, "astream")
     assert hasattr(registry.get("knowledge").executor, "astream")
     assert hasattr(registry.get("alarm").executor, "astream")
+    assert hasattr(registry.get("echo").executor, "astream")
 
 
 def test_get_builtin_agent_registry_is_singleton():
     a = get_builtin_agent_registry()
     b = get_builtin_agent_registry()
     assert a is b
-    assert set(a.list_ids()) == {"chat", "knowledge", "alarm"}
+    assert set(a.list_ids()) == {"chat", "knowledge", "alarm", "echo"}

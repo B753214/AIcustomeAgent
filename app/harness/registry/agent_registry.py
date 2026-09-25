@@ -39,12 +39,14 @@ class AgentRegistry:
 
 
 def register_builtin_agents(registry: AgentRegistry) -> AgentRegistry:
-    """登记 chat / knowledge / alarm。
+    """登记 chat / knowledge / alarm / echo。
 
     故意不注册 Crew：H4-5 决策为不下沉 Harness；Crew 仅旧 run 可选遗留。
+    echo：H7-3 玩具 Agent，证明只 register 即可扩展。
     """
     from app.agents.harness_alarm.executor import AlarmExecutor
     from app.agents.harness_chat.executor import ChatExecutor
+    from app.agents.harness_echo.executor import EchoExecutor
     from app.agents.harness_knowledge.executor import KnowledgeExecutor
 
     registry.register("chat", AgentDefinition(id="chat", executor=ChatExecutor()))
@@ -53,6 +55,7 @@ def register_builtin_agents(registry: AgentRegistry) -> AgentRegistry:
         AgentDefinition(id="knowledge", executor=KnowledgeExecutor()),
     )
     registry.register("alarm", AgentDefinition(id="alarm", executor=AlarmExecutor()))
+    registry.register("echo", AgentDefinition(id="echo", executor=EchoExecutor()))
     return registry
 
 

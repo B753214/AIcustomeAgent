@@ -2,6 +2,8 @@
 
 `eval/` 用来评价 Agent 效果，`tests/` 用来验证代码行为。两者不要混用：单元测试回答“代码是否按设计执行”，评测回答“Agent 的路由、工具轨迹和最终结果是否足够好”。
 
+**Harness 对照与基线（H7-2）：** [docs/harness_eval.md](../docs/harness_eval.md)（哪个脚本测哪个 Agent、零费用基线命令与结果）。
+
 ## 目录
 
 ```text
