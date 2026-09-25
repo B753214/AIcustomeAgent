@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.agents.harness_knowledge.executor import KnowledgeExecutor
 from app.harness.contracts import RunRequest, RunResult
+from app.harness.registry import register_default_policies
 from app.harness.runtime import AgentRuntime
 from app.rag.retriever import KnowledgeBase
 
@@ -36,7 +37,12 @@ def to_retrieval_response(result: RunResult) -> dict:
 
 
 def build_knowledge_runtime() -> AgentRuntime:
-    return AgentRuntime(KnowledgeExecutor())
+    return AgentRuntime(
+        KnowledgeExecutor(),
+        policy_registry=register_default_policies(),
+        policy_set="default",
+    )
+
 
 
 async def knowledge_harness_http(query: str, kb: KnowledgeBase) -> dict:

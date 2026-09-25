@@ -165,10 +165,10 @@ tests/test_agent_runtime.py
 
 ### H6 策略与观测
 
-- [ ] H6-1 Auth / Budget / Retry / Timeout / Cache / Data / Tool Policy
-- [ ] H6-2 Policy Chain 接入 Runtime
-- [ ] H6-3 Dashboard / SSE 只消费标准事件
-- [ ] H6-4 脱敏与审计
+- [x] H6-1 Auth / Budget / Retry / Timeout / Cache / Data / Tool Policy
+- [x] H6-2 Policy Chain 接入 Runtime
+- [x] H6-3 Dashboard / SSE 只消费标准事件
+- [x] H6-4 脱敏与审计
 
 ### H7 评测与扩展
 

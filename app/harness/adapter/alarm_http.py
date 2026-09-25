@@ -4,9 +4,23 @@ from typing import AsyncIterator
 
 from app.agents.harness_alarm.executor import AlarmExecutor
 from app.database import AsyncSession as session_factory
-from app.harness.contracts import RunEvent, RunRequest, RunResult
+from app.harness.adapter.sse_map import (
+    alarm_event_to_sse_dict,
+    run_event_to_sse_dict,
+)
+from app.harness.contracts import RunRequest, RunResult
+from app.harness.registry import register_default_policies
 from app.harness.runtime import AgentRuntime
 from app.harness.runtime.cancellation import CancellationToken
+
+__all__ = [
+    "alarm_event_to_sse_dict",
+    "alarm_harness_http",
+    "alarm_harness_stream",
+    "build_alarm_runtime",
+    "to_alarm_response",
+    "to_run_request",
+]
 
 
 def to_run_request(
@@ -49,7 +63,11 @@ def to_alarm_response(result: RunResult) -> dict:
 
 
 def build_alarm_runtime() -> AgentRuntime:
-    return AgentRuntime(AlarmExecutor())
+    return AgentRuntime(
+        AlarmExecutor(),
+        policy_registry=register_default_policies(),
+        policy_set="default",
+    )
 
 
 async def alarm_harness_http(message: str) -> dict:
@@ -58,49 +76,17 @@ async def alarm_harness_http(message: str) -> dict:
     return to_alarm_response(result)
 
 
-def alarm_event_to_sse_dict(ev: RunEvent) -> dict | None:
-    """标准 RunEvent → /api/analyze 旧版 SSE chunk；不需要推送的返回 None。"""
-    if ev.type == "run.started":
-        return None
-    if ev.type == "model.token":
-        return {"type": "chunk", "content": ev.payload.get("content") or ""}
-    if ev.type == "workflow.step":
-        return {
-            "type": "progress",
-            "message": ev.payload.get("message") or "",
-        }
-    if ev.type == "run.completed":
-        meta = dict(ev.payload.get("metadata") or {})
-        skip = bool(meta.pop("skip", False))
-        payload: dict = {
-            "type": "done",
-            "run_id": ev.run_id,
-            "report": ev.payload.get("output") or "",
-            "meta": meta,
-        }
-        if skip:
-            payload["skip"] = True
-        return payload
-    if ev.type == "run.failed":
-        return {
-            "type": "error",
-            "run_id": ev.run_id,
-            "message": (ev.payload or {}).get("message") or "run failed",
-        }
-    return None
-
-
 async def alarm_harness_stream(
     message: str,
     *,
     cancellation_token: CancellationToken | None = None,
 ) -> AsyncIterator[dict]:
-    """Alarm SSE：Runtime.execute_stream → /api/analyze 旧 chunk dict。"""
+    """Alarm SSE：Runtime.execute_stream → 标准 RunEvent 帧。"""
     token = cancellation_token or CancellationToken()
     runtime = build_alarm_runtime()
     async for ev in runtime.execute_stream(
         to_run_request(message, cancellation_token=token)
     ):
-        frame = alarm_event_to_sse_dict(ev)
+        frame = run_event_to_sse_dict(ev)
         if frame is not None:
             yield frame

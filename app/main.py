@@ -284,6 +284,49 @@ async def ingest(file: UploadFile = File(...), db: AsyncSession = Depends(get_db
 def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
+
+def _legacy_agent_chunk_to_wire(chunk: dict) -> dict:
+    """旧 Agent chunk → 标准 SSE 帧（harness_runtime 关闭时的 chat 流）。"""
+    t = chunk.get("type")
+    if t == "stage":
+        return {
+            "type": "workflow.step",
+            "stage": chunk.get("stage"),
+            "message": chunk.get("msg") or chunk.get("message"),
+            "ok": chunk.get("ok"),
+            "ms": chunk.get("ms"),
+        }
+    if t == "token":
+        return {"type": "model.token", "content": chunk.get("content") or ""}
+    if t in ("done", "result"):
+        meta = dict(chunk.get("meta") or {})
+        return {
+            "type": "run.completed",
+            "output": chunk.get("reply") or chunk.get("output") or "",
+            "sources": chunk.get("sources") or [],
+            "metadata": {
+                **meta,
+                "intent": chunk.get("intent") or meta.get("intent"),
+                "engine": chunk.get("engine") or meta.get("engine"),
+                "cache_hit": chunk.get("cache_hit", meta.get("cache_hit", False)),
+                "used_crew": chunk.get("used_crew", meta.get("used_crew", False)),
+            },
+        }
+    if t == "error":
+        return {
+            "type": "run.failed",
+            "message": chunk.get("message") or chunk.get("msg") or "error",
+        }
+    if t == "intent":
+        return {
+            "type": "workflow.step",
+            "stage": "intent",
+            "message": f"意图识别为 {chunk.get('intent')}",
+            "ok": True,
+        }
+    return chunk
+
+
 @app.post("/api/v1/chat/stream")
 async def chat_stream(
     req: ChatRequest,
@@ -320,7 +363,7 @@ async def chat_stream(
 
     async def gen_legacy():
         async for chunk in run_astream(req.message, req.session_id, kb, db):
-            yield _sse(chunk)
+            yield _sse(_legacy_agent_chunk_to_wire(chunk))
 
     return StreamingResponse(
         gen_legacy(),
@@ -372,21 +415,28 @@ async def api_analyze(request: Request):
         from app.harness.adapter.alarm_http import alarm_harness_stream
 
         try:
-            yield _sse({"type": "progress", "message": "开始分析..."})
+            yield _sse({"type": "workflow.step", "message": "开始分析...", "stage": "alarm"})
             analyze_input = content
             raw_url = extract_monitor_url(content)
             if not raw_url:
-                yield _sse({"type": "progress", "message": "正在理解你的问题..."})
+                yield _sse({
+                    "type": "workflow.step",
+                    "message": "正在理解你的问题...",
+                    "stage": "alarm",
+                })
                 resolved_url = None
                 chat_reply = None
                 async for ev in iter_resolve_analyze_url(content):
                     et = ev.get("type")
                     if et == "token":
-                        yield _sse({"type": "chunk", "content": ev.get("content") or ""})
+                        yield _sse({
+                            "type": "model.token",
+                            "content": ev.get("content") or "",
+                        })
                     elif et == "error":
                         yield _sse(
                             {
-                                "type": "error",
+                                "type": "run.failed",
                                 "message": ev.get("message") or "AI 回复失败",
                             }
                         )
@@ -399,12 +449,16 @@ async def api_analyze(request: Request):
                     analyze_input = resolved_url
                     yield _sse(
                         {
-                            "type": "progress",
+                            "type": "workflow.step",
                             "message": "已识别监控参数，开始获取数据...",
+                            "stage": "alarm_fetch",
                         }
                     )
                 else:
-                    yield _sse({"type": "done", "report": chat_reply or ""})
+                    yield _sse({
+                        "type": "run.completed",
+                        "output": chat_reply or "",
+                    })
                     yield "data: [DONE]\n\n"
                     return
 
@@ -424,23 +478,34 @@ async def api_analyze(request: Request):
                 async for ev in run_alarm_agent_stream(analyze_input):
                     et = ev.get("type")
                     if et == "stage":
-                        yield _sse({"type": "progress", "message": ev.get("msg") or ""})
+                        yield _sse({
+                            "type": "workflow.step",
+                            "message": ev.get("msg") or "",
+                            "stage": ev.get("stage") or "alarm",
+                            "ok": ev.get("ok"),
+                        })
                     elif et == "token":
-                        yield _sse({"type": "chunk", "content": ev.get("content") or ""})
+                        yield _sse({
+                            "type": "model.token",
+                            "content": ev.get("content") or "",
+                        })
                     elif et == "done":
                         payload = {
-                            "type": "done",
-                            "report": ev.get("reply") or "",
-                            "meta": ev.get("meta") or {},
+                            "type": "run.completed",
+                            "output": ev.get("reply") or "",
+                            "metadata": ev.get("meta") or {},
                         }
                         if ev.get("skip"):
-                            payload["skip"] = True
+                            payload["metadata"] = {
+                                **(payload["metadata"] or {}),
+                                "skip": True,
+                            }
                         yield _sse(payload)
                     else:
                         yield _sse(ev)
             yield "data: [DONE]\n\n"
         except Exception as e:
-            yield _sse({"type": "error", "message": str(e)})
+            yield _sse({"type": "run.failed", "message": str(e)})
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(

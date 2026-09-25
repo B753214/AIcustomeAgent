@@ -10,10 +10,10 @@ from app.agents.harness_chat.executor import ChatExecutor
 from app.harness.adapter.chat_http import (
     build_chat_runtime,
     chat_harness_http,
-    run_event_to_sse_dict,
     to_chat_response,
     to_run_request,
 )
+from app.harness.adapter.sse_map import run_event_to_sse_dict
 from app.harness.contracts import (
     MODEL_TOKEN,
     RUN_COMPLETED,
@@ -79,7 +79,12 @@ def test_run_event_to_sse_dict_mapping():
             sequence=1,
             payload={"content": "你"},
         )
-    ) == {"type": "token", "content": "你"}
+    ) == {
+        "type": "model.token",
+        "run_id": "r",
+        "sequence": 1,
+        "content": "你",
+    }
     assert run_event_to_sse_dict(
         RunEvent(
             type=WORKFLOW_STEP,
@@ -87,7 +92,15 @@ def test_run_event_to_sse_dict_mapping():
             sequence=2,
             payload={"stage": "intent", "message": "ok", "ok": True, "ms": 1},
         )
-    ) == {"type": "stage", "stage": "intent", "msg": "ok", "ok": True, "ms": 1}
+    ) == {
+        "type": "workflow.step",
+        "run_id": "r",
+        "sequence": 2,
+        "stage": "intent",
+        "message": "ok",
+        "ok": True,
+        "ms": 1,
+    }
     assert run_event_to_sse_dict(
         RunEvent(
             type=RUN_COMPLETED,
@@ -100,13 +113,12 @@ def test_run_event_to_sse_dict_mapping():
             },
         )
     ) == {
-        "type": "done",
+        "type": "run.completed",
         "run_id": "r",
-        "reply": "你好",
+        "sequence": 3,
+        "output": "你好",
         "sources": ["a"],
-        "intent": "chat",
-        "engine": "harness",
-        "cache_hit": False,
+        "metadata": {"intent": "chat", "engine": "harness", "cache_hit": False},
     }
     assert run_event_to_sse_dict(
         RunEvent(
@@ -115,7 +127,12 @@ def test_run_event_to_sse_dict_mapping():
             sequence=4,
             payload={"message": "boom"},
         )
-    ) == {"type": "error", "run_id": "r", "message": "boom"}
+    ) == {
+        "type": "run.failed",
+        "run_id": "r",
+        "sequence": 4,
+        "message": "boom",
+    }
 
 
 async def _fake_run_astream(*_args: Any, **_kwargs: Any) -> AsyncIterator[dict]:
@@ -307,6 +324,14 @@ async def test_chat_harness_http_dispatches_alarm_executor():
         patch(
             "app.agents.harness_alarm.executor.run_alarm_agent_stream",
             new=fake_alarm_stream,
+        ),
+        patch(
+            "app.agents.harness_alarm.executor.persist_load_checkpoint",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.agents.harness_alarm.executor.persist_checkpoint",
+            new=AsyncMock(),
         ),
         patch(
             "app.agents.harness_chat.executor.run_astream",

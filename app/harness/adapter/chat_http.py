@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import AsyncIterator
 
 from app.database import AsyncSession as session_factory
-from app.harness.contracts import RunEvent, RunRequest, RunResult
-from app.harness.registry import get_builtin_agent_registry
+from app.harness.adapter.sse_map import run_event_to_sse_dict
+from app.harness.contracts import RunRequest, RunResult
+from app.harness.registry import get_builtin_agent_registry, register_default_policies
 from app.harness.routing import classify
 from app.harness.runtime import AgentRuntime
 from app.harness.runtime.cancellation import CancellationToken
@@ -13,6 +14,15 @@ from app.schemas import ChatRequest, ChatResponse
 
 # database.AsyncSession 实际是 async_sessionmaker，兼作类型占位与 session_factory
 AsyncSession = session_factory
+
+__all__ = [
+    "build_chat_runtime",
+    "chat_harness_http",
+    "chat_harness_stream",
+    "run_event_to_sse_dict",
+    "to_chat_response",
+    "to_run_request",
+]
 
 
 def to_run_request(
@@ -79,7 +89,11 @@ def build_chat_runtime(agent_id: str) -> AgentRuntime:
     registry = get_builtin_agent_registry()
     resolved = agent_id if agent_id in registry.list_ids() else "chat"
     defn = registry.get(resolved)
-    return AgentRuntime(defn.executor)
+    return AgentRuntime(
+        defn.executor,
+        policy_registry=register_default_policies(),
+        policy_set="default",
+    )
 
 
 async def chat_harness_http(
@@ -103,40 +117,6 @@ async def chat_harness_http(
     return to_chat_response(result)
 
 
-def run_event_to_sse_dict(ev: RunEvent) -> dict | None:
-    """标准 RunEvent → 旧版 SSE chunk dict；不需要推送的返回 None。"""
-    if ev.type == "run.started":
-        return None
-    if ev.type == "model.token":
-        return {"type": "token", "content": ev.payload.get("content") or ""}
-    if ev.type == "workflow.step":
-        return {
-            "type": "stage",
-            "stage": ev.payload.get("stage"),
-            "msg": ev.payload.get("message"),
-            "ok": ev.payload.get("ok"),
-            "ms": ev.payload.get("ms"),
-        }
-    if ev.type == "run.completed":
-        meta = dict(ev.payload.get("metadata") or {})
-        return {
-            "type": "done",
-            "run_id": ev.run_id,
-            "reply": ev.payload.get("output") or "",
-            "sources": ev.payload.get("sources") or [],
-            "intent": meta.get("intent"),
-            "engine": meta.get("engine"),
-            "cache_hit": meta.get("cache_hit", False),
-        }
-    if ev.type == "run.failed":
-        return {
-            "type": "error",
-            "run_id": ev.run_id,
-            "message": (ev.payload or {}).get("message") or "run failed",
-        }
-    return None
-
-
 async def chat_harness_stream(
     req: ChatRequest,
     kb: KnowledgeBase,
@@ -144,7 +124,7 @@ async def chat_harness_stream(
     *,
     cancellation_token: CancellationToken | None = None,
 ) -> AsyncIterator[dict]:
-    """流式聊天：Router → Runtime.execute_stream → 旧版 SSE chunk（dict）。"""
+    """流式聊天：Router → Runtime.execute_stream → 标准 RunEvent 帧。"""
     token = cancellation_token or CancellationToken()
     decision = await classify(req.message)
     run_req = to_run_request(

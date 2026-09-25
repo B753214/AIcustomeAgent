@@ -442,9 +442,9 @@ function processSSE(raw, bubble) {
   let ev;
   try { ev = JSON.parse(line.slice(5).trim()); } catch { return; }
 
-  if (ev.type === "stage") {
-    const intent = ev.name || ev.intent || "";
-    if (intent) {
+  if (ev.type === "workflow.step") {
+    const intent = ev.name || (ev.metadata && ev.metadata.intent) || "";
+    if (intent && !ev.stage) {
       markStage("intent", "ok", elapsed(), `意图: ${intent}`);
       if (intent === "knowledge") {
         markStage("retrieve", "run", null, "检索知识库…");
@@ -469,41 +469,66 @@ function processSSE(raw, bubble) {
       else if (ev.ok === false || ev.stage === "error") status = "err";
       else if (ev.skipped || ev.hit === false) status = "skip";
       if (ev.hit === true) status = "ok";
-      markStage(key, status, ev.ms != null ? ev.ms : elapsed(), ev.msg || ev.stage);
+      markStage(key, status, ev.ms != null ? ev.ms : elapsed(), ev.message || ev.stage);
+      if (ev.stage === "intent" && ev.message) {
+        const m = String(ev.message);
+        if (m.includes("knowledge")) {
+          markStage("retrieve", "run", null, "检索知识库…");
+        } else if (m.includes("alarm")) {
+          markStage("retrieve", "skip", null, "告警排查，跳过检索");
+          markStage("alarm", "run", null, "告警 Agent…");
+        } else if (m.includes("order")) {
+          markStage("retrieve", "skip", null, "订单查询，跳过检索");
+        } else if (m.includes("chat")) {
+          markStage("retrieve", "skip", null, "闲聊，跳过检索");
+        }
+      }
     }
-  } else if (ev.type === "intent") {
-    markStage("intent", "ok", elapsed(), `意图: ${ev.intent}`);
-  } else if (ev.type === "token") {
-    // 兼容 content 和 reply 两种字段名
-    const text = ev.content || ev.reply || "";
-    // First token → mark retrieve done, start generate
+  } else if (ev.type === "model.token") {
+    const text = ev.content || "";
     if (pipeState.generate.status === "wait") {
       markStage("retrieve", "ok", elapsed(), "检索完成");
       markStage("generate", "run", null, "生成中…");
     }
     bubble.textContent += text;
     scrollChat();
-  } else if (ev.type === "done") {
+  } else if (ev.type === "run.completed") {
     const totalMs = ev.total_ms || Math.round(performance.now() - tStart);
     markStage("generate", "ok", elapsed(), "生成完成");
     markStage("save", "ok", null, "已保存");
-    const hitLabel = ev.cache_hit ? " · 缓存命中" : "";
+    const metaObj = ev.metadata || {};
+    const cacheHit = !!(metaObj.cache_hit || ev.cache_hit);
+    const hitLabel = cacheHit ? " · 缓存命中" : "";
     setPipeState(`完成 · ${totalMs}ms${hitLabel}`);
+
+    if (ev.output && !bubble.textContent) {
+      bubble.textContent = ev.output;
+    }
 
     const sources = ev.sources || [];
     renderSources(sources);
 
     const meta = document.createElement("div");
     meta.className = "meta";
+    const intent = metaObj.intent || ev.intent;
+    const engine = metaObj.engine || ev.engine || "harness";
+    const usedCrew = metaObj.used_crew || ev.used_crew;
     const intentLabel = {
       knowledge: "知识问答", order: "订单查询", chat: "闲聊",
       crew: "Crew", alarm: "告警排查",
     };
-    const crewLabel = ev.used_crew ? " · crew" : "";
-    const fetchCh = (ev.meta && ev.meta.fetch_channel) ? ` · ${ev.meta.fetch_channel}` : "";
-    meta.textContent = `${intentLabel[ev.intent] || ev.intent || "-"} · ${ev.engine || "langchain"}${crewLabel}${fetchCh} · ${totalMs}ms${hitLabel}`;
+    const crewLabel = usedCrew ? " · crew" : "";
+    const fetchCh = metaObj.fetch_channel ? ` · ${metaObj.fetch_channel}` : "";
+    meta.textContent = `${intentLabel[intent] || intent || "-"} · ${engine}${crewLabel}${fetchCh} · ${totalMs}ms${hitLabel}`;
     bubble.appendChild(meta);
     refreshMetrics();
+  } else if (ev.type === "run.failed") {
+    markStage("error", "err", elapsed(), ev.message || "run failed");
+    setPipeState(`失败 · ${ev.message || "run failed"}`);
+    if (ev.message) {
+      bubble.textContent += (bubble.textContent ? "\n" : "") + `[错误] ${ev.message}`;
+      scrollChat();
+    }
   }
 }
 

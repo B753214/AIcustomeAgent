@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from app.harness.policies import DataPolicy
+from app.harness.policies.auth import AuthPolicy
 from app.harness.policies.base import PolicySet
+from app.harness.policies.budget import BudgetPolicy
+from app.harness.policies.timeout import TimeoutPolicy
 
 
 class PolicyRegistry:
@@ -24,11 +28,34 @@ class PolicyRegistry:
 
 
 def register_default_policies(registry: PolicyRegistry | None = None) -> PolicyRegistry:
-    """登记空策略集 ``default``（与 AgentDefinition.policy_set 默认值对齐）。
+    """登记默认策略集。
 
-    需要其它名字（如 chat_default）时请自行 register，避免挂两份同空壳。
+    - ``default``：HTTP 主路径（caller=api 可过；预算与 Run deadline）
+    - ``strict``：验收/单测用（budget=0，几乎必失败）
     """
     reg = registry or PolicyRegistry()
     if "default" not in reg.list_names():
-        reg.register("default", PolicySet())
+        reg.register(
+            "default",
+            PolicySet(
+                auth=AuthPolicy(allowlist={"api", "internal", "cli"}),
+                budget=BudgetPolicy(max_tool_calls=20, max_tokens=None),
+                timeout=TimeoutPolicy(
+                    run_seconds=120,
+                    model_seconds=60,
+                    tool_seconds=30,
+                ),
+                data=DataPolicy(),
+            ),
+        )
+    if "strict" not in reg.list_names():
+        reg.register(
+            "strict",
+            PolicySet(
+                auth=AuthPolicy(allowlist={"api"}),
+                budget=BudgetPolicy(max_tool_calls=0),
+                timeout=TimeoutPolicy(run_seconds=5, model_seconds=5, tool_seconds=5),
+                data=DataPolicy(),
+            ),
+        )
     return reg

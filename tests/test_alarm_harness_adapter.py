@@ -60,7 +60,12 @@ def test_alarm_event_to_sse_dict_mapping():
             sequence=1,
             payload={"content": "x"},
         )
-    ) == {"type": "chunk", "content": "x"}
+    ) == {
+        "type": "model.token",
+        "run_id": "r",
+        "sequence": 1,
+        "content": "x",
+    }
     assert alarm_event_to_sse_dict(
         RunEvent(
             type=WORKFLOW_STEP,
@@ -68,7 +73,12 @@ def test_alarm_event_to_sse_dict_mapping():
             sequence=2,
             payload={"message": "拉取中"},
         )
-    ) == {"type": "progress", "message": "拉取中"}
+    ) == {
+        "type": "workflow.step",
+        "run_id": "r",
+        "sequence": 2,
+        "message": "拉取中",
+    }
     assert alarm_event_to_sse_dict(
         RunEvent(
             type=RUN_COMPLETED,
@@ -80,11 +90,11 @@ def test_alarm_event_to_sse_dict_mapping():
             },
         )
     ) == {
-        "type": "done",
+        "type": "run.completed",
         "run_id": "r",
-        "report": "报告",
-        "meta": {"page_count": 1},
-        "skip": True,
+        "sequence": 3,
+        "output": "报告",
+        "metadata": {"skip": True, "page_count": 1},
     }
     assert alarm_event_to_sse_dict(
         RunEvent(
@@ -93,7 +103,12 @@ def test_alarm_event_to_sse_dict_mapping():
             sequence=4,
             payload={"message": "boom"},
         )
-    ) == {"type": "error", "run_id": "r", "message": "boom"}
+    ) == {
+        "type": "run.failed",
+        "run_id": "r",
+        "sequence": 4,
+        "message": "boom",
+    }
 
 
 async def _fake_stream(*_args: Any, **_kwargs: Any) -> AsyncIterator[dict]:
@@ -157,8 +172,11 @@ async def test_alarm_harness_stream_yields_analyze_chunks():
     ):
         frames = [f async for f in alarm_harness_stream("ping")]
 
-    assert frames[0] == {"type": "progress", "message": "拉取中"}
-    assert frames[1] == {"type": "chunk", "content": "ok"}
-    assert frames[2]["type"] == "done"
-    assert frames[2]["report"] == "ok"
+    assert frames[0]["type"] == "workflow.step"
+    assert frames[0]["message"] == "拉取中"
+    assert frames[0]["run_id"]
+    assert frames[1]["type"] == "model.token"
+    assert frames[1]["content"] == "ok"
+    assert frames[2]["type"] == "run.completed"
+    assert frames[2]["output"] == "ok"
     assert frames[2]["run_id"]
