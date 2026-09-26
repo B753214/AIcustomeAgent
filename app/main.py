@@ -11,7 +11,7 @@ from app.harness.adapter.knowledge_http import knowledge_harness_http
 from app.harness.adapter.run_http import event_to_dict, run_to_dict
 from app.harness.runtime.cancellation import CancellationToken
 from app.harness_storage import get_run, list_events
-from app.services.auth import verify_api_key
+from app.services.auth import get_user_id, verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException,Request
@@ -28,7 +28,16 @@ from app.schemas import ChatResponse, ChatRequest, IngestResponse, StatsResponse
 from app.services.chat import chat, run, run_astream
 from app.services.chunk_service import document_exists_by_name
 from app.services.semantic_cache import semantic_cache
-from app.services.session_service import get_sessions, load_session_history, create_session as _create_session
+from app.services.session_service import (
+    get_sessions,
+    load_session_history,
+    create_session as _create_session,
+    get_session,
+    end_session,
+    clear_session_history,
+    archive_session,
+    soft_delete_session,
+)
 from app.services.tracing import traces
 
 SAMPLE_KB = PROJECT_ROOT / "data" / "knowledge_base.md"
@@ -150,22 +159,35 @@ async def health():
 
 
 @app.post("/api/v1/chat", response_model=ChatResponse)
-async def chat_ep(req: ChatRequest, db: AsyncSession = Depends(get_db), _: None = Depends(verify_api_key)):
+async def chat_ep(
+    req: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id),
+):
     kb = get_kb_instance(db)
-    if settings.harness_runtime:
-        return await chat_harness_http(req, kb, db)
-
-    result = await run(req.message, req.session_id, kb, db)
-    return ChatResponse(**result)
+    try:
+        if settings.harness_runtime:
+            return await chat_harness_http(req, kb, db, user_id=user_id)
+        result = await run(req.message, req.session_id, kb, db, user_id=user_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc) or "会话不可写入") from exc
+    return ChatResponse(**{k: v for k, v in result.items() if k in ChatResponse.model_fields})
 
 
 @app.post("/sessions")
-async def session_memory(db: AsyncSession = Depends(get_db)):
-    session_list = await get_sessions(db)
+async def session_memory(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+):
+    session_list = await get_sessions(db, user_id)
     return [
         {
             "session_id": s.session_id,
+            "user_id": s.user_id,
+            "status": getattr(s, "status", None),
             "created_at": s.created_at.isoformat() if s.created_at else None,
+            "updated_at": s.updated_at.isoformat() if getattr(s, "updated_at", None) else None,
             "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         }
         for s in session_list
@@ -228,17 +250,31 @@ async def alarm_browser_login():
 
 
 @app.get("/create_session")
-async def create_session_ep(db: AsyncSession = Depends(get_db)):
+async def create_session_ep(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+):
     import uuid
     sid = str(uuid.uuid4())
-    session = await _create_session(sid, db)
-    return {"session_id": session.session_id}
+    session = await _create_session(sid, user_id, db)
+    return {"session_id": session.session_id, "user_id": session.user_id}
 
 
 @app.get("/api/v1/sessions/{session_id}/history")
-async def session_history(session_id: str, db: AsyncSession = Depends(get_db)):
-    messages = await load_session_history(session_id, db)
-    return {"session_id": session_id, "messages": messages}
+async def session_history(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+):
+    from app.services.session_service import get_session
+
+    owned = await get_session(session_id, user_id, db)
+    if owned is None or owned.status == "deleted":
+        raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+    messages = await load_session_history(
+        session_id, user_id, db, create_if_missing=False
+    )
+    return {"session_id": session_id, "user_id": user_id, "messages": messages}
 
 
 @app.get("/retrieval/{query}")
@@ -333,6 +369,7 @@ async def chat_stream(
     request: Request,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id),
 ):
     # H2-5：Depends(get_db) 仍会随 StreamingResponse 活到流结束（长持有）。
     # Harness 落库已走 options.session_factory 短事务；完全拆掉 Depends 可后续再收。
@@ -346,12 +383,14 @@ async def chat_stream(
         async def gen_harness():
             try:
                 async for chunk in chat_harness_stream(
-                    req, kb, db, cancellation_token=token
+                    req, kb, db, cancellation_token=token, user_id=user_id
                 ):
                     if await request.is_disconnected():
                         token.cancel()
                         break
                     yield _sse(chunk)
+            except PermissionError as exc:
+                yield _sse({"type": "error", "detail": str(exc) or "会话不可写入"})
             finally:
                 token.cancel()
 
@@ -362,8 +401,13 @@ async def chat_stream(
         )
 
     async def gen_legacy():
-        async for chunk in run_astream(req.message, req.session_id, kb, db):
-            yield _sse(_legacy_agent_chunk_to_wire(chunk))
+        try:
+            async for chunk in run_astream(
+                req.message, req.session_id, kb, db, user_id=user_id
+            ):
+                yield _sse(_legacy_agent_chunk_to_wire(chunk))
+        except PermissionError as exc:
+            yield _sse({"type": "error", "detail": str(exc) or "会话不可写入"})
 
     return StreamingResponse(
         gen_legacy(),
@@ -546,6 +590,92 @@ async def harness_runs_ep(
         "run": run_to_dict(row),
         "events": [event_to_dict(e) for e in events],
     }
+def _session_public(s) -> dict:
+    return {
+        "session_id": s.session_id,
+        "user_id": s.user_id,
+        "status": s.status,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+        "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+    }
+
+
+@app.post("/api/v1/sessions")
+async def create_sessions_ep(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    import uuid
+
+    sid = str(uuid.uuid4())
+    session = await _create_session(sid, user_id, db)
+    return _session_public(session)
+
+
+@app.get("/api/v1/sessions")
+async def list_sessions_ep(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    session_list = await get_sessions(db, user_id)
+    return [_session_public(s) for s in session_list]
+
+
+@app.post("/api/v1/sessions/{session_id}/end")
+async def end_sessions_ep(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    session = await end_session(session_id, user_id, db)
+    if session is None:
+        raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+    return _session_public(session)
+
+
+@app.post("/api/v1/sessions/{session_id}/archive")
+async def archive_sessions_ep(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    session = await archive_session(session_id, user_id, db)
+    if session is None:
+        raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+    return _session_public(session)
+
+
+@app.post("/api/v1/sessions/{session_id}/clear")
+async def clear_sessions_ep(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    session = await get_session(session_id, user_id, db)
+    if session is None or session.status == "deleted":
+        raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+    n = await clear_session_history(session_id, user_id, db)
+    return {"session_id": session_id, "cleared": n, "status": session.status}
+
+
+@app.delete("/api/v1/sessions/{session_id}")
+async def delete_sessions_ep(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    session = await soft_delete_session(session_id, user_id, db)
+    if session is None:
+        raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+    return _session_public(session)
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

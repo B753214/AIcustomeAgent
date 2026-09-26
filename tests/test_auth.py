@@ -1,9 +1,10 @@
-"""P5-6 API Key 鉴权单元测试。"""
+"""P5-6 API Key 鉴权 + Memory-M1-1 X-User-Id 单元测试。"""
 import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from app.services.auth import verify_api_key
+from app.services.auth import get_user_id, verify_api_key
+from app.services.chat import _ensure_session_id
 
 
 def _make_app() -> FastAPI:
@@ -16,6 +17,10 @@ def _make_app() -> FastAPI:
     @app.get("/public")
     async def public():
         return {"ok": True}
+
+    @app.get("/whoami")
+    async def whoami(user_id: str = Depends(get_user_id)):
+        return {"user_id": user_id}
 
     return app
 
@@ -73,3 +78,34 @@ def test_enabled_without_service_key_returns_500(client, monkeypatch):
     )
     assert resp.status_code == 500
     assert "SERVICE_API_KEY" in resp.json()["detail"]
+
+
+def test_get_user_id_defaults_anonymous(client, monkeypatch):
+    monkeypatch.setattr("app.services.auth.settings.require_user_id", False)
+    resp = client.get("/whoami")
+    assert resp.status_code == 200
+    assert resp.json()["user_id"] == "anonymous"
+
+
+def test_get_user_id_from_header(client, monkeypatch):
+    monkeypatch.setattr("app.services.auth.settings.require_user_id", False)
+    resp = client.get("/whoami", headers={"X-User-Id": "demo-user-a"})
+    assert resp.status_code == 200
+    assert resp.json()["user_id"] == "demo-user-a"
+
+
+def test_require_user_id_missing_returns_401(client, monkeypatch):
+    monkeypatch.setattr("app.services.auth.settings.require_user_id", True)
+    resp = client.get("/whoami")
+    assert resp.status_code == 401
+
+
+def test_ensure_session_id_mints_and_rejects_default():
+    a = _ensure_session_id(None)
+    b = _ensure_session_id("")
+    c = _ensure_session_id("default")
+    d = _ensure_session_id("keep-me")
+    assert a and a != "default"
+    assert b and b != "default"
+    assert c != "default"
+    assert d == "keep-me"

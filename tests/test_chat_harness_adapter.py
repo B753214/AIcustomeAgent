@@ -37,6 +37,7 @@ def test_to_run_request_maps_message_and_options():
         db=db,
         agent_id="knowledge",
         route={"reason": "classify_intent", "confidence": None},
+        user_id="user-a",
     )
     assert req.input == "你好"
     assert req.session_id == "s1"
@@ -46,6 +47,15 @@ def test_to_run_request_maps_message_and_options():
     assert req.options["db"] is db
     assert req.options["session_factory"] is not None
     assert req.options["route"]["reason"] == "classify_intent"
+    assert req.options["user_id"] == "user-a"
+
+
+def test_to_run_request_mints_session_when_missing_or_default():
+    minted = to_run_request(ChatRequest(message="hi", session_id=None))
+    assert minted.session_id
+    assert minted.session_id != "default"
+    banned = to_run_request(ChatRequest(message="hi", session_id="default"))
+    assert banned.session_id != "default"
 
 
 def test_to_chat_response_maps_result_fields():

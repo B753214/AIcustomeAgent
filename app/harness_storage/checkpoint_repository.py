@@ -3,10 +3,20 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.harness_storage.models import HarnessCheckpoint
+from app.harness_storage.models import HarnessCheckpoint, HarnessRun
+
+
+_TERMINAL_STATUSES = ("succeeded", "failed", "cancelled")
+
+
+def _ended_run_id_subq(cutoff: datetime):
+    return select(HarnessRun.run_id).where(
+        HarnessRun.ended_at < cutoff,
+        HarnessRun.status.in_(_TERMINAL_STATUSES),
+    )
 
 
 def _utcnow_naive() -> datetime:
@@ -49,3 +59,45 @@ async def list_checkpoints(
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
+async def count_checkpoints_of_ended_runs(
+    session: AsyncSession,
+    cutoff: datetime,
+) -> int:
+    """dry-run：统计将被删除的 checkpoint 行数。"""
+    stmt = (
+        select(func.count())
+        .select_from(HarnessCheckpoint)
+        .where(HarnessCheckpoint.run_id.in_(_ended_run_id_subq(cutoff)))
+    )
+    return int((await session.execute(stmt)).scalar_one() or 0)
+
+
+async def delete_checkpoints_of_ended_runs(
+    session: AsyncSession,
+    cutoff: datetime,
+) -> int:
+    """删除其父 Run 已终态且 ended_at < cutoff 的全部检查点。
+
+    对齐策略：checkpoint 是否过期不看自身 updated_at，而是看所属 Run
+    是否已经结束（succeeded/failed/cancelled）且 ended_at 超阈值。
+    这样正在跑的 run 即使 checkpoint 写得很早也不会被误删。
+    """
+    stmt = delete(HarnessCheckpoint).where(
+        HarnessCheckpoint.run_id.in_(_ended_run_id_subq(cutoff))
+    )
+    result = await session.execute(stmt)
+    await session.flush()
+    return int(result.rowcount or 0)
+
+
+async def delete_checkpoints_by_run_ids(
+    session: AsyncSession,
+    run_ids: list[str],
+) -> int:
+    """级联删除：按 run_id 列表删其全部 checkpoint（供 run 删除流程调用）。"""
+    if not run_ids:
+        return 0
+    stmt = delete(HarnessCheckpoint).where(HarnessCheckpoint.run_id.in_(run_ids))
+    result = await session.execute(stmt)
+    await session.flush()
+    return int(result.rowcount or 0)

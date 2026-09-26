@@ -11,6 +11,7 @@ from app.harness.runtime import AgentRuntime
 from app.harness.runtime.cancellation import CancellationToken
 from app.rag.retriever import KnowledgeBase
 from app.schemas import ChatRequest, ChatResponse
+from app.services.chat import _ensure_session_id
 
 # database.AsyncSession 实际是 async_sessionmaker，兼作类型占位与 session_factory
 AsyncSession = session_factory
@@ -33,12 +34,15 @@ def to_run_request(
     agent_id: str = "chat",
     route: dict | None = None,
     cancellation_token: CancellationToken | None = None,
+    user_id: str | None = None,
 ) -> RunRequest:
     """HTTP ChatRequest → Harness RunRequest。"""
+    session_id = _ensure_session_id(req.session_id)
     options: dict = {
         "kb": kb,
         "db": db,
         "session_factory": session_factory,
+        "user_id": user_id or "anonymous",
     }
     if route:
         options["route"] = route
@@ -46,7 +50,7 @@ def to_run_request(
         options["cancellation_token"] = cancellation_token
     return RunRequest(
         input=req.message,
-        session_id=req.session_id,
+        session_id=session_id,
         agent_id=agent_id,
         caller="api",
         options=options,
@@ -72,7 +76,6 @@ def to_chat_response(result: RunResult) -> ChatResponse:
         meta["error"] = result.error
     if result.usage:
         meta["usage"] = result.usage
-
     return ChatResponse(
         reply=result.output or "",
         intent=meta.get("intent"),
@@ -100,6 +103,8 @@ async def chat_harness_http(
     req: ChatRequest,
     kb: KnowledgeBase,
     db: object,
+    *,
+    user_id: str | None = None,
 ) -> ChatResponse:
     """JSON chat：先 Router，再按 agent_id 选 Executor 跑 Runtime。"""
     decision = await classify(req.message)
@@ -112,9 +117,13 @@ async def chat_harness_http(
             "reason": decision.reason,
             "confidence": decision.confidence,
         },
+        user_id=user_id,
     )
     result = await build_chat_runtime(decision.agent_id).execute(run_req)
-    return to_chat_response(result)
+    resp = to_chat_response(result)
+    if not resp.meta.get("session_id") and run_req.session_id:
+        resp.meta["session_id"] = run_req.session_id
+    return resp
 
 
 async def chat_harness_stream(
@@ -123,6 +132,7 @@ async def chat_harness_stream(
     db: object,
     *,
     cancellation_token: CancellationToken | None = None,
+    user_id: str | None = None,
 ) -> AsyncIterator[dict]:
     """流式聊天：Router → Runtime.execute_stream → 标准 RunEvent 帧。"""
     token = cancellation_token or CancellationToken()
@@ -137,6 +147,7 @@ async def chat_harness_stream(
             "confidence": decision.confidence,
         },
         cancellation_token=token,
+        user_id=user_id,
     )
     runtime = build_chat_runtime(decision.agent_id)
     async for ev in runtime.execute_stream(run_req):

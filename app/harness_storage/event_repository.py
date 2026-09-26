@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.harness.contracts import RunEvent
@@ -38,3 +38,16 @@ async def list_events(session: AsyncSession, run_id: str) -> list[HarnessRunEven
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def delete_events_by_run_ids(
+    session: AsyncSession,
+    run_ids: list[str],
+) -> int:
+    """级联删除：按 run_id 列表删其全部 event。"""
+    if not run_ids:
+        return 0
+    stmt = delete(HarnessRunEvent).where(HarnessRunEvent.run_id.in_(run_ids))
+    result = await session.execute(stmt)
+    await session.flush()
+    return int(result.rowcount or 0)

@@ -9,7 +9,7 @@ from app.harness.contracts import (
     RunContext,
     RunEvent,
 )
-from app.services.chat import run_astream
+from app.services.chat import _ensure_session_id, run_astream
 
 
 def _meta_from_done(chunk: dict[str, Any]) -> dict[str, Any]:
@@ -29,11 +29,19 @@ class ChatExecutor:
     async def astream(self, ctx: RunContext) -> AsyncIterator[RunEvent]:
         options = ctx.request.options or {}
         token = ctx.cancellation_token
+        session_id = _ensure_session_id(ctx.request.session_id)
+        # 回写，便于 harness_runs 落库带上真实 session_id
+        try:
+            ctx.request.session_id = session_id
+        except Exception:
+            pass
+        user_id = options.get("user_id")
         async for chunk in run_astream(
             ctx.request.input,
-            ctx.request.session_id or "default",
+            session_id,
             options.get("kb"),
             options.get("db"),
+            user_id=user_id if isinstance(user_id, str) else None,
         ):
             if token is not None and token.is_cancelled():
                 return

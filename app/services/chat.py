@@ -1,5 +1,6 @@
 import asyncio
 import time
+import uuid
 from enum import StrEnum
 
 from langchain.chat_models import init_chat_model
@@ -27,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.semantic_cache import semantic_cache
 from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn, \
-    get_sessions
+    get_sessions, get_or_create_session
 from app.services.tracing import traces
 
 _llm_cache: dict = {}
@@ -109,8 +110,14 @@ async def classify_intent(message: str, history: list) -> IntentEnum:
         print(f"[classify_intent] 解析失败，回退为 CHAT: {e}")
         return IntentEnum.CHAT
 
-async def fallback_chat(message: str, session_id: str, kb: KnowledgeBase, db: AsyncSession) -> dict:
-    history = await load_session_history(session_id, db)
+async def fallback_chat(
+    message: str,
+    session_id: str,
+    kb: KnowledgeBase,
+    db: AsyncSession,
+    user_id: str = "anonymous",
+) -> dict:
+    history = await load_session_history(session_id, user_id, db)
     lc_history = _to_langchain_messages(history)
     intent = await classify_intent(message, lc_history)
     if _use_chat_tools(intent):
@@ -125,7 +132,7 @@ async def fallback_chat(message: str, session_id: str, kb: KnowledgeBase, db: As
     return {"reply": reply, "intent": "chat", "sources": [], "engine": "langchain"}
 
 
-async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
+async def chat(message: str, session_id: str, db: AsyncSession, user_id: str = "anonymous") -> dict:
     entry = {"message": message[:80], "session_id": session_id, "status": 200}
     t_start = time.perf_counter()
     if not settings.AIROBOT_LLM_API_KEY:
@@ -134,7 +141,7 @@ async def chat(message: str, session_id: str, db: AsyncSession) -> dict:
                 "intent": None, "sources": [], "engine": "langchain"}
     t_llm=time.perf_counter()
     kb = get_kb_instance(db)
-    result = await fallback_chat(message, session_id,kb, db)
+    result = await fallback_chat(message, session_id, kb, db, user_id=user_id)
     entry.update(intent=result.get("intent"), engine=result.get("engine"),
                  llm_ms=round((time.perf_counter() - t_llm) * 1000, 1),
                  sources=len(result.get("sources", [])),
@@ -165,20 +172,57 @@ def _maybe_cache(query_vec, result: dict, message: str) -> None:
         return
     semantic_cache.put(query_vec,message, result)
 
+
+def _ensure_session_id(session_id: str | None) -> str:
+    """空或遗留共享名 default → 服务端发号，禁止落入公共会话。"""
+    s = (session_id or "").strip()
+    if not s or s == "default":
+        return str(uuid.uuid4())
+    return s
+
+
+def _with_session_meta(res: dict, session_id: str) -> dict:
+    meta = dict(res.get("meta") or {})
+    meta["session_id"] = session_id
+    return {**res, "meta": meta}
+
+
+async def _resolve_owned_session(
+    session_id: str | None,
+    user_id: str | None,
+    db: AsyncSession,
+) -> tuple[str, str]:
+    """发号 + 校验归属；若 session 属他人则换新 UUID。非 active 抛 PermissionError。"""
+    sid = _ensure_session_id(session_id)
+    uid = (user_id or "").strip() or "anonymous"
+    try:
+        sess = await get_or_create_session(sid, uid, db)
+    except PermissionError:
+        raise PermissionError(f"session {sid!r} is not active") from None
+    if sess is None:
+        sid = str(uuid.uuid4())
+        await get_or_create_session(sid, uid, db)
+    return sid, uid
+
+
 async def run(
     message: str,
-    session_id: str,
+    session_id: str | None,
     kb: KnowledgeBase,
     db: AsyncSession,
     on_event=None,  # None=JSON；有回调=SSE
+    user_id: str | None = None,  # M1-2 落库前先打通参数
 ) -> dict:
+    session_id, uid = await _resolve_owned_session(session_id, user_id, db)
     t_start = time.perf_counter()
     entry = {
         "message": message[:80],
         "session_id": session_id,
         "status": 200,
     }
-    history = await load_session_history(session_id, db)
+    history = await load_session_history(
+        session_id, uid, db, create_if_missing=False
+    )
     query_vector = None
     is_alarm = is_alarm_message(message)
     if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history and not is_alarm:
@@ -186,16 +230,16 @@ async def run(
         cached = semantic_cache.get(query_vector, message)
         if cached is not None:
             res = {**cached, "cache_hit": True}
-            await save_turn(session_id, message, res["reply"], db)
+            await save_turn(session_id, uid, message, res["reply"], db)
             entry.update(cache_hit=True, intent=res.get("intent"),
                          cache_checked=True, total_ms=round((time.perf_counter() - t_start) * 1000, 1))
             traces.record(entry)
-            return res
+            return _with_session_meta(res, session_id)
     # use_crew 且工具就绪时交给 Crew（走 investigate_alarm）；否则启发式直达 alarm
     _crew_ok = settings.use_crew and CREW_TOOLS_READY
     if is_alarm and not _crew_ok:
         res = await run_alarm_agent(message)
-        await save_turn(session_id, message, res["reply"], db)
+        await save_turn(session_id, uid, message, res["reply"], db)
         entry.update(
             intent=res.get("intent", "alarm"),
             engine=res.get("engine", "alarm"),
@@ -205,7 +249,7 @@ async def run(
             total_ms=round((time.perf_counter() - t_start) * 1000, 1),
         )
         traces.record(entry)
-        return res
+        return _with_session_meta(res, session_id)
 
     lc_history = _to_langchain_messages(history)
     if _crew_ok:
@@ -221,7 +265,7 @@ async def run(
                 "cache_hit": False,
             }
             _maybe_cache(query_vector, res, message)
-            await save_turn(session_id, message, res["reply"], db)
+            await save_turn(session_id, uid, message, res["reply"], db)
             entry.update(
                 intent=res.get("intent"),
                 engine=res.get("engine"),
@@ -231,7 +275,7 @@ async def run(
                 total_ms=round((time.perf_counter() - t_start) * 1000, 1),
             )
             traces.record(entry)
-            return res
+            return _with_session_meta(res, session_id)
         except Exception as e:
             print(f"[run_crew] 解析失败，回退为 CHAT: {e}")
     intent = await classify_intent(message, lc_history)
@@ -248,7 +292,7 @@ async def run(
     if on_event:
         on_event(res)
     _maybe_cache(query_vector, res, message)
-    await save_turn(session_id, message, res["reply"], db)
+    await save_turn(session_id, uid, message, res["reply"], db)
     entry.update(
         intent=res.get("intent"),
         engine=res.get("engine"),
@@ -258,15 +302,21 @@ async def run(
         total_ms=round((time.perf_counter() - t_start) * 1000, 1),
     )
     traces.record(entry)
-    return res
+    return _with_session_meta(res, session_id)
+
+
 async def run_astream(
     message: str,
-    session_id: str,
+    session_id: str | None,
     kb: KnowledgeBase,
     db: AsyncSession,
+    user_id: str | None = None,
 ):
+    session_id, uid = await _resolve_owned_session(session_id, user_id, db)
     t_start = time.perf_counter()
-    history = await load_session_history(session_id, db)
+    history = await load_session_history(
+        session_id, uid, db, create_if_missing=False
+    )
     lc_history = _to_langchain_messages(history)
     query_vector = None
 
@@ -282,7 +332,7 @@ async def run_astream(
             yield {"type": "stage", "stage": "cache", "msg": "语义缓存命中", "ms": cache_ms, "ok": True, "hit": True}
             yield {"type": "intent", "intent": cached.get("intent", "chat")}
             yield {"type": "token", "content": cached.get("reply", "")}
-            await save_turn(session_id, message, cached.get("reply", ""), db)
+            await save_turn(session_id, uid, message, cached.get("reply", ""), db)
             total_ms = round((time.perf_counter() - t_start) * 1000, 1)
             traces.record({
                 "message": message[:80], "session_id": session_id, "status": 200,
@@ -298,6 +348,7 @@ async def run_astream(
                 "engine": cached.get("engine", "langchain"),
                 "cache_hit": True,
                 "total_ms": total_ms,
+                "meta": {"session_id": session_id},
             }
             return
         yield {"type": "stage", "stage": "cache", "msg": "语义缓存未命中", "ms": cache_ms, "ok": True, "hit": False}
@@ -324,7 +375,7 @@ async def run_astream(
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
                 meta = ev.get("meta") or meta
-        await save_turn(session_id, message, full_reply, db)
+        await save_turn(session_id, uid, message, full_reply, db)
         total_ms = round((time.perf_counter() - t_start) * 1000, 1)
         traces.record({
             "message": message[:80], "session_id": session_id, "status": 200,
@@ -339,7 +390,7 @@ async def run_astream(
             "sources": sources,
             "engine": "alarm",
             "cache_hit": False,
-            "meta": meta,
+            "meta": {**(meta or {}), "session_id": session_id},
             "total_ms": total_ms,
         }
         return
@@ -359,7 +410,7 @@ async def run_astream(
                 "engine": "crew", "used_crew": True, "cache_hit": False,
             }
             _maybe_cache(query_vector, res, message)
-            await save_turn(session_id, message, reply, db)
+            await save_turn(session_id, uid, message, reply, db)
             total_ms = round((time.perf_counter() - t_start) * 1000, 1)
             traces.record({
                 "message": message[:80], "session_id": session_id, "status": 200,
@@ -367,7 +418,11 @@ async def run_astream(
                 "cache_checked": query_vector is not None,
                 "sources": len(sources), "total_ms": total_ms,
             })
-            yield {**res, "type": "done", "total_ms": total_ms}
+            yield {
+                **_with_session_meta(res, session_id),
+                "type": "done",
+                "total_ms": total_ms,
+            }
             return
         except Exception as e:
             print(f"[run_astream crew] 降级 P3: {e}")
@@ -425,7 +480,7 @@ async def run_astream(
         "cache_hit": False,
     }
     _maybe_cache(query_vector, res, message)
-    await save_turn(session_id, message, full_reply, db)
+    await save_turn(session_id, uid, message, full_reply, db)
     total_ms = round((time.perf_counter() - t_start) * 1000, 1)
     traces.record({
         "message": message[:80], "session_id": session_id, "status": 200,
@@ -434,7 +489,7 @@ async def run_astream(
         "intent_ms": intent_ms, "sources": len(sources), "total_ms": total_ms,
     })
     yield {"type": "stage", "stage": "write", "msg": "写入会话记忆", "ok": True}
-    yield {"type": "done", **res, "total_ms": total_ms}
+    yield {"type": "done", **_with_session_meta(res, session_id), "total_ms": total_ms}
 
 
 if __name__ == "__main__":
@@ -444,9 +499,9 @@ if __name__ == "__main__":
         await init_db()
         async for db in get_db():
             kb = get_kb_instance(db)
-            all_sessions = await get_sessions(db)
+            all_sessions = await get_sessions(db, "anonymous")
             print("all_sessions::",all_sessions)
-            res = await run("运费谁出", session_id="1", kb=kb, db=db)
+            res = await run("运费谁出", session_id="1", kb=kb, db=db, user_id="anonymous")
             print(res)
             break
 

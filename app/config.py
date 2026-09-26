@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     max_entries_cache: int = 1000
     api_key_enabled: bool = False
     service_api_key: str = ""
+    # 无登录时用 X-User-Id 作隔离键；False=缺省 anonymous，True=缺 Header 则 401
+    require_user_id: bool = False
     DEBUG: bool = True
     APP_VERSION: str = "0.1.0"
 
@@ -104,6 +106,10 @@ class Settings(BaseSettings):
     amap_maps_api_key: str = ""
     amap_mcp_url: str = "https://mcp.amap.com/mcp"
     weather_api_key: str = ""
+
+    chat_message_max_chars: int = 4000  # 单条用户消息字符上限；超限 422
+    max_session_id_length: int = 36  # 对齐 chat_sessions.session_id VARCHAR(36)
+    max_user_id_length: int = 128  # 对齐 chat_sessions.user_id
 
     @model_validator(mode="after")
     def fill_embedding_aliases(self) -> "Settings":
