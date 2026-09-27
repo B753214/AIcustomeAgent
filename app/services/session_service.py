@@ -4,6 +4,7 @@ session_id 仍为全局主键（一会话一主人）；换 user 读同一 sessi
 """
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timezone
 
 from sqlalchemy import select, delete
@@ -11,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.harness.policies import DataPolicy
 from app.models.sessions import ChatMessage, ChatSession
 
 
@@ -129,6 +131,7 @@ async def load_session_history(
     max_turns: int = settings.memory_max_turns,
     *,
     create_if_missing: bool = True,
+    detail: bool = False,
 ) -> list[dict]:
     uid = _norm_user(user_id)
     if create_if_missing:
@@ -147,7 +150,22 @@ async def load_session_history(
         stmt = stmt.limit(max_turns * 2)
     result = await db.execute(stmt)
     messages = list(reversed(result.scalars().all()))
-    return [{"role": m.role, "content": m.content} for m in messages]
+    if not detail:
+        return [{"role": m.role, "content": m.content} for m in messages]
+    return [
+        {
+            "role": m.role,
+            "content": m.content,
+            "intent": m.intent,
+            "engine": m.engine,
+            "run_id": m.run_id,
+            "metadata": m.message_metadata,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in messages
+    ]
+
+_data_policy = DataPolicy()
 
 
 async def save_message(
@@ -155,9 +173,28 @@ async def save_message(
     role: str,
     content: str,
     db: AsyncSession,
+    *,
+    intent: str | None = None,
+    engine: str | None = None,
+    run_id: str | None = None,
+    metadata: dict | None = None,
 ) -> ChatMessage:
-    message = ChatMessage(session_id=session_id, role=role, content=content)
+    content = _data_policy.mask_str(content or "")
+    meta = None
+    if metadata:
+        # sanitize 原地改容器；deepcopy 避免污染调用方仍在用的 dict/list
+        meta = _data_policy.sanitize(copy.deepcopy(metadata))
+    message = ChatMessage(
+        session_id=session_id,
+        role=role,
+        content=content,
+        intent=intent,
+        engine=engine,
+        run_id=run_id,
+        message_metadata=meta,
+    )
     db.add(message)
+    await db.flush()
     return message
 
 
@@ -167,6 +204,11 @@ async def save_turn(
     user_text: str,
     assistant_text: str,
     db: AsyncSession,
+    *,
+    intent: str | None = None,
+    engine: str | None = None,
+    run_id: str | None = None,
+    metadata: dict | None = None,
 ) -> None:
     session = await get_or_create_session(session_id, user_id, db)
     if session is None:
@@ -178,7 +220,16 @@ async def save_turn(
             f"session {session_id!r} is not active"
         )
     await save_message(session_id, "user", user_text, db)
-    await save_message(session_id, "assistant", assistant_text, db)
+    await save_message(
+        session_id,
+        "assistant",
+        assistant_text,
+        db,
+        intent=intent,
+        engine=engine,
+        run_id=run_id,
+        metadata=metadata,
+    )
     session.updated_at = _utcnow()
 
 

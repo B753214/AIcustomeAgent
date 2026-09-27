@@ -42,6 +42,8 @@ class ChatExecutor:
             options.get("kb"),
             options.get("db"),
             user_id=user_id if isinstance(user_id, str) else None,
+            run_id=ctx.run_id,
+            message_engine="harness",
         ):
             if token is not None and token.is_cancelled():
                 return

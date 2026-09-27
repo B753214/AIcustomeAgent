@@ -30,6 +30,7 @@ async def init_db()->None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_ensure_chat_session_columns)
+        await conn.run_sync(_ensure_chat_message_columns)
         print("Database initialized")
 
 
@@ -63,3 +64,29 @@ def _ensure_chat_session_columns(sync_conn) -> None:
             text("CREATE INDEX IF NOT EXISTS ix_chat_sessions_user_id ON chat_sessions (user_id)")
         )
 
+
+def _ensure_chat_message_columns(sync_conn) -> None:
+    """已有 PG 表时 create_all 不加列：补齐 M2-1 字段（幂等）。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(sync_conn)
+    if "chat_messages" not in insp.get_table_names():
+        return
+    existing = {c["name"] for c in insp.get_columns("chat_messages")}
+    alters: list[str] = []
+    if "intent" not in existing:
+        alters.append("ALTER TABLE chat_messages ADD COLUMN intent VARCHAR(64) NULL")
+    if "engine" not in existing:
+        alters.append("ALTER TABLE chat_messages ADD COLUMN engine VARCHAR(32) NULL")
+    if "run_id" not in existing:
+        alters.append("ALTER TABLE chat_messages ADD COLUMN run_id VARCHAR(36) NULL")
+    if "metadata" not in existing:
+        alters.append("ALTER TABLE chat_messages ADD COLUMN metadata JSON NULL")
+    for sql in alters:
+        sync_conn.execute(text(sql))
+    sync_conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_chat_messages_run_id "
+            "ON chat_messages (run_id)"
+        )
+    )

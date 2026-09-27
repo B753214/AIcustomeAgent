@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     use_crew: bool = False
     crew_tools_ready: bool = True
     memory_max_turns: int = 5
+    # M3：装配「摘要+最近消息+当前问」的软 Token 上限（M3-2 起生效）
+    memory_context_token_budget: int = 3000
     retry_attempts: int = 3
     retry_max_wait: int = 3
     tool_timeout_sec: float = 30
@@ -110,6 +112,10 @@ class Settings(BaseSettings):
     chat_message_max_chars: int = 4000  # 单条用户消息字符上限；超限 422
     max_session_id_length: int = 36  # 对齐 chat_sessions.session_id VARCHAR(36)
     max_user_id_length: int = 128  # 对齐 chat_sessions.user_id
+
+    memory_summary_min_turns: int = 6
+    memory_summary_keep_turns: int = 3  # 摘要后仍保留的最近原文轮数
+    memory_summary_prompt_version: str = "v1"
 
     @model_validator(mode="after")
     def fill_embedding_aliases(self) -> "Settings":

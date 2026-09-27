@@ -14,7 +14,7 @@ from app.harness_storage import get_run, list_events
 from app.services.auth import get_user_id, verify_api_key
 from app.services.ratelimit import limiter
 import uvicorn
-from fastapi import FastAPI, Depends, UploadFile, File, HTTPException,Request
+from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, Request, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse, StreamingResponse, HTMLResponse, FileResponse
@@ -265,16 +265,30 @@ async def session_history(
     session_id: str,
     db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_user_id),
+    detail: bool = Query(
+        False,
+        description="true=返回 intent/engine/run_id/metadata；默认仅 role/content",
+    ),
 ):
     from app.services.session_service import get_session
 
     owned = await get_session(session_id, user_id, db)
     if owned is None or owned.status == "deleted":
         raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+    # 详细模式：仅会话所有者可读（已由 get_session 校验）；无额外管理员体系
     messages = await load_session_history(
-        session_id, user_id, db, create_if_missing=False
+        session_id,
+        user_id,
+        db,
+        create_if_missing=False,
+        detail=detail,
     )
-    return {"session_id": session_id, "user_id": user_id, "messages": messages}
+    return {
+        "session_id": session_id,
+        "user_id": user_id,
+        "detail": detail,
+        "messages": messages,
+    }
 
 
 @app.get("/retrieval/{query}")

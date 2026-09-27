@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
-from sqlalchemy import String, ForeignKey, Text, DateTime, Index
+from sqlalchemy import String, ForeignKey, Text, DateTime, Index, JSON
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from app.database import Base
@@ -67,6 +68,26 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=_utcnow_naive, comment="消息创建时间"
     )
+    intent: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, comment="路由意图"
+    )
+    engine: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, comment="langchain / harness / alarm ..."
+    )
+    run_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+        index=True,
+        comment="逻辑关联 harness_runs.run_id（无 FK，允许消息先于 run 入库）",
+    )
+    # 属性勿名 metadata（与 DeclarativeBase.metadata 冲突）；库列仍叫 metadata
+    message_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=True,
+        default=dict,
+        comment="sources 摘要、工具名等",
+    )
 
     session: Mapped["ChatSession"] = relationship(back_populates="messages")
 
@@ -76,3 +97,8 @@ class ChatMessage(Base):
 
     def __repr__(self) -> str:
         return f"<ChatMessage(session={self.session_id}, role={self.role})>"
+
+
+class SessionSummary(Base):
+    __tablename__ = "session_summaries"
+    

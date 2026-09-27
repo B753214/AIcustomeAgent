@@ -57,15 +57,15 @@
 
 当前 `DataPolicy` 默认已覆盖：
 
-- `sk_key`、`password`、`api_key`、`token`、`bearer`、`private_key`
+- `sk_key`、`password`、`api_key`、`token`、`bearer`、`private_key`、**`phone`（M2-4）**
 
-**记忆写入路径尚未统一走该策略**（会话 `content`/`metadata`、摘要、episode、Cache put）。
+**已挂钩（M2-4）：** 会话 `save_message` 对 `content` / `metadata` 落库前 `mask` / `sanitize`。
 
-M2-4 建议补齐：
+仍建议后续补齐：
 
-1. 会话 `save_turn` / metadata / episode / summary 写入前 `sanitize`  
-2. 增加：手机号、身份证、Cookie 头、URL query 中的 `token|sign|ticket`（可配置）  
-3. Cache `put` 前对 `result` 打码，且 key 带 user scope（M7-1）
+1. episode / summary / Cache `put` 写入前 `sanitize`（M3/M6/M7）  
+2. 身份证、Cookie 头、URL query 中的 `token|sign|ticket`（可配置）  
+3. Cache key 带 user scope（M7-1）
 
 ---
 

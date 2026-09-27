@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import Field, BaseModel
 
@@ -23,12 +23,20 @@ from app.rag.retriever import (
     KnowledgeBase,
     aanswer_with_rag_stream,
 )
+from app.services.memory.context_builder import build_recent_context
+from app.services.memory.summary_service import maybe_summarize
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.semantic_cache import semantic_cache
-from app.services.session_service import load_session_history, save_message, clear_session_history, save_turn, \
-    get_sessions, get_or_create_session
+from app.services.session_service import (
+    load_session_history,
+    save_message,
+    clear_session_history,
+    save_turn,
+    get_sessions,
+    get_or_create_session,
+)
 from app.services.tracing import traces
 
 _llm_cache: dict = {}
@@ -86,12 +94,39 @@ def _use_chat_tools(intent) -> bool:
 
 
 def _to_langchain_messages(history: list[dict]) -> list:
-    """将 {"role","content"} 字典列表转为 LangChain Message 对象列表"""
-    return [
-        HumanMessage(content=m["content"]) if m["role"] == "user"
-        else AIMessage(content=m["content"])
-        for m in history
-    ]
+    out = []
+    for m in history:
+        role = m.get("role")
+        content = m.get("content") or ""
+        if not isinstance(content, str):
+            content = str(content)
+        if role == "system":
+            out.append(SystemMessage(content=content))
+        elif role == "user":
+            out.append(HumanMessage(content=content))
+        else:
+            out.append(AIMessage(content=content))
+    return out
+
+async def _prepare_history(
+    session_id: str,
+    user_id: str,
+    db: AsyncSession,
+    message: str,
+    *,
+    create_if_missing: bool = False,
+) -> list[dict]:
+    history = await load_session_history(
+        session_id, user_id, db, create_if_missing=create_if_missing
+    )
+    summary, recent = await maybe_summarize(history)
+    return build_recent_context(
+        recent,
+        current_message=message,
+        budget=settings.memory_context_token_budget,
+        max_turns=settings.memory_max_turns,
+        summary=summary,
+    )
 
 async def classify_intent(message: str, history: list) -> IntentEnum:
     try:
@@ -117,7 +152,7 @@ async def fallback_chat(
     db: AsyncSession,
     user_id: str = "anonymous",
 ) -> dict:
-    history = await load_session_history(session_id, user_id, db)
+    history = await _prepare_history(session_id, user_id, db, message)
     lc_history = _to_langchain_messages(history)
     intent = await classify_intent(message, lc_history)
     if _use_chat_tools(intent):
@@ -187,6 +222,84 @@ def _with_session_meta(res: dict, session_id: str) -> dict:
     return {**res, "meta": meta}
 
 
+def _turn_engine(explicit: str | None, payload: dict | None = None) -> str | None:
+    """显式 engine 优先，否则从本轮结果 dict 回落。"""
+    if explicit:
+        return explicit
+    if payload and payload.get("engine"):
+        return str(payload["engine"])
+    return None
+
+
+def _summarize_sources(sources: list | None, *, limit: int = 10) -> list[str]:
+    """RAG/回答附带的 sources 压成短串列表，不存 chunk 全文。"""
+    out: list[str] = []
+    for item in sources or []:
+        if isinstance(item, str):
+            text = item.strip()
+        elif isinstance(item, dict):
+            text = str(
+                item.get("title")
+                or item.get("uri")
+                or item.get("source")
+                or ""
+            ).strip()
+        else:
+            text = str(item).strip()
+        if not text:
+            continue
+        out.append(text[:200])
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _turn_metadata(
+    payload: dict | None = None,
+    *,
+    sources: list | None = None,
+) -> dict | None:
+    """只落 sources；空则返回 None（不写空 metadata）。"""
+    raw = sources if sources is not None else (payload or {}).get("sources")
+    if not isinstance(raw, list):
+        raw = []
+    summarized = _summarize_sources(raw)
+    if not summarized:
+        return None
+    return {"sources": summarized}
+
+
+async def _persist_chat_turn(
+    session_id: str,
+    user_id: str,
+    user_text: str,
+    assistant_text: str,
+    db: AsyncSession,
+    *,
+    run_id: str | None = None,
+    message_engine: str | None = None,
+    payload: dict | None = None,
+    sources: list | None = None,
+    intent: str | None = None,
+) -> None:
+    """save_turn 统一带 intent / engine / run_id / sources 摘要。"""
+    pl = payload or {}
+    intent_val = intent
+    if intent_val is None and pl.get("intent") is not None:
+        intent_val = str(pl.get("intent"))
+    await save_turn(
+        session_id,
+        user_id,
+        user_text,
+        assistant_text,
+        db,
+        run_id=run_id,
+        engine=_turn_engine(message_engine, pl),
+        intent=intent_val,
+        metadata=_turn_metadata(pl, sources=sources),
+    )
+
+
 async def _resolve_owned_session(
     session_id: str | None,
     user_id: str | None,
@@ -212,6 +325,9 @@ async def run(
     db: AsyncSession,
     on_event=None,  # None=JSON；有回调=SSE
     user_id: str | None = None,  # M1-2 落库前先打通参数
+    *,
+    run_id: str | None = None,
+    message_engine: str | None = None,
 ) -> dict:
     session_id, uid = await _resolve_owned_session(session_id, user_id, db)
     t_start = time.perf_counter()
@@ -220,8 +336,8 @@ async def run(
         "session_id": session_id,
         "status": 200,
     }
-    history = await load_session_history(
-        session_id, uid, db, create_if_missing=False
+    history = await _prepare_history(
+        session_id, uid, db, message, create_if_missing=False
     )
     query_vector = None
     is_alarm = is_alarm_message(message)
@@ -230,7 +346,10 @@ async def run(
         cached = semantic_cache.get(query_vector, message)
         if cached is not None:
             res = {**cached, "cache_hit": True}
-            await save_turn(session_id, uid, message, res["reply"], db)
+            await _persist_chat_turn(
+                session_id, uid, message, res["reply"], db,
+                run_id=run_id, message_engine=message_engine, payload=res,
+            )
             entry.update(cache_hit=True, intent=res.get("intent"),
                          cache_checked=True, total_ms=round((time.perf_counter() - t_start) * 1000, 1))
             traces.record(entry)
@@ -239,7 +358,10 @@ async def run(
     _crew_ok = settings.use_crew and CREW_TOOLS_READY
     if is_alarm and not _crew_ok:
         res = await run_alarm_agent(message)
-        await save_turn(session_id, uid, message, res["reply"], db)
+        await _persist_chat_turn(
+            session_id, uid, message, res["reply"], db,
+            run_id=run_id, message_engine=message_engine, payload=res,
+        )
         entry.update(
             intent=res.get("intent", "alarm"),
             engine=res.get("engine", "alarm"),
@@ -265,7 +387,10 @@ async def run(
                 "cache_hit": False,
             }
             _maybe_cache(query_vector, res, message)
-            await save_turn(session_id, uid, message, res["reply"], db)
+            await _persist_chat_turn(
+                session_id, uid, message, res["reply"], db,
+                run_id=run_id, message_engine=message_engine, payload=res,
+            )
             entry.update(
                 intent=res.get("intent"),
                 engine=res.get("engine"),
@@ -292,7 +417,10 @@ async def run(
     if on_event:
         on_event(res)
     _maybe_cache(query_vector, res, message)
-    await save_turn(session_id, uid, message, res["reply"], db)
+    await _persist_chat_turn(
+        session_id, uid, message, res["reply"], db,
+        run_id=run_id, message_engine=message_engine, payload=res,
+    )
     entry.update(
         intent=res.get("intent"),
         engine=res.get("engine"),
@@ -311,11 +439,14 @@ async def run_astream(
     kb: KnowledgeBase,
     db: AsyncSession,
     user_id: str | None = None,
+    *,
+    run_id: str | None = None,
+    message_engine: str | None = None,
 ):
     session_id, uid = await _resolve_owned_session(session_id, user_id, db)
     t_start = time.perf_counter()
-    history = await load_session_history(
-        session_id, uid, db, create_if_missing=False
+    history = await _prepare_history(
+        session_id, uid, db, message, create_if_missing=False
     )
     lc_history = _to_langchain_messages(history)
     query_vector = None
@@ -332,7 +463,10 @@ async def run_astream(
             yield {"type": "stage", "stage": "cache", "msg": "语义缓存命中", "ms": cache_ms, "ok": True, "hit": True}
             yield {"type": "intent", "intent": cached.get("intent", "chat")}
             yield {"type": "token", "content": cached.get("reply", "")}
-            await save_turn(session_id, uid, message, cached.get("reply", ""), db)
+            await _persist_chat_turn(
+                session_id, uid, message, cached.get("reply", ""), db,
+                run_id=run_id, message_engine=message_engine, payload=cached,
+            )
             total_ms = round((time.perf_counter() - t_start) * 1000, 1)
             traces.record({
                 "message": message[:80], "session_id": session_id, "status": 200,
@@ -375,7 +509,14 @@ async def run_astream(
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
                 meta = ev.get("meta") or meta
-        await save_turn(session_id, uid, message, full_reply, db)
+        await _persist_chat_turn(
+            session_id, uid, message, full_reply, db,
+            run_id=run_id,
+            message_engine=message_engine,
+            payload={"intent": "alarm", "engine": "alarm", "sources": sources},
+            intent="alarm",
+            sources=sources,
+        )
         total_ms = round((time.perf_counter() - t_start) * 1000, 1)
         traces.record({
             "message": message[:80], "session_id": session_id, "status": 200,
@@ -410,7 +551,10 @@ async def run_astream(
                 "engine": "crew", "used_crew": True, "cache_hit": False,
             }
             _maybe_cache(query_vector, res, message)
-            await save_turn(session_id, uid, message, reply, db)
+            await _persist_chat_turn(
+                session_id, uid, message, reply, db,
+                run_id=run_id, message_engine=message_engine, payload=res,
+            )
             total_ms = round((time.perf_counter() - t_start) * 1000, 1)
             traces.record({
                 "message": message[:80], "session_id": session_id, "status": 200,
@@ -480,7 +624,10 @@ async def run_astream(
         "cache_hit": False,
     }
     _maybe_cache(query_vector, res, message)
-    await save_turn(session_id, uid, message, full_reply, db)
+    await _persist_chat_turn(
+        session_id, uid, message, full_reply, db,
+        run_id=run_id, message_engine=message_engine, payload=res,
+    )
     total_ms = round((time.perf_counter() - t_start) * 1000, 1)
     traces.record({
         "message": message[:80], "session_id": session_id, "status": 200,
@@ -490,6 +637,7 @@ async def run_astream(
     })
     yield {"type": "stage", "stage": "write", "msg": "写入会话记忆", "ok": True}
     yield {"type": "done", **_with_session_meta(res, session_id), "total_ms": total_ms}
+
 
 
 if __name__ == "__main__":

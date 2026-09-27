@@ -162,6 +162,35 @@ async def _fake_run_astream(*_args: Any, **_kwargs: Any) -> AsyncIterator[dict]:
 
 
 @pytest.mark.asyncio
+async def test_chat_executor_passes_run_id_to_run_astream():
+    captured: dict[str, Any] = {}
+
+    async def _capture_run_astream(*_args: Any, **kwargs: Any) -> AsyncIterator[dict]:
+        captured.update(kwargs)
+        async for chunk in _fake_run_astream():
+            yield chunk
+
+    with patch(
+        "app.agents.harness_chat.executor.run_astream",
+        new=_capture_run_astream,
+    ):
+        ctx = RunContext(
+            run_id="run-m22",
+            request=RunRequest(
+                input="hi",
+                session_id="s1",
+                agent_id="chat",
+                options={"kb": "kb", "db": "db", "user_id": "u1"},
+            ),
+        )
+        _ = [ev async for ev in ChatExecutor().astream(ctx)]
+
+    assert captured.get("run_id") == "run-m22"
+    assert captured.get("message_engine") == "harness"
+    assert captured.get("user_id") == "u1"
+
+
+@pytest.mark.asyncio
 async def test_chat_executor_maps_run_astream_chunks():
     with patch(
         "app.agents.harness_chat.executor.run_astream",

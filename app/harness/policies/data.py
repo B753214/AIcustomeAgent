@@ -47,6 +47,8 @@ class DataPolicy:
             "token": r"(?i)\b(access[_-]?token|auth[_-]?token|secret[_-]?key)\s*[:=]\s*\S+",
             "bearer": r"(?i)\bBearer\s+[A-Za-z0-9_\-.]{8,}",
             "private_key": r"-----BEGIN\s+(RSA|EC|OPENSSH|DSA)?\s*PRIVATE\s*KEY-----[\s\S]*?-----END\s+\1?\s*PRIVATE\s*KEY-----",
+            # M2-4 / memory_data_policy：大陆 11 位手机号
+            "phone": r"\b1[3-9]\d{9}\b",
         }
         if patterns:
             default.update(patterns)
