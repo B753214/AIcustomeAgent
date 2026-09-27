@@ -23,6 +23,7 @@ from pathlib import Path
 from app.rag.milvus_store import search_vectors
 from app.rag.reranker import Reranker
 from app.services.chunk_service import get_chunks_by_ids
+from app.services.memory.query_rewrite import rewrite_retrieval_query
 from app.services.resilience import ainvoke_with_retry
 from rich import print as rprint
 RAG_PROMPT = ChatPromptTemplate.from_messages([
@@ -70,7 +71,8 @@ def answer_with_rag(
 
 async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None) -> Tuple[str, List[str]]:
     """混合检索（向量+BM25+RRF+rerank）+ RAG 生成，返回 (回答, 来源列表)。"""
-    chunks = await kb.search(query)
+    q = await rewrite_retrieval_query(query, history)
+    chunks = await kb.search(q)
 
     if not chunks:
         return ("未检索到相关知识，请尝试其他关键词。", [])
@@ -86,13 +88,15 @@ async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None
 
 async def aanswer_with_rag_stream(query: str, kb: KnowledgeBase, llm=None, history=None):
     """检索同 aanswer_with_rag，生成环节用 astream 逐 token yield。"""
-    chunks = await kb.search(query)
+    q = await rewrite_retrieval_query(query, history)
+    chunks = await kb.search(q)
 
     if not chunks:
         yield {"type": "token", "content": "未检索到相关知识，请尝试其他关键词。"}
         return
     document_content = "\n\n".join([c.content for c in chunks])
     chain = RAG_PROMPT | (llm or build_llm())
+
     sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
     full_answer = ""
     async for chunk in chain.astream({"context": document_content, "question": query, "history": history or []}):

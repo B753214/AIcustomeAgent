@@ -25,6 +25,8 @@ from app.rag.retriever import (
     aanswer_with_rag_stream,
 )
 from app.services.memory import list_facts
+from app.services.memory.alarm_episode import extract_episode_from_alarm_result, save_alarm_episode, get_alarm_episode, \
+    merge_alarm_followup
 from app.services.memory.context_builder import build_recent_context
 from app.services.memory.fact_pipeline import maybe_persist_facts_from_turn
 from app.services.memory.fact_store import format_facts_for_prompt
@@ -224,12 +226,12 @@ def _format_history_text(history: list[dict]) -> str:
         lines.append(f"{role}: {m['content']}")
     return "\n".join(lines)
 
-def _maybe_cache(query_vec, result: dict, message: str) -> None:
+def _maybe_cache(query_vec, result: dict, message: str, user_id: str = "anonymous") -> None:
     if query_vec is None:
         return
     if result.get("intent") == "order" or result.get("intent") == "alarm":
         return
-    semantic_cache.put(query_vec,message, result)
+    semantic_cache.put(query_vec, message, result, user_id=user_id)
 
 
 def _ensure_session_id(session_id: str | None) -> str:
@@ -369,7 +371,7 @@ async def run(
     is_alarm = is_alarm_message(message)
     if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history and not is_alarm:
         query_vector = await asyncio.to_thread(kb.embed_query, message)
-        cached = semantic_cache.get(query_vector, message)
+        cached = semantic_cache.get(query_vector, message, user_id=uid)
         if cached is not None:
             res = {**cached, "cache_hit": True}
             await _persist_chat_turn(
@@ -383,7 +385,9 @@ async def run(
     # use_crew 且工具就绪时交给 Crew（走 investigate_alarm）；否则启发式直达 alarm
     _crew_ok = settings.use_crew and CREW_TOOLS_READY
     if is_alarm and not _crew_ok:
-        res = await run_alarm_agent(message)
+        msg = await _alarm_message_for_run(session_id, uid, message, db)
+        res = await run_alarm_agent(msg)
+        await _save_alarm_episode_from_result(session_id, uid, res, db)
         await _persist_chat_turn(
             session_id, uid, message, res["reply"], db,
             run_id=run_id, message_engine=message_engine, payload=res,
@@ -412,7 +416,7 @@ async def run(
                 "used_crew": True,
                 "cache_hit": False,
             }
-            _maybe_cache(query_vector, res, message)
+            _maybe_cache(query_vector, res, message, uid)
             await _persist_chat_turn(
                 session_id, uid, message, res["reply"], db,
                 run_id=run_id, message_engine=message_engine, payload=res,
@@ -434,7 +438,9 @@ async def run(
         on_event({"type": "stage", "name": intent})
 
     if intent == IntentEnum.ALARM or intent == "alarm":
-        res = await run_alarm_agent(message)
+        msg = await _alarm_message_for_run(session_id, uid, message, db)
+        res = await run_alarm_agent(msg)
+        await _save_alarm_episode_from_result(session_id, uid, res, db)
     elif intent == "knowledge":
         answer, sources = await aanswer_with_rag(message, kb, get_llm(), lc_history)
         res = {"reply": answer, "intent": intent, "sources": sources, "engine": "langchain", "cache_hit": False}
@@ -442,7 +448,7 @@ async def run(
         res = await run_chat_react(message, lc_history)
     if on_event:
         on_event(res)
-    _maybe_cache(query_vector, res, message)
+    _maybe_cache(query_vector, res, message, uid)
     await _persist_chat_turn(
         session_id, uid, message, res["reply"], db,
         run_id=run_id, message_engine=message_engine, payload=res,
@@ -483,7 +489,7 @@ async def run_astream(
         yield {"type": "stage", "stage": "cache", "msg": "语义缓存查询中…", "ms": 0}
         t_cache = time.perf_counter()
         query_vector = await asyncio.to_thread(kb.embed_query, message)
-        cached = semantic_cache.get(query_vector, message)
+        cached = semantic_cache.get(query_vector, message, user_id=uid)
         cache_ms = round((time.perf_counter() - t_cache) * 1000, 1)
         if cached is not None:
             yield {"type": "stage", "stage": "cache", "msg": "语义缓存命中", "ms": cache_ms, "ok": True, "hit": True}
@@ -522,7 +528,8 @@ async def run_astream(
         full_reply = ""
         sources: list = []
         meta = None
-        async for ev in run_alarm_agent_stream(message):
+        alarm_msg = await _alarm_message_for_run(session_id, uid, message, db)
+        async for ev in run_alarm_agent_stream(alarm_msg):
             if ev.get("type") == "token" and ev.get("content"):
                 full_reply += ev["content"]
                 if ev.get("sources"):
@@ -535,11 +542,17 @@ async def run_astream(
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
                 meta = ev.get("meta") or meta
+        await _save_alarm_episode_from_result(
+            session_id,
+            uid,
+            {"reply": full_reply, "meta": meta or {}, "sources": sources},
+            db,
+        )
         await _persist_chat_turn(
             session_id, uid, message, full_reply, db,
             run_id=run_id,
             message_engine=message_engine,
-            payload={"intent": "alarm", "engine": "alarm", "sources": sources},
+            payload={"intent": "alarm", "engine": "alarm", "sources": sources, "meta": meta},
             intent="alarm",
             sources=sources,
         )
@@ -576,7 +589,7 @@ async def run_astream(
                 "reply": reply, "intent": intent, "sources": sources,
                 "engine": "crew", "used_crew": True, "cache_hit": False,
             }
-            _maybe_cache(query_vector, res, message)
+            _maybe_cache(query_vector, res, message, uid)
             await _persist_chat_turn(
                 session_id, uid, message, reply, db,
                 run_id=run_id, message_engine=message_engine, payload=res,
@@ -609,17 +622,27 @@ async def run_astream(
     if intent == IntentEnum.ALARM or intent == "alarm":
         engine = "alarm"
         yield {"type": "stage", "stage": "alarm", "msg": "意图识别为监控告警", "ok": True}
-        async for ev in run_alarm_agent_stream(message):
+        alarm_meta = None
+        alarm_msg = await _alarm_message_for_run(session_id, uid, message, db)
+        async for ev in run_alarm_agent_stream(alarm_msg):
             if ev.get("type") == "token" and ev.get("content"):
                 full_reply += ev["content"]
                 if ev.get("sources"):
                     sources = ev["sources"]
                 yield ev
             elif ev.get("type") == "stage":
+                alarm_meta = ev.get("meta") or alarm_meta
                 yield ev
             elif ev.get("type") == "done":
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
+                alarm_meta = ev.get("meta") or alarm_meta
+        await _save_alarm_episode_from_result(
+            session_id,
+            uid,
+            {"reply": full_reply, "meta": alarm_meta or {}, "sources": sources},
+            db,
+        )
     elif intent == "knowledge":
         yield {"type": "stage", "stage": "retrieval", "msg": "混合检索 + RAG 生成中…", "ok": True}
         async for event in aanswer_with_rag_stream(message, kb, get_llm(), lc_history):
@@ -649,7 +672,7 @@ async def run_astream(
         "engine": engine,
         "cache_hit": False,
     }
-    _maybe_cache(query_vector, res, message)
+    _maybe_cache(query_vector, res, message, uid)
     await _persist_chat_turn(
         session_id, uid, message, full_reply, db,
         run_id=run_id, message_engine=message_engine, payload=res,
@@ -663,6 +686,28 @@ async def run_astream(
     })
     yield {"type": "stage", "stage": "write", "msg": "写入会话记忆", "ok": True}
     yield {"type": "done", **_with_session_meta(res, session_id), "total_ms": total_ms}
+
+
+async def _alarm_message_for_run(session_id, user_id, message, db) -> str:
+    """处理告警消息。"""
+    if is_alarm_message(message):
+        return message
+    try:
+        episode = await get_alarm_episode(user_id, session_id, db)
+        if not episode:
+            return message
+        return merge_alarm_followup(message, episode)
+    except Exception:
+        return message
+
+async def _save_alarm_episode_from_result(session_id, user_id, res, db) -> None:
+    try:
+        ep = extract_episode_from_alarm_result(res)
+        if ep:
+            await save_alarm_episode(user_id, session_id, ep, db)
+    except Exception as e:
+        logger.warning("alarm episode save failed: %s", e)
+
 
 
 

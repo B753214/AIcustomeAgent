@@ -125,6 +125,11 @@ class Settings(BaseSettings):
     memory_fact_inject_max_items: int = 8  # 最多几条
     memory_fact_inject_token_budget: int = 400  # 这段事实块最多多少 token
 
+    rag_query_rewrite_enabled: bool = True  # M6-RAG：有历史时改写检索问句
+
+    cache_ttl_seconds: int = 3600  # 0 = 不过期
+    cache_version: str = "v1"  # 升 prompt/KB 时改这个
+
     @model_validator(mode="after")
     def fill_embedding_aliases(self) -> "Settings":
         """embedding_* 未配置时，回落到 AIROBOT_EMBEDDING_*，避免双份必填。"""

@@ -7,6 +7,7 @@ from app.schema.memory_fact import (
     MemoryFactUpdate,
 )
 from app.schema.memory_summary import SessionSummaryPayload
+from app.schema.alarm_episode import AlarmEpisode
 
 __all__ = [
     "SessionSummaryPayload",
@@ -14,4 +15,5 @@ __all__ = [
     "MemoryFactExtractResult",
     "MemoryFactOut",
     "MemoryFactUpdate",
+    "AlarmEpisode",
 ]

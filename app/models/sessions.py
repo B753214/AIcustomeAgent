@@ -42,6 +42,9 @@ class ChatSession(Base):
     messages: Mapped[list["ChatMessage"]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
     )
+    last_alarm_episode: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, nullable=True, comment="最近一次报警事件"
+    )
 
     def __repr__(self) -> str:
         return f"<ChatSession(session_id={self.session_id}, user_id={self.user_id})>"

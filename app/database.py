@@ -59,6 +59,8 @@ def _ensure_chat_session_columns(sync_conn) -> None:
         )
     if "updated_at" not in existing:
         alters.append("ALTER TABLE chat_sessions ADD COLUMN updated_at TIMESTAMP NULL")
+    if "last_alarm_episode" not in existing:
+        alters.append("ALTER TABLE chat_sessions ADD COLUMN last_alarm_episode JSON NULL")
     for sql in alters:
         sync_conn.execute(text(sql))
     if alters and "user_id" in "".join(alters):
@@ -84,14 +86,15 @@ def _ensure_chat_message_columns(sync_conn) -> None:
         alters.append("ALTER TABLE chat_messages ADD COLUMN run_id VARCHAR(36) NULL")
     if "metadata" not in existing:
         alters.append("ALTER TABLE chat_messages ADD COLUMN metadata JSON NULL")
-    for sql in alters:
-        sync_conn.execute(text(sql))
     sync_conn.execute(
         text(
             "CREATE INDEX IF NOT EXISTS ix_chat_messages_run_id "
             "ON chat_messages (run_id)"
         )
     )
+    for sql in alters:
+        sync_conn.execute(text(sql))
+
 
 
 def _ensure_memory_facts_indexes(sync_conn) -> None:

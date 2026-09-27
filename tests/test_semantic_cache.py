@@ -1,5 +1,6 @@
-"""P5-3 语义缓存单元测试。"""
+"""P5-3 / Memory-M7 语义缓存单元测试。"""
 import math
+import time
 
 import pytest
 
@@ -104,3 +105,58 @@ def test_get_returns_result_dict_not_internal_item():
     assert hit == payload
     assert "vec" not in hit
     assert "ts" not in hit
+
+
+def test_scope_isolates_users():
+    """同问句不同 user_id → 不串话（Memory-M7-1）。"""
+    cache = SemanticCache(cache_threshold=0.75, lexical_threshold=0.5)
+    vec = [1.0, 0.0, 0.0]
+    cache.put(vec, "退货运费谁出", {"reply": "卖家", "intent": "knowledge"}, user_id="A")
+
+    assert cache.get(vec, "退货运费谁出", user_id="A") is not None
+    assert cache.get(vec, "退货运费谁出", user_id="B") is None
+    assert cache.stats()["hits"] == 1
+    assert cache.stats()["misses"] == 1
+
+
+def test_same_user_still_hits():
+    cache = SemanticCache(cache_threshold=0.75, lexical_threshold=0.5)
+    vec = [1.0, 0.0, 0.0]
+    cache.put(vec, "退货运费谁出", {"reply": "卖家", "intent": "knowledge"}, user_id="A")
+    hit = cache.get(vec, "退货运费谁出", user_id="A")
+    assert hit is not None
+    assert hit["reply"] == "卖家"
+
+
+def test_ttl_expired_misses(monkeypatch):
+    """超过 TTL → 不命中（Memory-M7-2）。"""
+    monkeypatch.setattr(
+        "app.services.semantic_cache.settings.cache_ttl_seconds",
+        60,
+    )
+    cache = SemanticCache(cache_threshold=0.75, lexical_threshold=0.5)
+    vec = [1.0, 0.0, 0.0]
+    cache.put(vec, "退货运费谁出", {"reply": "卖家", "intent": "knowledge"}, user_id="A")
+    cache._items[0]["ts"] = time.time() - 120
+
+    assert cache.get(vec, "退货运费谁出", user_id="A") is None
+    assert cache.stats()["misses"] == 1
+
+
+def test_version_mismatch_misses(monkeypatch):
+    """cache_version 升级后旧条目不命中。"""
+    monkeypatch.setattr(
+        "app.services.semantic_cache.settings.cache_version",
+        "v1",
+    )
+    cache = SemanticCache(cache_threshold=0.75, lexical_threshold=0.5)
+    vec = [1.0, 0.0, 0.0]
+    cache.put(vec, "退货运费谁出", {"reply": "卖家", "intent": "knowledge"}, user_id="A")
+    assert cache._items[0]["version"] == "v1"
+
+    monkeypatch.setattr(
+        "app.services.semantic_cache.settings.cache_version",
+        "v2",
+    )
+    assert cache.get(vec, "退货运费谁出", user_id="A") is None
+

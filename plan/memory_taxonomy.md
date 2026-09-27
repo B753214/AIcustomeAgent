@@ -48,7 +48,7 @@
 |----|------|
 | **存什么** | 某次任务可程序复用的结论名片，例如 Alarm：`config_id`、monitor URL、页码、证据摘要、playbook 提示、可选 `source_run_id` |
 | **现状** | 无；仅可能混在 assistant `content` 散文里，代码无法稳定读取；Alarm 追问不读历史 |
-| **落地口径** | **不是**独立记忆中台；优先 `chat_sessions.last_alarm_episode` JSONB |
+| **落地口径** | **不是**独立记忆中台；优先 `chat_sessions.last_alarm_episode` JSONB；边界见 [memory_episode_boundary.md](./memory_episode_boundary.md) |
 | **禁止** | 写入 `harness_checkpoints`；与 Short-term 原文重复建第二套聊天库 |
 | **谁读写** | Alarm 跑完写；下一轮追问合并读 |
 
