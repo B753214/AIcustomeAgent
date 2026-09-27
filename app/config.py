@@ -122,6 +122,8 @@ class Settings(BaseSettings):
     memory_fact_min_confidence_active: float = 0.7  # explicit 升 active 的最低置信
     # off=不抽；heuristic=命中关键词才抽；always=每轮都抽（贵）
     memory_fact_trigger_mode: str = "heuristic"
+    memory_fact_inject_max_items: int = 8  # 最多几条
+    memory_fact_inject_token_budget: int = 400  # 这段事实块最多多少 token
 
     @model_validator(mode="after")
     def fill_embedding_aliases(self) -> "Settings":

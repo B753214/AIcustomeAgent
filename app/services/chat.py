@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 import uuid
 from enum import StrEnum
@@ -23,8 +24,10 @@ from app.rag.retriever import (
     KnowledgeBase,
     aanswer_with_rag_stream,
 )
+from app.services.memory import list_facts
 from app.services.memory.context_builder import build_recent_context
 from app.services.memory.fact_pipeline import maybe_persist_facts_from_turn
+from app.services.memory.fact_store import format_facts_for_prompt
 from app.services.memory.summary_service import maybe_summarize
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +42,8 @@ from app.services.session_service import (
     get_or_create_session,
 )
 from app.services.tracing import traces
+
+logger = logging.getLogger("airobot.chat")
 
 _llm_cache: dict = {}
 class IntentEnum(StrEnum):
@@ -131,12 +136,20 @@ async def _prepare_history(
     recent_for_ctx = [
         {"role": m["role"], "content": m["content"]} for m in recent
     ]
+    facts_block = None
+    try:
+        rows = await list_facts(user_id, db, status="active")
+        facts_block = format_facts_for_prompt(rows) or None
+    except Exception as e:
+        logger.warning("fact inject failed: %s", e)
+
     return build_recent_context(
         recent_for_ctx,
         current_message=message,
         budget=settings.memory_context_token_budget,
         max_turns=settings.memory_max_turns,
         summary=summary,
+        facts_block=facts_block,
     )
 
 async def classify_intent(message: str, history: list) -> IntentEnum:

@@ -19,12 +19,13 @@ def build_recent_context(
     max_turns: int | None = None,
     system_reserve: int = _SYSTEM_RESERVE_TOKENS,
     summary: SessionSummaryPayload | None = None,
+    facts_block: str | None = None,
 ) -> list[dict[str, Any]]:
     """从旧到新裁掉超预算消息；不修改调用方传入的 list。
 
     - 主限制：estimate_messages(prefix + selected) <= remaining
     - 辅限制：无摘要时先只保留最近 max_turns 轮；有摘要时 recent 已由上游 keep_turns 切好
-    - 摘要块始终前置，裁剪只丢原文
+    - 摘要块 + 长期事实块前置，裁剪只丢原文
     """
     selected = list(history or [])
     if budget is None:
@@ -39,7 +40,9 @@ def build_recent_context(
     if summary is not None:
         from app.services.memory.summary_service import format_summary
 
-        prefix = [{"role": "system", "content": format_summary(summary)}]
+        prefix.append({"role": "system", "content": format_summary(summary)})
+    if facts_block:
+        prefix.append({"role": "system", "content": facts_block})
 
     remaining = int(budget) - estimate_text(current_message or "") - max(0, system_reserve)
     remaining = max(0, remaining)

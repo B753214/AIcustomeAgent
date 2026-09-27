@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.memory_facts import MemoryFact
 from app.schema.memory_fact import MemoryFactCandidate
+from app.services.memory.token_estimate import estimate_text
 from app.services.memory.fact_policy import should_persist_fact
 
 logger = logging.getLogger("airobot.memory")
@@ -167,12 +168,12 @@ async def list_facts(
     user_id: str,
     db: AsyncSession,
     *,
-    status: str | None = None,
     limit: int = 50,
+    status: str ="active"
 ) -> list[MemoryFact]:
     """列出当前用户 live 事实（默认 active+candidate）。"""
     limit = max(1, min(int(limit or 50), 200))
-    cond = [MemoryFact.user_id == user_id]
+    cond = [MemoryFact.user_id == user_id, MemoryFact.status == status]
     if status is None:
         cond.append(MemoryFact.status.in_(("active", "candidate")))
     elif status in ("active", "candidate"):
@@ -277,3 +278,31 @@ async def forget_fact(
     row.updated_at = _utcnow_naive()
     await db.flush()
     return row
+
+def format_facts_for_prompt(
+        facts: list[MemoryFact],
+        *,
+    max_items: int | None = None,
+    token_budget: int | None = None,) -> str:
+    """格式化事实列表为提示。"""
+    if not facts:
+        return ""
+    max_items = max_items if max_items is not None else settings.memory_fact_inject_max_items
+    token_budget = token_budget if token_budget is not None else settings.memory_fact_inject_token_budget
+    ordered = sorted(
+        facts,
+        key=lambda f: (getattr(f, "importance", 0) or 0, getattr(f, "updated_at", None) or datetime.min),
+        reverse=True,
+    )[: max(0, max_items)]
+
+    header = "【用户长期记忆】"
+    lines: list[str] = []
+    for f in ordered:
+        line = f"- [{f.kind}/{f.normalized_key}] {f.content}"
+        candidate = header + "\n" + "\n".join(lines + [line])
+        if estimate_text(candidate) > token_budget:
+            break
+        lines.append(line)
+    if not lines:
+        return ""
+    return header + "\n" + "\n".join(lines)
