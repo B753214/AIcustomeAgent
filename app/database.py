@@ -24,13 +24,15 @@ async def get_db()->AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 async def init_db()->None:
-    import app.models.sessions
-    import app.models.document
+    import app.models.sessions  # noqa: F401 — chat_* / session_summaries
+    import app.models.memory_facts  # noqa: F401 — memory_facts
+    import app.models.document  # noqa: F401
     import app.harness_storage.models  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_ensure_chat_session_columns)
         await conn.run_sync(_ensure_chat_message_columns)
+        await conn.run_sync(_ensure_memory_facts_indexes)
         print("Database initialized")
 
 
@@ -88,5 +90,30 @@ def _ensure_chat_message_columns(sync_conn) -> None:
         text(
             "CREATE INDEX IF NOT EXISTS ix_chat_messages_run_id "
             "ON chat_messages (run_id)"
+        )
+    )
+
+
+def _ensure_memory_facts_indexes(sync_conn) -> None:
+    """旧唯一索引会阻止 supersede 后插入同 key；改为 partial unique。"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(sync_conn)
+    if "memory_facts" not in insp.get_table_names():
+        return
+    # 去掉「全状态唯一」的旧索引（若存在）
+    sync_conn.execute(text("DROP INDEX IF EXISTS ix_memory_facts_user_kind_key"))
+    # 仅 active/candidate 唯一，允许 superseded 历史行共存
+    sync_conn.execute(
+        text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_memory_facts_live_key "
+            "ON memory_facts (tenant_id, user_id, kind, normalized_key) "
+            "WHERE status IN ('active', 'candidate')"
+        )
+    )
+    sync_conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_memory_facts_user_kind_key "
+            "ON memory_facts (tenant_id, user_id, kind, normalized_key)"
         )
     )

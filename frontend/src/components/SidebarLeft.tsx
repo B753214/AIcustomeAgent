@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react'
-import { fetchJson, getStoredApiKey, setStoredApiKey } from '../api/client'
+import {
+  fetchJson,
+  getStoredApiKey,
+  getStoredUserId,
+  setStoredApiKey,
+  setStoredUserId,
+} from '../api/client'
 import type { HealthInfo, SessionItem } from '../types'
 
 type Props = {
   sessionId: string
   apiKey: string
+  userId: string
   health: HealthInfo | null
   onSessionIdChange: (id: string) => void
   onApiKeyChange: (key: string) => void
+  onUserIdChange: (id: string) => void
   onNewSession: () => void
   onClearChat: () => void
   onSwitchSession: (id: string) => void
@@ -17,9 +25,11 @@ type Props = {
 export function SidebarLeft({
   sessionId,
   apiKey,
+  userId,
   health,
   onSessionIdChange,
   onApiKeyChange,
+  onUserIdChange,
   onNewSession,
   onClearChat,
   onSwitchSession,
@@ -53,6 +63,23 @@ export function SidebarLeft({
             清空聊天
           </button>
         </div>
+      </div>
+
+      <div className="section" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+        <div className="section-title">用户隔离</div>
+        <input
+          className="session-input"
+          value={userId}
+          placeholder="X-User-Id（空=anonymous）"
+          spellCheck={false}
+          autoComplete="off"
+          onChange={(e) => {
+            onUserIdChange(e.target.value)
+            setStoredUserId(e.target.value)
+          }}
+          onBlur={() => setStoredUserId(userId || getStoredUserId())}
+        />
+        <div className="api-key-hint">切换用户后，「我的记忆」会按此 ID 刷新</div>
       </div>
 
       <div className="section" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>

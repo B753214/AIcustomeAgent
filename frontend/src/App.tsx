@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { getStoredApiKey, newSessionId, setStoredApiKey } from './api/client'
+import { getStoredApiKey, getStoredUserId, newSessionId, setStoredApiKey, setStoredUserId } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { Header } from './components/Header'
 import { SidebarLeft } from './components/SidebarLeft'
@@ -14,12 +14,13 @@ import './styles/dashboard.css'
 export default function App() {
   const [sessionId, setSessionId] = useState('default')
   const [apiKey, setApiKey] = useState(() => getStoredApiKey())
+  const [userId, setUserId] = useState(() => getStoredUserId())
   const [refreshToken, setRefreshToken] = useState(0)
 
   const bumpRefresh = useCallback(() => setRefreshToken((n) => n + 1), [])
   const { health, online, refresh: refreshHealth } = useHealth()
   const { stats, summary, entries, updatedAt, refresh: refreshMetrics } = useMetrics()
-  const chat = useChat(sessionId, apiKey, () => {
+  const chat = useChat(sessionId, apiKey, userId, () => {
     bumpRefresh()
     void refreshMetrics()
   })
@@ -34,12 +35,18 @@ export default function App() {
           <SidebarLeft
             sessionId={sessionId}
             apiKey={apiKey}
+            userId={userId}
             health={health}
             refreshToken={refreshToken}
             onSessionIdChange={setSessionId}
             onApiKeyChange={(key) => {
               setApiKey(key)
               setStoredApiKey(key)
+            }}
+            onUserIdChange={(id) => {
+              setUserId(id)
+              setStoredUserId(id)
+              bumpRefresh()
             }}
             onNewSession={() => {
               const id = newSessionId()
@@ -61,6 +68,8 @@ export default function App() {
             pipeLabel={chat.pipeLabel}
             sources={chat.sources}
             apiKey={apiKey}
+            userId={userId}
+            refreshToken={refreshToken}
             onUploaded={() => void refreshMetrics()}
           />
         </div>

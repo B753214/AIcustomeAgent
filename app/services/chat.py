@@ -24,6 +24,7 @@ from app.rag.retriever import (
     aanswer_with_rag_stream,
 )
 from app.services.memory.context_builder import build_recent_context
+from app.services.memory.fact_pipeline import maybe_persist_facts_from_turn
 from app.services.memory.summary_service import maybe_summarize
 from app.services.resilience import ainvoke_with_retry
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,11 +118,21 @@ async def _prepare_history(
     create_if_missing: bool = False,
 ) -> list[dict]:
     history = await load_session_history(
-        session_id, user_id, db, create_if_missing=create_if_missing
+        session_id,
+        user_id,
+        db,
+        max_turns=None,
+        include_id=True,
+        create_if_missing=create_if_missing,
     )
-    summary, recent = await maybe_summarize(history)
+    summary, recent = await maybe_summarize(
+        history, session_id=session_id, db=db
+    )
+    recent_for_ctx = [
+        {"role": m["role"], "content": m["content"]} for m in recent
+    ]
     return build_recent_context(
-        recent,
+        recent_for_ctx,
         current_message=message,
         budget=settings.memory_context_token_budget,
         max_turns=settings.memory_max_turns,
@@ -298,6 +309,8 @@ async def _persist_chat_turn(
         intent=intent_val,
         metadata=_turn_metadata(pl, sources=sources),
     )
+    # 长期事实：失败由 maybe_persist 内部吞掉，不阻断主对话
+    await maybe_persist_facts_from_turn(user_id, user_text, assistant_text, db)
 
 
 async def _resolve_owned_session(

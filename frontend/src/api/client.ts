@@ -1,4 +1,5 @@
 const API_KEY_STORAGE = 'dashboard_api_key'
+const USER_ID_STORAGE = 'dashboard_user_id'
 
 export function getStoredApiKey(): string {
   return (sessionStorage.getItem(API_KEY_STORAGE) || '').trim()
@@ -8,10 +9,24 @@ export function setStoredApiKey(key: string) {
   sessionStorage.setItem(API_KEY_STORAGE, key.trim())
 }
 
-export function apiHeaders(extra: Record<string, string> = {}, apiKey?: string): HeadersInit {
+export function getStoredUserId(): string {
+  return (sessionStorage.getItem(USER_ID_STORAGE) || '').trim()
+}
+
+export function setStoredUserId(userId: string) {
+  sessionStorage.setItem(USER_ID_STORAGE, userId.trim())
+}
+
+export function apiHeaders(
+  extra: Record<string, string> = {},
+  apiKey?: string,
+  userId?: string,
+): HeadersInit {
   const headers: Record<string, string> = { ...extra }
   const key = (apiKey ?? getStoredApiKey()).trim()
   if (key) headers['X-API-Key'] = key
+  const uid = (userId ?? getStoredUserId()).trim()
+  if (uid) headers['X-User-Id'] = uid
   return headers
 }
 

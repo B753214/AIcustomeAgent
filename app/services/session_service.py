@@ -128,10 +128,11 @@ async def load_session_history(
     session_id: str,
     user_id: str,
     db: AsyncSession,
-    max_turns: int = settings.memory_max_turns,
+    max_turns: int | None = None,
     *,
     create_if_missing: bool = True,
     detail: bool = False,
+    include_id: bool = True,
 ) -> list[dict]:
     uid = _norm_user(user_id)
     if create_if_missing:
@@ -150,20 +151,23 @@ async def load_session_history(
         stmt = stmt.limit(max_turns * 2)
     result = await db.execute(stmt)
     messages = list(reversed(result.scalars().all()))
-    if not detail:
-        return [{"role": m.role, "content": m.content} for m in messages]
-    return [
-        {
-            "role": m.role,
-            "content": m.content,
-            "intent": m.intent,
-            "engine": m.engine,
-            "run_id": m.run_id,
-            "metadata": m.message_metadata,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-        }
-        for m in messages
-    ]
+    out: list[dict] = []
+    for m in messages:
+        item: dict = {"role": m.role, "content": m.content}
+        if include_id:
+            item["id"] = m.id
+        if detail:
+            item.update(
+                {
+                    "intent": m.intent,
+                    "engine": m.engine,
+                    "run_id": m.run_id,
+                    "metadata": m.message_metadata,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+            )
+        out.append(item)
+    return out
 
 _data_policy = DataPolicy()
 

@@ -117,6 +117,12 @@ class Settings(BaseSettings):
     memory_summary_keep_turns: int = 3  # 摘要后仍保留的最近原文轮数
     memory_summary_prompt_version: str = "v1"
 
+    memory_fact_extract_enabled: bool = False  # 总开关，默认关更安全
+    memory_fact_auto_active: bool = True  # False 则全部先 candidate
+    memory_fact_min_confidence_active: float = 0.7  # explicit 升 active 的最低置信
+    # off=不抽；heuristic=命中关键词才抽；always=每轮都抽（贵）
+    memory_fact_trigger_mode: str = "heuristic"
+
     @model_validator(mode="after")
     def fill_embedding_aliases(self) -> "Settings":
         """embedding_* 未配置时，回落到 AIROBOT_EMBEDDING_*，避免双份必填。"""

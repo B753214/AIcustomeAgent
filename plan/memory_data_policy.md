@@ -69,15 +69,18 @@
 
 ---
 
-## 5. Semantic 写入门槛（预告 M4，本步只定规矩）
+## 5. Semantic 写入门槛（M4-1，详见 [memory_fact_policy.md](./memory_fact_policy.md)）
 
 | source_type | 条件 | 初始 status |
 |-------------|------|-------------|
-| `explicit` | 用户明确「请记住…」或确认偏好 | 可达 `active` |
+| `explicit` | 用户明确「请记住…」或确认偏好 | 非敏感且高置信可达 `active` |
 | `inferred` | 模型从对话推断 | 默认 `candidate`，低置信/敏感须确认 |
 | `imported` | 运营导入 | 按导入策略，须审计 |
 
-**永远不要自动 active：** 证件号、密码类、仅出现一次的订单号/验证码。
+**永远不要自动 active：** 证件号、密码类、仅出现一次的订单号/验证码。  
+**禁止写入 Semantic：** 天气、单次物流/订单状态、未确认的纯猜测（见 M4-1 对照表）。
+
+表模型：`memory_facts`（`app/models/memory_facts.py`）；分类函数：`should_persist_fact`。
 
 ---
 
@@ -90,8 +93,8 @@
 
 ---
 
-## 7. 不要做（本步边界）
+## 7. 不要做（M0-2 边界；历史）
 
 - 不改 `AgentRuntime` / 不强制改 `DataPolicy` 代码（可列 TODO）  
-- 不建 `memory_facts` 表  
-- 不把本策略当成已在写库路径生效——生效以 M2-4 验收为准  
+- ~~不建 `memory_facts` 表~~ → **M4 已建模**；写入须遵守 [memory_fact_policy.md](./memory_fact_policy.md)  
+- M0-2 策略本身不自动生效写库——会话脱敏以 M2-4 为准；长期事实写入以 M4-2+ 为准  

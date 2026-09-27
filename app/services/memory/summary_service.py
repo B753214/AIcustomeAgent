@@ -1,12 +1,15 @@
-"""滚动摘要：切分 + LLM 结构化输出 + 文本化（M3-4）；失败降级见 M3-5。"""
+"""滚动摘要：切分 + LLM（M3-4）；失败降级（M3-5）；覆盖范围缓存（M3-6）。"""
 from __future__ import annotations
 
 import logging
 from typing import Any
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
 from app.harness.model import get_llm
 from app.schema.memory_summary import SessionSummaryPayload
+from app.services.memory.summary_store import get_session_summary, upsert_session_summary
 
 logger = logging.getLogger("airobot.memory")
 
@@ -66,6 +69,32 @@ def split_for_summary(
     return old, recent
 
 
+def _cache_hit(
+    *,
+    stored_version: str | None,
+    through_message_id: str | None,
+    old: list[dict[str, Any]],
+    prompt_version: str,
+) -> bool:
+    """version 一致且 through 盖住本次 old 末尾 → 命中。"""
+    if not old or not through_message_id:
+        return False
+    if stored_version != prompt_version:
+        return False
+    last_id = old[-1].get("id")
+    return bool(last_id) and last_id == through_message_id
+
+
+def _payload_from_stored(summary_json: Any) -> SessionSummaryPayload | None:
+    if not isinstance(summary_json, dict):
+        return None
+    try:
+        return SessionSummaryPayload.model_validate(summary_json)
+    except Exception as e:
+        logger.warning("stored session summary invalid: %s", e)
+        return None
+
+
 async def summarize_messages(messages: list[dict[str, Any]]) -> SessionSummaryPayload:
     llm = get_llm().with_structured_output(SessionSummaryPayload)
     return await llm.ainvoke(
@@ -75,14 +104,47 @@ async def summarize_messages(messages: list[dict[str, Any]]) -> SessionSummaryPa
 
 async def maybe_summarize(
     history: list[dict[str, Any]] | None,
+    *,
+    session_id: str | None = None,
+    db: AsyncSession | None = None,
 ) -> tuple[SessionSummaryPayload | None, list[dict[str, Any]]]:
-    """触发则摘要 old，返回 (summary, recent)；失败则 (None, 全量) 不阻断主对话。"""
+    """触发则摘要 old；缓存命中跳过 LLM；失败则 (None, 全量)。"""
     old, recent = split_for_summary(history)
     if not old:
         return None, recent
+
+    prompt_version = settings.memory_summary_prompt_version
+    can_persist = bool(session_id) and db is not None
+
+    if can_persist:
+        row = await get_session_summary(session_id, db)
+        if row is not None and _cache_hit(
+            stored_version=row.prompt_version,
+            through_message_id=row.through_message_id,
+            old=old,
+            prompt_version=prompt_version,
+        ):
+            cached = _payload_from_stored(row.summary)
+            if cached is not None:
+                return cached, recent
+
     try:
         summary = await summarize_messages(old)
-        return summary, recent
     except Exception as e:
         logger.warning("session summary failed, fallback to truncate: %s", e)
         return None, list(history or [])
+
+    if can_persist:
+        try:
+            await upsert_session_summary(
+                session_id,
+                db,
+                summary=summary.model_dump(),
+                from_message_id=old[0].get("id"),
+                through_message_id=old[-1].get("id"),
+                prompt_version=prompt_version,
+            )
+        except Exception as e:
+            logger.warning("session summary persist failed: %s", e)
+
+    return summary, recent

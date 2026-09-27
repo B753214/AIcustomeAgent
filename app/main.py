@@ -12,6 +12,14 @@ from app.harness.adapter.run_http import event_to_dict, run_to_dict
 from app.harness.runtime.cancellation import CancellationToken
 from app.harness_storage import get_run, list_events
 from app.services.auth import get_user_id, verify_api_key
+from app.schema.memory_fact import MemoryFactOut, MemoryFactUpdate
+from app.services.memory.fact_store import (
+    confirm_fact,
+    forget_fact,
+    get_fact,
+    list_facts,
+    update_fact,
+)
 from app.services.ratelimit import limiter
 import uvicorn
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, Request, Query
@@ -689,6 +697,75 @@ async def delete_sessions_ep(
     if session is None:
         raise HTTPException(status_code=404, detail="会话不存在或无权访问")
     return _session_public(session)
+
+
+def _fact_public(row) -> dict:
+    return MemoryFactOut.from_row(row).model_dump(mode="json")
+
+
+@app.get("/api/v1/memory/facts")
+async def list_memory_facts_ep(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+    status: str | None = Query(default=None, description="active | candidate；默认两者"),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    rows = await list_facts(user_id, db, status=status, limit=limit)
+    return [_fact_public(r) for r in rows]
+
+
+@app.get("/api/v1/memory/facts/{fact_id}")
+async def get_memory_fact_ep(
+    fact_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    fact = await get_fact(user_id, fact_id, db)
+    if fact is None:
+        raise HTTPException(status_code=404, detail="事实不存在或无权访问")
+    return _fact_public(fact)
+
+
+@app.patch("/api/v1/memory/facts/{fact_id}")
+async def patch_memory_fact_ep(
+    fact_id: str,
+    body: MemoryFactUpdate,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    fact = await update_fact(user_id, fact_id, body.content, db)
+    if fact is None:
+        raise HTTPException(status_code=404, detail="事实不存在或无权访问")
+    return _fact_public(fact)
+
+
+@app.post("/api/v1/memory/facts/{fact_id}/forget")
+async def forget_memory_fact_ep(
+    fact_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    fact = await forget_fact(user_id, fact_id, db)
+    if fact is None:
+        raise HTTPException(status_code=404, detail="事实不存在或无权访问")
+    return _fact_public(fact)
+
+
+@app.post("/api/v1/memory/facts/{fact_id}/confirm")
+async def confirm_memory_fact_ep(
+    fact_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+    _: None = Depends(verify_api_key),
+):
+    fact = await confirm_fact(user_id, fact_id, db)
+    if fact is None:
+        raise HTTPException(status_code=404, detail="事实不存在或无权访问")
+    return _fact_public(fact)
 
 
 if __name__ == "__main__":

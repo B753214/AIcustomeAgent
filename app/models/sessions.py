@@ -100,5 +100,46 @@ class ChatMessage(Base):
 
 
 class SessionSummary(Base):
+    """会话级滚动摘要：一会话一条，覆盖 [from_message_id, through_message_id]。"""
+
     __tablename__ = "session_summaries"
-    
+
+    session_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("chat_sessions.session_id", ondelete="CASCADE"),
+        primary_key=True,
+        comment="一会话一条摘要",
+    )
+    summary: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=dict,
+        comment="topic / known_facts / decisions / unresolved",
+    )
+    from_message_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("chat_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="覆盖起点消息 ID",
+    )
+    through_message_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("chat_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="覆盖终点消息 ID",
+    )
+    prompt_version: Mapped[str] = mapped_column(
+        String(16),
+        default="v1",
+        nullable=False,
+        comment="prompt 版本号，变更时触发摘要重建",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow_naive, onupdate=_utcnow_naive
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<SessionSummary(session_id={self.session_id}, "
+            f"prompt={self.prompt_version})>"
+        )

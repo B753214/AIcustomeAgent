@@ -2,17 +2,31 @@ import { useRef, useState } from 'react'
 import { apiHeaders, formatHttpError } from '../api/client'
 import { STAGES } from '../constants'
 import type { PipeStageState } from '../types'
+import { MemoryFactsPanel } from './MemoryFactsPanel'
 
 type Props = {
   pipeState: Record<string, PipeStageState>
   pipeLabel: string
   sources: string[]
   apiKey: string
+  userId: string
+  refreshToken?: number
   onUploaded?: () => void
 }
 
-export function SidebarRight({ pipeState, pipeLabel, sources, apiKey, onUploaded }: Props) {
+type RightTab = 'pipeline' | 'memory'
+
+export function SidebarRight({
+  pipeState,
+  pipeLabel,
+  sources,
+  apiKey,
+  userId,
+  refreshToken = 0,
+  onUploaded,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [tab, setTab] = useState<RightTab>('pipeline')
   const [dragOver, setDragOver] = useState(false)
   const [uploadResult, setUploadResult] = useState<string>('')
   const [uploadOk, setUploadOk] = useState(false)
@@ -26,7 +40,7 @@ export function SidebarRight({ pipeState, pipeLabel, sources, apiKey, onUploaded
     try {
       const resp = await fetch('/api/v1/ingest', {
         method: 'POST',
-        headers: apiHeaders({}, apiKey),
+        headers: apiHeaders({}, apiKey, userId),
         body: form,
       })
       if (!resp.ok) {
@@ -54,77 +68,102 @@ export function SidebarRight({ pipeState, pipeLabel, sources, apiKey, onUploaded
 
   return (
     <div className="sidebar-right">
-      <div className="panel" style={{ flex: 1 }}>
-        <div className="panel-title">
-          全链路可视化 <span className="pipe-state">{pipeLabel}</span>
-        </div>
-        <div>
-          {STAGES.map((s) => {
-            const st = pipeState[s.key] || { status: 'wait', ms: null, desc: '' }
-            return (
-              <div key={s.key} className={`pstep ${st.status}`}>
-                <div className="icon">{s.icon}</div>
-                <div className="body">
-                  <div className="title">
-                    {s.name} {st.ms != null ? <span className="ms">{st.ms}ms</span> : null}
-                  </div>
-                  {st.desc ? <div className="desc">{st.desc}</div> : null}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-title">
-          来源引用{' '}
-          <span className="tag">{sources.length ? `${sources.length} 条` : ''}</span>
-        </div>
-        <div>
-          {!sources.length ? (
-            <span className="sources-empty">等待对话…</span>
-          ) : (
-            sources.map((s) => (
-              <span key={s} className="source-tag" title={s}>
-                {s}
-              </span>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-title">知识库上传</div>
-        <div
-          className={`upload-zone${dragOver ? ' dragover' : ''}`}
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragOver(true)
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault()
-            setDragOver(false)
-            void uploadFile(e.dataTransfer.files[0])
-          }}
+      <div className="right-tabs">
+        <button
+          type="button"
+          className={`right-tab${tab === 'pipeline' ? ' active' : ''}`}
+          onClick={() => setTab('pipeline')}
         >
-          拖拽文件到此处，或点击选择
-          <br />
-          <span style={{ fontSize: 11 }}>支持 PDF / DOCX / MD / TXT</span>
-        </div>
-        <input
-          ref={inputRef}
-          type="file"
-          style={{ display: 'none' }}
-          accept=".pdf,.docx,.md,.txt,.markdown"
-          onChange={(e) => void uploadFile(e.target.files?.[0])}
-        />
-        <div className="upload-result">
-          {uploadResult ? <span className={uploadOk ? 'ok' : 'err'}>{uploadResult}</span> : null}
-        </div>
+          链路
+        </button>
+        <button
+          type="button"
+          className={`right-tab${tab === 'memory' ? ' active' : ''}`}
+          onClick={() => setTab('memory')}
+        >
+          我的记忆
+        </button>
       </div>
+
+      {tab === 'memory' ? (
+        <div className="panel memory-tab-body">
+          <MemoryFactsPanel apiKey={apiKey} userId={userId} refreshToken={refreshToken} />
+        </div>
+      ) : (
+        <>
+          <div className="panel" style={{ flex: 1 }}>
+            <div className="panel-title">
+              全链路可视化 <span className="pipe-state">{pipeLabel}</span>
+            </div>
+            <div>
+              {STAGES.map((s) => {
+                const st = pipeState[s.key] || { status: 'wait', ms: null, desc: '' }
+                return (
+                  <div key={s.key} className={`pstep ${st.status}`}>
+                    <div className="icon">{s.icon}</div>
+                    <div className="body">
+                      <div className="title">
+                        {s.name} {st.ms != null ? <span className="ms">{st.ms}ms</span> : null}
+                      </div>
+                      {st.desc ? <div className="desc">{st.desc}</div> : null}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-title">
+              来源引用{' '}
+              <span className="tag">{sources.length ? `${sources.length} 条` : ''}</span>
+            </div>
+            <div>
+              {!sources.length ? (
+                <span className="sources-empty">等待对话…</span>
+              ) : (
+                sources.map((s) => (
+                  <span key={s} className="source-tag" title={s}>
+                    {s}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-title">知识库上传</div>
+            <div
+              className={`upload-zone${dragOver ? ' dragover' : ''}`}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragOver(true)
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                void uploadFile(e.dataTransfer.files[0])
+              }}
+            >
+              拖拽文件到此处，或点击选择
+              <br />
+              <span style={{ fontSize: 11 }}>支持 PDF / DOCX / MD / TXT</span>
+            </div>
+            <input
+              ref={inputRef}
+              type="file"
+              style={{ display: 'none' }}
+              accept=".pdf,.docx,.md,.txt,.markdown"
+              onChange={(e) => void uploadFile(e.target.files?.[0])}
+            />
+            <div className="upload-result">
+              {uploadResult ? <span className={uploadOk ? 'ok' : 'err'}>{uploadResult}</span> : null}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

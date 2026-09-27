@@ -66,3 +66,14 @@ export type TraceSummary = {
   total?: number
   blocked?: number
 }
+
+export type MemoryFact = {
+  id: string
+  kind: string
+  key: string
+  content: string
+  status: string
+  confidence: number
+  source_type: string
+  updated_at?: string | null
+}

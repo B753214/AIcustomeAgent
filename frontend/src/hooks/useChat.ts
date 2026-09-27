@@ -17,7 +17,7 @@ function nextId() {
   return `m-${Date.now()}-${msgSeq}`
 }
 
-export function useChat(sessionId: string, apiKey: string, onDone?: () => void) {
+export function useChat(sessionId: string, apiKey: string, userId: string, onDone?: () => void) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [pipeState, setPipeState] = useState(emptyPipe)
@@ -61,7 +61,9 @@ export function useChat(sessionId: string, apiKey: string, onDone?: () => void) 
     resetPipeline()
     setSources([])
     try {
-      const resp = await fetch(`/api/v1/sessions/${encodeURIComponent(sid)}/history`)
+      const resp = await fetch(`/api/v1/sessions/${encodeURIComponent(sid)}/history`, {
+        headers: apiHeaders({}, apiKey, userId),
+      })
       if (!resp.ok) throw new Error('load failed')
       const data = (await resp.json()) as { messages?: { role: string; content: string }[] }
       const msgs = data.messages || []
@@ -76,7 +78,7 @@ export function useChat(sessionId: string, apiKey: string, onDone?: () => void) 
     } catch {
       setMessages([{ id: nextId(), role: 'ai', content: '加载历史消息失败' }])
     }
-  }, [resetPipeline])
+  }, [apiKey, resetPipeline, userId])
 
   const processEvent = useCallback(
     (ev: Record<string, unknown>, bubbleId: string) => {
@@ -149,7 +151,7 @@ export function useChat(sessionId: string, apiKey: string, onDone?: () => void) 
       try {
         const resp = await fetch('/api/v1/chat/stream', {
           method: 'POST',
-          headers: apiHeaders({ 'Content-Type': 'application/json' }, apiKey),
+          headers: apiHeaders({ 'Content-Type': 'application/json' }, apiKey, userId),
           body: JSON.stringify({ message: trimmed, session_id: sid }),
         })
         if (!resp.ok) {
@@ -223,7 +225,7 @@ export function useChat(sessionId: string, apiKey: string, onDone?: () => void) 
         onDone?.()
       }
     },
-    [apiKey, markStage, onDone, processEvent, resetPipeline, sending, sessionId],
+    [apiKey, markStage, onDone, processEvent, resetPipeline, sending, sessionId, userId],
   )
 
   return {

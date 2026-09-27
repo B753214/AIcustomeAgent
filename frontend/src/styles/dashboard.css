@@ -302,7 +302,7 @@ header .meta {
 }
 
 .msg.ai.typing::after {
-  content: '▍';
+  content: 'â';
   color: var(--accent);
   animation: blink 1s infinite;
 }
@@ -372,7 +372,7 @@ header .meta {
 }
 
 .sidebar-right {
-  width: 280px;
+  width: 300px;
   border-left: 1px solid var(--line);
   background: var(--card);
   display: flex;
@@ -732,4 +732,183 @@ header .meta {
 ::-webkit-scrollbar-thumb {
   background: var(--line);
   border-radius: 3px;
+}
+
+/* ¡ª¡ª M4-6-FE£ºÎÒµÄ¼ÇÒä ¡ª¡ª */
+.right-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--card2);
+}
+
+.right-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.right-tab:hover {
+  color: var(--fg);
+}
+
+.right-tab.active {
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.memory-tab-body {
+  flex: 1;
+  overflow-y: auto;
+  border-bottom: none;
+}
+
+.memory-panel .panel-title {
+  justify-content: flex-start;
+}
+
+.memory-refresh {
+  margin-left: auto;
+}
+
+.memory-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.memory-filter {
+  background: var(--chip);
+  border: none;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.memory-filter.active {
+  color: #fff;
+  background: var(--accent);
+}
+
+.memory-error {
+  color: var(--err);
+  font-size: 11px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.memory-empty {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 8px 0;
+  line-height: 1.5;
+}
+
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.memory-item {
+  background: var(--card2);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.memory-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.memory-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.memory-badge.candidate {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warn);
+}
+
+.memory-badge.active {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--ok);
+}
+
+.memory-kind {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.memory-key {
+  font-size: 11px;
+  color: var(--fg);
+  font-family: ui-monospace, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  white-space: nowrap;
+}
+
+.memory-content {
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.memory-edit {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  margin-bottom: 6px;
+}
+
+.memory-edit:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.memory-meta {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn.ghost.danger {
+  color: var(--err);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.btn.ghost.danger:hover {
+  color: #fff;
+  border-color: var(--err);
 }
