@@ -46,6 +46,13 @@ export type StatsInfo = {
   use_crew?: boolean
   crew_available?: boolean
   ratelimit_blocked?: number
+  cache_hit_rate?: number
+  cache_version?: string
+  cache_ttl_seconds?: number
+  memory_user_id?: string
+  memory_facts_active?: number
+  memory_facts_candidate?: number
+  memory_facts_deleted?: number
 }
 
 export type TraceEntry = {

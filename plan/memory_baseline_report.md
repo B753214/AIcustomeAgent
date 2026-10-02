@@ -98,3 +98,18 @@
 - [x] 引用 M0-3 计数与逐条状态  
 - [x] 缺测项标明 N/A  
 - [x] 不要求 Dashboard  
+
+---
+
+## 7. 复测记录（Memory-M7-5，2026-09-27）
+
+> 不改写 §2 原始基线数字；以下为改造后对照。用例 id/输入未改。
+
+| 指标 | M0 基线 | M7-5 复测 |
+|------|--------:|----------:|
+| `pass` | 4 | **12** |
+| `partial` | 2 | **0** |
+| `fail` | 6 | **0** |
+
+翻新依据：M1 隔离/发号、M2 消息字段、M3 摘要、M5 事实注入、M6 episode+RAG 改写、M7-1/2 缓存 scope/TTL。  
+离线回归跑手：`tests/test_memory_regression.py`（`memory_regression.jsonl`）。

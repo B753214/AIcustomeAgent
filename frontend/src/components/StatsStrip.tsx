@@ -8,9 +8,13 @@ type Props = {
 }
 
 export function StatsStrip({ stats, summary, updatedAt }: Props) {
+  const processHit =
+    stats?.cache_hit_rate != null ? stats.cache_hit_rate : summary.cache_hit_rate
   const hitRate =
-    summary.cache_hit_rate != null ? `${Math.round(summary.cache_hit_rate * 100)}%` : '-'
+    processHit != null ? `${Math.round(processHit * 100)}%` : '-'
   const blocked = summary.blocked ?? stats?.ratelimit_blocked ?? 0
+  const factsActive = stats?.memory_facts_active
+  const factsCandidate = stats?.memory_facts_candidate
 
   return (
     <div className="stats-strip">
@@ -26,7 +30,25 @@ export function StatsStrip({ stats, summary, updatedAt }: Props) {
       </div>
       <div className="stat-card">
         <div className="k">缓存命中</div>
-        <div className={`v ${(summary.cache_hit_rate ?? 0) > 0.3 ? 'ok' : ''}`}>{hitRate}</div>
+        <div className={`v ${(processHit ?? 0) > 0.3 ? 'ok' : ''}`}>{hitRate}</div>
+      </div>
+      <div className="stat-card">
+        <div className="k">缓存版本</div>
+        <div className="v" style={{ fontSize: 12 }}>
+          {stats?.cache_version ?? '-'}
+        </div>
+      </div>
+      <div className="stat-card">
+        <div className="k">事实 active</div>
+        <div className={`v ${(factsActive ?? 0) > 0 ? 'ok' : ''}`}>
+          {factsActive ?? '-'}
+        </div>
+      </div>
+      <div className="stat-card">
+        <div className="k">待确认</div>
+        <div className={`v ${(factsCandidate ?? 0) > 0 ? 'warn' : 'ok'}`}>
+          {factsCandidate ?? '-'}
+        </div>
       </div>
       <div className="stat-card">
         <div className="k">P95延迟</div>

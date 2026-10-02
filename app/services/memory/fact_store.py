@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -163,6 +163,25 @@ async def persist_prepared_facts(
         if row is not None:
             saved.append(row)
     return saved
+
+
+async def count_facts_by_status(
+    user_id: str,
+    db: AsyncSession,
+) -> dict[str, int]:
+    """按 status 统计当前用户事实条数（Dashboard M7-6）。"""
+    out = {"active": 0, "candidate": 0, "deleted": 0, "superseded": 0}
+    stmt = (
+        select(MemoryFact.status, func.count())
+        .where(MemoryFact.user_id == user_id)
+        .group_by(MemoryFact.status)
+    )
+    result = await db.execute(stmt)
+    for status, n in result.all():
+        key = str(status or "")
+        out[key] = int(n)
+    return out
+
 
 async def list_facts(
     user_id: str,

@@ -15,6 +15,7 @@ from app.services.auth import get_user_id, verify_api_key
 from app.schema.memory_fact import MemoryFactOut, MemoryFactUpdate
 from app.services.memory.fact_store import (
     confirm_fact,
+    count_facts_by_status,
     forget_fact,
     get_fact,
     list_facts,
@@ -438,10 +439,21 @@ async def chat_stream(
     )
 
 @app.get("/api/v1/stats", response_model=StatsResponse)
-async def stats_ep(db: AsyncSession = Depends(get_db)):
+async def stats_ep(
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id),
+):
     kb = get_kb_instance(db)
     cache = semantic_cache.stats()
     rl = limiter.stats()
+    hits = int(cache.get("hits") or 0)
+    misses = int(cache.get("misses") or 0)
+    denom = hits + misses
+    fact_counts = {"active": 0, "candidate": 0, "deleted": 0}
+    try:
+        fact_counts = await count_facts_by_status(user_id, db)
+    except Exception:
+        pass
     return StatsResponse(
         total_chunks=kb.chunk_count,
         llm_model=settings.AIROBOT_LLM_MODEL,
@@ -453,12 +465,19 @@ async def stats_ep(db: AsyncSession = Depends(get_db)):
         rerank_enabled=settings.rerank_enabled,
         cache_enabled=settings.cache_enabled,
         cache_size=cache["size"],
-        cache_hits=cache["hits"],
-        cache_misses=cache["misses"],
+        cache_hits=hits,
+        cache_misses=misses,
+        cache_hit_rate=round(hits / denom, 4) if denom else 0.0,
         cache_threshold=settings.cache_threshold,
+        cache_version=str(cache.get("version") or settings.cache_version),
+        cache_ttl_seconds=int(cache.get("ttl_seconds") or settings.cache_ttl_seconds),
         ratelimit_enabled=settings.ratelimit_enabled,
         ratelimit_per_minute=rl["limit_per_minute"],
         ratelimit_blocked=rl["blocked"],
+        memory_user_id=user_id,
+        memory_facts_active=int(fact_counts.get("active") or 0),
+        memory_facts_candidate=int(fact_counts.get("candidate") or 0),
+        memory_facts_deleted=int(fact_counts.get("deleted") or 0),
     )
 
 @app.get("/api/v1/traces")

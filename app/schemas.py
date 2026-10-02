@@ -82,7 +82,15 @@ class StatsResponse(BaseModel):
     cache_size: int = 0
     cache_hits: int = 0
     cache_misses: int = 0
+    cache_hit_rate: float = 0.0
     cache_threshold: float = 0.0
+    cache_version: str = "v1"
+    cache_ttl_seconds: int = 0
     ratelimit_enabled: bool = False
     ratelimit_per_minute: int = 0
     ratelimit_blocked: int = 0
+    # Memory-M7-6：按当前 X-User-Id 隔离
+    memory_user_id: str = "anonymous"
+    memory_facts_active: int = 0
+    memory_facts_candidate: int = 0
+    memory_facts_deleted: int = 0

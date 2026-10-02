@@ -19,7 +19,10 @@ export default function App() {
 
   const bumpRefresh = useCallback(() => setRefreshToken((n) => n + 1), [])
   const { health, online, refresh: refreshHealth } = useHealth()
-  const { stats, summary, entries, updatedAt, refresh: refreshMetrics } = useMetrics()
+  const { stats, summary, entries, updatedAt, refresh: refreshMetrics } = useMetrics(
+    apiKey,
+    userId,
+  )
   const chat = useChat(sessionId, apiKey, userId, () => {
     bumpRefresh()
     void refreshMetrics()
@@ -47,6 +50,7 @@ export default function App() {
               setUserId(id)
               setStoredUserId(id)
               bumpRefresh()
+              void refreshMetrics()
             }}
             onNewSession={() => {
               const id = newSessionId()
