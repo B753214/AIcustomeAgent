@@ -9,7 +9,7 @@ from app.harness.contracts import (
     RunContext,
     RunEvent,
 )
-from app.services.chat import _ensure_session_id, run_astream
+from app.services.chat import harness_run_astream
 
 
 def _meta_from_done(chunk: dict[str, Any]) -> dict[str, Any]:
@@ -24,29 +24,33 @@ def _meta_from_done(chunk: dict[str, Any]) -> dict[str, Any]:
 
 
 class ChatExecutor:
-    """包装 services.chat.run_astream；把旧 chunk 翻译成标准 RunEvent。"""
+    """包装 harness_run_astream；把 chunk 翻译成标准 RunEvent。"""
 
     async def astream(self, ctx: RunContext) -> AsyncIterator[RunEvent]:
         options = ctx.request.options or {}
         token = ctx.cancellation_token
-        session_id = _ensure_session_id(ctx.request.session_id)
-        # 回写，便于 harness_runs 落库带上真实 session_id
-        try:
-            ctx.request.session_id = session_id
-        except Exception:
-            pass
-        user_id = options.get("user_id")
-        async for chunk in run_astream(
+        raw_uid = options.get("user_id")
+        user_id = raw_uid if isinstance(raw_uid, str) else None
+
+        async for chunk in harness_run_astream(
             ctx.request.input,
-            session_id,
+            ctx.request.session_id,
             options.get("kb"),
             options.get("db"),
-            user_id=user_id if isinstance(user_id, str) else None,
+            user_id=user_id,
             run_id=ctx.run_id,
             message_engine="harness",
+            session_factory=options.get("session_factory"),
         ):
             if token is not None and token.is_cancelled():
                 return
+            # 落库用的真实 session_id（归属确认后可能换号）
+            sid = (chunk.get("meta") or {}).get("session_id")
+            if sid:
+                try:
+                    ctx.request.session_id = sid
+                except Exception:
+                    pass
             t = chunk.get("type")
             if t == "token":
                 yield RunEvent(
@@ -79,4 +83,3 @@ class ChatExecutor:
                     },
                 )
                 return
-            # intent 等其它旧事件：跳过（由 stage/done 已覆盖关键信息）

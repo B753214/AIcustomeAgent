@@ -55,7 +55,7 @@ def test_validate_tool_args_invalid_weather():
 
 def test_validate_mcp_schema():
     class MapsArgs(BaseModel):
-        keywords: str = Field(..., min_length=1, max_length=50)
+        keywords: str = Field(..., min_length=1)
 
     class Dummy:
         args_schema = MapsArgs
@@ -67,6 +67,14 @@ def test_validate_mcp_schema():
     cleaned, err = validate_tool_args(Dummy(), "maps_text_search", {})
     assert cleaned is None
     assert "参数无效" in (err or "")
+
+
+def test_validate_does_not_reject_long_strings():
+    long_msg = "查订单 " + ("8" * 2000)
+    cleaned, err = validate_tool_args(object(), "query_order", {"message": long_msg})
+    assert err is None
+    assert cleaned is not None
+    assert cleaned["message"] == long_msg.strip()
 
 
 @pytest.mark.asyncio

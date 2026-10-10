@@ -5,6 +5,7 @@ from app.harness.policies.auth import AuthPolicy
 from app.harness.policies.base import PolicySet
 from app.harness.policies.budget import BudgetPolicy
 from app.harness.policies.timeout import TimeoutPolicy
+from app.harness.policies.tool_policy import ToolPolicy
 
 
 class PolicyRegistry:
@@ -28,10 +29,10 @@ class PolicyRegistry:
 
 
 def register_default_policies(registry: PolicyRegistry | None = None) -> PolicyRegistry:
-    """登记默认策略集。
+    """只登记通用策略：``default`` / ``strict``。
 
-    - ``default``：HTTP 主路径（caller=api 可过；预算与 Run deadline）
-    - ``strict``：验收/单测用（budget=0，几乎必失败）
+    各 Agent 的预算差异不要写在这里——在 ``AgentDefinition.budget`` 上配置，
+    建 ``AgentRuntime(..., budget=defn.budget)`` 时覆盖。
     """
     reg = registry or PolicyRegistry()
     if "default" not in reg.list_names():
@@ -39,13 +40,14 @@ def register_default_policies(registry: PolicyRegistry | None = None) -> PolicyR
             "default",
             PolicySet(
                 auth=AuthPolicy(allowlist={"api", "internal", "cli"}),
-                budget=BudgetPolicy(max_tool_calls=20, max_tokens=None),
+                budget=BudgetPolicy(max_tool_calls=20, max_tokens=5000),
                 timeout=TimeoutPolicy(
                     run_seconds=120,
                     model_seconds=60,
                     tool_seconds=30,
                 ),
                 data=DataPolicy(),
+                tool=ToolPolicy(allowlist=None),
             ),
         )
     if "strict" not in reg.list_names():
@@ -56,6 +58,7 @@ def register_default_policies(registry: PolicyRegistry | None = None) -> PolicyR
                 budget=BudgetPolicy(max_tool_calls=0),
                 timeout=TimeoutPolicy(run_seconds=5, model_seconds=5, tool_seconds=5),
                 data=DataPolicy(),
+                tool=ToolPolicy(allowlist=set()),
             ),
         )
     return reg

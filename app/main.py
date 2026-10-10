@@ -30,9 +30,10 @@ from starlette.responses import JSONResponse, StreamingResponse, HTMLResponse, F
 
 from app.agents.tools import CREW_TOOLS_READY
 from app.config import PROJECT_ROOT, settings
+from app.database import AsyncSession as session_factory
 from app.database import engine, init_db, get_db
 from app.rag.milvus_store import ensure_collection, get_milvus_client
-from app.rag.retriever import aanswer_with_rag, get_kb_instance
+from app.rag.retriever import aanswer_with_rag, get_cached_kb, get_kb_instance
 from app.schemas import ChatResponse, ChatRequest, IngestResponse, StatsResponse
 from app.services.chat import chat, run, run_astream
 from app.services.chunk_service import document_exists_by_name
@@ -386,27 +387,34 @@ def _legacy_agent_chunk_to_wire(chunk: dict) -> dict:
     return chunk
 
 
+async def _kb_for_harness_stream():
+    """取已建好的知识库。没有缓存时短开一次连接创建实例，不把 session 带进 SSE。"""
+    kb = get_cached_kb()
+    if kb is not None:
+        return kb
+    async with session_factory() as db:
+        return get_kb_instance(db)
+
+
 @app.post("/api/v1/chat/stream")
 async def chat_stream(
     req: ChatRequest,
     request: Request,
-    db: AsyncSession = Depends(get_db),
     _: None = Depends(verify_api_key),
     user_id: str = Depends(get_user_id),
 ):
-    # H2-5：Depends(get_db) 仍会随 StreamingResponse 活到流结束（长持有）。
-    # Harness 落库已走 options.session_factory 短事务；完全拆掉 Depends 可后续再收。
-    # 开关开：Runtime SSE；关：旧 run_astream。
+    # 主线 Harness：SSE 不挂 Depends(get_db)。业务读写和 Run 落库都走短事务。
+    # 开关关闭时旧分支仍在生成器里持有一个 session。
     _sse_headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
-    kb = get_kb_instance(db)
 
     if settings.harness_runtime:
+        kb = await _kb_for_harness_stream()
         token = CancellationToken()
 
         async def gen_harness():
             try:
                 async for chunk in chat_harness_stream(
-                    req, kb, db, cancellation_token=token, user_id=user_id
+                    req, kb, None, cancellation_token=token, user_id=user_id
                 ):
                     if await request.is_disconnected():
                         token.cancel()
@@ -424,13 +432,16 @@ async def chat_stream(
         )
 
     async def gen_legacy():
-        try:
-            async for chunk in run_astream(
-                req.message, req.session_id, kb, db, user_id=user_id
-            ):
-                yield _sse(_legacy_agent_chunk_to_wire(chunk))
-        except PermissionError as exc:
-            yield _sse({"type": "error", "detail": str(exc) or "会话不可写入"})
+        async for db in get_db():
+            kb = get_kb_instance(db)
+            try:
+                async for chunk in run_astream(
+                    req.message, req.session_id, kb, db, user_id=user_id
+                ):
+                    yield _sse(_legacy_agent_chunk_to_wire(chunk))
+            except PermissionError as exc:
+                yield _sse({"type": "error", "detail": str(exc) or "会话不可写入"})
+            break
 
     return StreamingResponse(
         gen_legacy(),

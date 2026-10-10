@@ -17,6 +17,7 @@ class KnowledgeExecutor:
                 ctx.request.input,
                 kb,
                 history=options.get("history"),
+                session_factory=options.get("session_factory"),
             )
             yield RunEvent(
                 type=RUN_COMPLETED,

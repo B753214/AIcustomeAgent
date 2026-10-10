@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import AsyncIterator
 
-from app.agents.harness_alarm.executor import AlarmExecutor
 from app.database import AsyncSession as session_factory
 from app.harness.adapter.sse_map import (
     alarm_event_to_sse_dict,
     run_event_to_sse_dict,
 )
 from app.harness.contracts import RunRequest, RunResult
-from app.harness.registry import register_default_policies
+from app.harness.registry import get_builtin_agent_registry, register_default_policies
 from app.harness.runtime import AgentRuntime
 from app.harness.runtime.cancellation import CancellationToken
 
@@ -63,10 +62,13 @@ def to_alarm_response(result: RunResult) -> dict:
 
 
 def build_alarm_runtime() -> AgentRuntime:
+    defn = get_builtin_agent_registry().get("alarm")
     return AgentRuntime(
-        AlarmExecutor(),
+        defn.executor,
         policy_registry=register_default_policies(),
-        policy_set="default",
+        policy_set=defn.policy_set or "default",
+        tool_allowlist=list(defn.tool_allowlist),
+        budget=defn.budget,
     )
 
 

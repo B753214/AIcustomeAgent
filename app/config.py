@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     AIROBOT_LLM_BASE_URL: str
     AIROBOT_LLM_API_KEY: str
     AIROBOT_LLM_MODEL: str
+    # 轻量任务：意图分类 / 检索改写 / 会话摘要 / 事实抽取（默认同主模型可被覆盖）
+    AIROBOT_LLM_LIGHT_MODEL: str = "qwen-turbo"
     provider: str = "openai"
 
     # ---------- Embedding（必选；AIROBOT_EMBEDDING_* 为主）----------
@@ -101,7 +103,7 @@ class Settings(BaseSettings):
     alarm_replan_max_playbook_switch: int = 1
 
     # ---------- Harness ----------
-    harness_runtime: bool = False
+    harness_runtime: bool = True
 
     # ---------- 闲聊工具 ----------
     amap_mcp_enabled: bool = False

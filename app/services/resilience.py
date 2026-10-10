@@ -68,10 +68,18 @@ def invoke_with_retry(fn: Callable, *args: Any, **kwargs: Any) -> Any:
 
 
 async def ainvoke_with_retry(fn: Callable, *args: Any, **kwargs: Any) -> Any:
-    """异步调用版（ainvoke 等）。"""
+    """异步调用版（ainvoke 等）。
+
+    若当前在 Harness Run 的 budget 绑定内：调用前 check，成功后按响应累加 tokens。
+    """
+    from app.harness.policies.budget_usage import check_model_budget, record_model_usage
+
+    check_model_budget()
     async for attempt in AsyncRetrying(**_sync_retry_kwargs()):
         with attempt:
-            return await fn(*args, **kwargs)
+            result = await fn(*args, **kwargs)
+            record_model_usage(result)
+            return result
     raise RuntimeError("unreachable")  # pragma: no cover
 
 

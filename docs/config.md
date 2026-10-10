@@ -21,7 +21,8 @@ PostgreSQL / Milvus 是否必选与健康检查语义见 [deps.md](./deps.md)。
 |---|---|---|
 | `AIROBOT_LLM_BASE_URL` | `AIROBOT_LLM_BASE_URL` | OpenAI 兼容 LLM Base URL |
 | `AIROBOT_LLM_API_KEY` | `AIROBOT_LLM_API_KEY` | LLM API Key |
-| `AIROBOT_LLM_MODEL` | `AIROBOT_LLM_MODEL` | 对话模型名 |
+| `AIROBOT_LLM_MODEL` | `AIROBOT_LLM_MODEL` | 主对话 / RAG / 告警模型名 |
+| `AIROBOT_LLM_LIGHT_MODEL` | `AIROBOT_LLM_LIGHT_MODEL` | 轻量模型（意图分类、检索改写、会话摘要、事实抽取）；默认 `qwen-turbo` |
 | `AIROBOT_EMBEDDING_BASE_URL` | `AIROBOT_EMBEDDING_BASE_URL` | Embedding Base URL |
 | `AIROBOT_EMBEDDING_API_KEY` | `AIROBOT_EMBEDDING_API_KEY` | Embedding Key |
 | `AIROBOT_EMBEDDING_MODEL` | `AIROBOT_EMBEDDING_MODEL` | Embedding 模型名 |

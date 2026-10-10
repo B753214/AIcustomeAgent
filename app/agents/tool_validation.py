@@ -1,4 +1,4 @@
-"""工具参数校验：本地工具显式 Schema + MCP 工具走 args_schema。"""
+"""工具参数校验：类型 + 完整性（必填）；不做超长限制。"""
 from __future__ import annotations
 
 import re
@@ -8,17 +8,13 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
 
-# 单字段字符串上限，防止模型塞超长垃圾参数
-MAX_ARG_CHARS = 500
-MAX_LOCATION_CHARS = 100
-
 _LOCATION_RE = re.compile(r"^[\w\u4e00-\u9fff\s,.\-／/]+$", re.UNICODE)
 
 
 class QueryOrderArgs(BaseModel):
     """query_order 入参。"""
 
-    message: str = Field(..., min_length=1, max_length=MAX_ARG_CHARS, description="用户原话或订单号")
+    message: str = Field(..., min_length=1, description="用户原话或订单号")
 
     @field_validator("message", mode="before")
     @classmethod
@@ -35,7 +31,6 @@ class QueryWeatherArgs(BaseModel):
     location: str = Field(
         ...,
         min_length=1,
-        max_length=MAX_LOCATION_CHARS,
         description="城市拼音/中文名/经纬度，如 beijing、杭州、116.40,39.90",
     )
 
@@ -45,8 +40,6 @@ class QueryWeatherArgs(BaseModel):
         text = str(value or "").strip()
         if not text:
             raise ValueError("location 不能为空")
-        if len(text) > MAX_LOCATION_CHARS:
-            raise ValueError(f"location 过长（>{MAX_LOCATION_CHARS}）")
         if not _LOCATION_RE.match(text):
             raise ValueError("location 含非法字符，仅支持中英文、数字、逗号、点、短横线")
         return text
@@ -69,26 +62,27 @@ def _format_validation_error(name: str, exc: ValidationError) -> str:
 
 
 def _sanitize_loose_args(args: dict[str, Any]) -> dict[str, Any]:
-    """无 Schema 时做保守清洗：只要 dict、字符串截断。"""
+    """无 Schema 时做类型向清洗：保留常见标量/列表，其它转 str；不截断。"""
     cleaned: dict[str, Any] = {}
     for key, value in (args or {}).items():
         if not isinstance(key, str) or not key.strip():
             continue
         if isinstance(value, str):
-            cleaned[key] = value.strip()[:MAX_ARG_CHARS]
+            cleaned[key] = value.strip()
         elif isinstance(value, (int, float, bool)) or value is None:
             cleaned[key] = value
         elif isinstance(value, list):
-            # MCP 偶发 list；限制长度与元素类型
             items = []
-            for item in value[:20]:
+            for item in value:
                 if isinstance(item, str):
-                    items.append(item.strip()[:MAX_ARG_CHARS])
+                    items.append(item.strip())
                 elif isinstance(item, (int, float, bool)) or item is None:
                     items.append(item)
+                else:
+                    items.append(str(item))
             cleaned[key] = items
         else:
-            cleaned[key] = str(value)[:MAX_ARG_CHARS]
+            cleaned[key] = str(value)
     return cleaned
 
 
@@ -107,15 +101,15 @@ def validate_tool_args(
     name: str,
     args: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """校验并规范化工具参数。
+    """校验并规范化工具参数（类型 / 必填）；不做超长检查。
 
     Returns:
         (cleaned_args, None) 成功；
         (None, error_message) 失败（已带 TOOL_ERROR_PREFIX）。
     """
-    raw = dict(args or {})
-    if not isinstance(raw, dict):
+    if args is not None and not isinstance(args, dict):
         return None, f"{TOOL_ERROR_PREFIX} 工具 {name} 参数无效：args 必须是对象"
+    raw = dict(args or {})
 
     schema = _schema_of(tool, name)
     if schema is None:
@@ -123,7 +117,6 @@ def validate_tool_args(
 
     try:
         model = schema.model_validate(raw)
-        # pydantic v2
         if hasattr(model, "model_dump"):
             return model.model_dump(), None
         return model.dict(), None  # type: ignore[attr-defined]

@@ -6,7 +6,11 @@ import pytest
 from app.agents.tools import query_order
 from app.agents.weather import query_weather
 from app.harness.contracts import ToolSpec
-from app.harness.registry.tool_registry import ToolRegistry, register_builtin_tools
+from app.harness.registry.tool_registry import (
+    ToolRegistry,
+    get_builtin_tool_registry,
+    register_builtin_tools,
+)
 
 
 def test_register_get_and_list_specs():
@@ -63,3 +67,10 @@ def test_register_builtin_order_and_weather():
 
     only_order = registry.list_specs(["query_order"])
     assert [s.name for s in only_order] == ["query_order"]
+
+
+def test_get_builtin_tool_registry_is_singleton():
+    a = get_builtin_tool_registry()
+    b = get_builtin_tool_registry()
+    assert a is b
+    assert set(a.list_names()) == {"query_order", "query_weather"}

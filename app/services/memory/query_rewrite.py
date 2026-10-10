@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import settings
-from app.harness.model import get_llm
+from app.harness.model import get_light_llm
 
 logger = logging.getLogger("airobot.memory")
 
@@ -41,7 +41,7 @@ async def rewrite_retrieval_query(question: str, history: list[Any] | None) -> s
         hist = "\n".join(
             f"{role}: {content}" for role, content in (_role_content(m) for m in history[-6:])
         )
-        resp = await get_llm().ainvoke(
+        resp = await get_light_llm().ainvoke(
             [
                 SystemMessage(content=_PROMPT_SYSTEM),
                 HumanMessage(

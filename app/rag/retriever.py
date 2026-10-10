@@ -69,14 +69,18 @@ def answer_with_rag(
     return asyncio.run(_answer_with_rag_fresh_db(query, kb, llm=llm, history=history))
 
 
-async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None) -> Tuple[str, List[str]]:
-    """混合检索（向量+BM25+RRF+rerank）+ RAG 生成，返回 (回答, 来源列表)。"""
+async def retrieve_rag_chunks(query: str, kb: KnowledgeBase, history=None):
+    """只做检索。调用方保证 kb._store 在本次调用期间可用。"""
     q = await rewrite_retrieval_query(query, history)
-    chunks = await kb.search(q)
+    return await kb.search(q)
 
+
+async def answer_from_chunks(
+    query: str, chunks, llm=None, history=None
+) -> Tuple[str, List[str]]:
+    """已有 chunk 时生成答案，不再访问数据库。"""
     if not chunks:
         return ("未检索到相关知识，请尝试其他关键词。", [])
-
     document_content = "\n\n".join([c.content for c in chunks])
     chain = RAG_PROMPT | (llm or build_llm())
     answer = await ainvoke_with_retry(
@@ -86,23 +90,61 @@ async def aanswer_with_rag(query: str, kb: KnowledgeBase, llm=None, history=None
     sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
     return answer, sources
 
-async def aanswer_with_rag_stream(query: str, kb: KnowledgeBase, llm=None, history=None):
-    """检索同 aanswer_with_rag，生成环节用 astream 逐 token yield。"""
-    q = await rewrite_retrieval_query(query, history)
-    chunks = await kb.search(q)
 
+async def iter_rag_tokens(query: str, chunks, llm=None, history=None):
+    """已有 chunk 时逐 token 生成，不再访问数据库。"""
     if not chunks:
         yield {"type": "token", "content": "未检索到相关知识，请尝试其他关键词。"}
         return
+    from app.harness.policies.budget_usage import check_model_budget, record_model_usage
+
+    check_model_budget()
     document_content = "\n\n".join([c.content for c in chunks])
     chain = RAG_PROMPT | (llm or build_llm())
-
     sources = [f"{c.title}#{c.chunk_index}" for c in chunks]
-    full_answer = ""
-    async for chunk in chain.astream({"context": document_content, "question": query, "history": history or []}):
+    last_chunk = None
+    async for chunk in chain.astream(
+        {"context": document_content, "question": query, "history": history or []}
+    ):
+        last_chunk = chunk
         token = chunk.content if hasattr(chunk, "content") else str(chunk)
-        full_answer += token
         yield {"type": "token", "content": token, "sources": sources}
+    if last_chunk is not None:
+        record_model_usage(last_chunk)
+
+
+async def aanswer_with_rag(
+    query: str,
+    kb: KnowledgeBase,
+    llm=None,
+    history=None,
+    session_factory=None,
+) -> Tuple[str, List[str]]:
+    """混合检索（向量+BM25+RRF+rerank）+ RAG 生成，返回 (回答, 来源列表)。
+
+    传入 session_factory 时，检索使用短事务，生成阶段不再持有数据库连接。
+    """
+    if session_factory is not None:
+        async with session_factory() as session:
+            previous = kb._store
+            kb._store = session
+            try:
+                chunks = await retrieve_rag_chunks(query, kb, history)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                kb._store = previous
+    else:
+        chunks = await retrieve_rag_chunks(query, kb, history)
+    return await answer_from_chunks(query, chunks, llm=llm, history=history)
+
+async def aanswer_with_rag_stream(query: str, kb: KnowledgeBase, llm=None, history=None):
+    """检索同 aanswer_with_rag，生成环节用 astream 逐 token yield。"""
+    chunks = await retrieve_rag_chunks(query, kb, history)
+    async for event in iter_rag_tokens(query, chunks, llm=llm, history=history):
+        yield event
 
 def build_embedding()->DashScopeEmbeddings:
     # return OpenAIEmbeddings(

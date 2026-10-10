@@ -35,6 +35,15 @@ class PolicySet:
         self._retry = retry
         self._tool = tool
 
+    @property
+    def tool(self) -> ToolPolicy | None:
+        """工具策略（调用前白名单 / 参数长度）；由 ToolRunner 使用。"""
+        return self._tool
+
+    @property
+    def budget(self) -> BudgetPolicy | None:
+        return self._budget
+
     def apply_before(self, ctx: RunContext) -> RunContext:
         """Executor 运行前：鉴权 → 预算初始化/检查 → 写入 deadline。"""
         if self._auth:

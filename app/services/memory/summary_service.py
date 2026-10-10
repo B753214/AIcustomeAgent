@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.harness.model import get_llm
+from app.harness.model import get_light_llm
 from app.schema.memory_summary import SessionSummaryPayload
 from app.services.memory.summary_store import get_session_summary, upsert_session_summary
 
@@ -96,7 +96,7 @@ def _payload_from_stored(summary_json: Any) -> SessionSummaryPayload | None:
 
 
 async def summarize_messages(messages: list[dict[str, Any]]) -> SessionSummaryPayload:
-    llm = get_llm().with_structured_output(SessionSummaryPayload)
+    llm = get_light_llm().with_structured_output(SessionSummaryPayload)
     return await llm.ainvoke(
         _SUMMARY_PROMPT.format(transcript=_transcript(messages))
     )

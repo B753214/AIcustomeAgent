@@ -17,9 +17,11 @@ from app.harness.contracts import (
     RunRequest,
     RunResult,
 )
-from app.harness.policies import DataPolicy
-from app.harness.registry import PolicyRegistry
+from app.harness.policies import DataPolicy, ToolPolicy
+from app.harness.policies.budget import BudgetPolicy
+from app.harness.registry import PolicyRegistry, get_builtin_tool_registry
 from app.harness.runtime.cancellation import CancellationToken
+from app.harness.tools import ToolRunner, tool_run_scope
 from app.harness_storage import persist_event, persist_run_end, persist_run_start
 
 _TERMINAL = frozenset({RUN_COMPLETED, RUN_FAILED})
@@ -67,21 +69,65 @@ class AgentRuntime:
         *,
         policy_registry: PolicyRegistry | None = None,
         policy_set: str = "default",
+        tool_allowlist: list[str] | None = None,
+        budget: BudgetPolicy | None = None,
     ) -> None:
         self.executor = executor
         self._policy_registry = policy_registry
         self._policy_set = policy_set
+        # None：不按 Agent 名单限制；[]：禁止一切工具名
+        self._tool_allowlist = (
+            None if tool_allowlist is None else list(tool_allowlist)
+        )
+        # 非 None 时覆盖 PolicySet.budget（各 Agent 在建 Runtime 时传入）
+        self._budget = budget
 
     def _apply_pre_policies(self, ctx: RunContext) -> RunContext:
         """Executor 运行前的策略钩子。
 
-        - 未传入 policy_registry：跳过（兼容 AgentRuntime(executor)）。
-        - 已传入：按 policy_set 名取 PolicySet 并 apply_before。
+        - 未传入 policy_registry：若有 budget 覆盖仍 ensure/check；否则跳过。
+        - 已传入且无 budget 覆盖：走 PolicySet.apply_before。
+        - 已传入且有 budget 覆盖：Auth/Timeout 仍来自 PolicySet，Budget 用构造参数。
         - 策略名未注册：ValueError 在 execute_stream 的 try 内被捕获，变为 run.failed。
         """
         if self._policy_registry is None:
+            if self._budget is not None:
+                ctx = self._budget.ensure_budget(ctx)
+                self._budget.check(ctx)
             return ctx
-        return self._policy_registry.get(self._policy_set).apply_before(ctx)
+
+        ps = self._policy_registry.get(self._policy_set)
+        if self._budget is None:
+            return ps.apply_before(ctx)
+
+        if ps._auth:
+            ps._auth.check(ctx)
+        ctx = self._budget.ensure_budget(ctx)
+        self._budget.check(ctx)
+        if ps._timeout:
+            ctx = ps._timeout.apply_deadline(ctx)
+        return ctx
+
+    def _policy_set_obj(self):
+        if self._policy_registry is None:
+            return None
+        try:
+            return self._policy_registry.get(self._policy_set)
+        except ValueError:
+            return None
+
+    def _resolve_tool_policy(self) -> ToolPolicy | None:
+        """Agent 白名单优先；否则用 PolicySet.tool。"""
+        if self._tool_allowlist is not None:
+            return ToolPolicy(allowlist=self._tool_allowlist)
+        ps = self._policy_set_obj()
+        return ps.tool if ps is not None else None
+
+    def _resolve_budget_policy(self) -> BudgetPolicy | None:
+        if self._budget is not None:
+            return self._budget
+        ps = self._policy_set_obj()
+        return ps.budget if ps is not None else None
 
     def _data_policy(self) -> DataPolicy:
         if self._policy_registry is None:
@@ -160,27 +206,55 @@ class AgentRuntime:
         saw_terminal = False
         try:
             ctx = self._apply_pre_policies(ctx)
-            async for ev in self.executor.astream(ctx):
-                if token.is_cancelled():
-                    failed = await self._emit(
-                        factory,
-                        RunEvent(
-                            type=RUN_FAILED,
-                            run_id=run_id,
-                            sequence=seq,
-                            payload=_cancelled_payload(),
-                        ),
-                        terminal=True,
-                    )
-                    yield failed
-                    return
+            if self._tool_allowlist is not None:
+                ctx.metadata["tool_allowlist"] = list(self._tool_allowlist)
+            with tool_run_scope(
+                ctx,
+                ToolRunner(get_builtin_tool_registry()),
+                policy=self._resolve_tool_policy(),
+                allowlist=self._tool_allowlist,
+                budget=self._resolve_budget_policy(),
+            ):
+                async for ev in self.executor.astream(ctx):
+                    if token.is_cancelled():
+                        failed = await self._emit(
+                            factory,
+                            RunEvent(
+                                type=RUN_FAILED,
+                                run_id=run_id,
+                                sequence=seq,
+                                payload=_cancelled_payload(),
+                            ),
+                            terminal=True,
+                        )
+                        yield failed
+                        return
 
-                out = ev.model_copy(update={"run_id": run_id, "sequence": seq})
-                safe = await self._emit(factory, out)
-                if safe.type in _TERMINAL:
-                    saw_terminal = True
-                yield safe
-                seq += 1
+                    out = ev.model_copy(update={"run_id": run_id, "sequence": seq})
+                    if out.type == RUN_COMPLETED and ctx.budget:
+                        payload = dict(out.payload or {})
+                        usage = dict(payload.get("usage") or {})
+                        usage.setdefault(
+                            "tokens_used",
+                            int(ctx.budget.get("tokens_used", 0) or 0),
+                        )
+                        usage.setdefault(
+                            "tool_calls_used",
+                            int(ctx.budget.get("tool_calls_used", 0) or 0),
+                        )
+                        if ctx.budget.get("max_tokens") is not None:
+                            usage.setdefault("max_tokens", ctx.budget.get("max_tokens"))
+                        if ctx.budget.get("max_tool_calls") is not None:
+                            usage.setdefault(
+                                "max_tool_calls", ctx.budget.get("max_tool_calls")
+                            )
+                        payload["usage"] = usage
+                        out = out.model_copy(update={"payload": payload})
+                    safe = await self._emit(factory, out)
+                    if safe.type in _TERMINAL:
+                        saw_terminal = True
+                    yield safe
+                    seq += 1
         except Exception as e:
             if isinstance(e, (TimeoutError, asyncio.TimeoutError)):
                 err = HarnessError.from_exception(

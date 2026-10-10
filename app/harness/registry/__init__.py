@@ -5,7 +5,11 @@ from .agent_registry import (
     register_builtin_agents,
 )
 from .policy_registry import PolicyRegistry, register_default_policies
-from .tool_registry import ToolRegistry, register_builtin_tools
+from .tool_registry import (
+    ToolRegistry,
+    get_builtin_tool_registry,
+    register_builtin_tools,
+)
 
 __all__ = [
     "AgentDefinition",
@@ -14,6 +18,7 @@ __all__ = [
     "get_builtin_agent_registry",
     "ToolRegistry",
     "register_builtin_tools",
+    "get_builtin_tool_registry",
     "PolicyRegistry",
     "register_default_policies",
 ]

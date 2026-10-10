@@ -10,10 +10,11 @@ from app.config import settings
 # 进程内缓存：同一连接身份复用客户端（与 services.chat.get_llm 同思路）
 _llm_cache: dict[tuple[Any, ...], BaseChatModel] = {}
 
-# 角色 → 默认模型名（目前共用主模型；以后可改成独立 Settings 字段）
+# 角色 → 默认模型名（worker=主模型；router/light=便宜小模型）
 ROLE_MODELS: dict[str, str] = {
     "worker": settings.AIROBOT_LLM_MODEL,
-    "router": settings.AIROBOT_LLM_MODEL,
+    "router": settings.AIROBOT_LLM_LIGHT_MODEL,
+    "light": settings.AIROBOT_LLM_LIGHT_MODEL,
     "judge": settings.AIROBOT_LLM_MODEL,
 }
 
@@ -53,6 +54,12 @@ def get_llm(**overrides: Any) -> BaseChatModel:
             model_provider=model_provider,
         )
     return _llm_cache[key]
+
+
+def get_light_llm(**overrides: Any) -> BaseChatModel:
+    """分类 / 改写 / 摘要 / 抽事实等短任务用小模型。"""
+    overrides.setdefault("model", settings.AIROBOT_LLM_LIGHT_MODEL)
+    return get_llm(**overrides)
 
 
 class ModelGateway:

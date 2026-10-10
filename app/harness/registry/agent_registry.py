@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.harness.contracts import AgentExecutor
+from app.harness.policies.budget import BudgetPolicy
 
 
 @dataclass
@@ -13,7 +14,9 @@ class AgentDefinition:
     prompt_version: str = "1.0"
     tool_allowlist: list[str] = field(default_factory=list)
     model_roles: dict[str, str] = field(default_factory=dict)
+    # 通用策略名（auth/timeout/data）；预算用 budget 字段在建 Runtime 时传入覆盖
     policy_set: str = "default"
+    budget: BudgetPolicy | None = None
 
 
 class AgentRegistry:
@@ -43,19 +46,60 @@ def register_builtin_agents(registry: AgentRegistry) -> AgentRegistry:
 
     故意不注册 Crew：H4-5 决策为不下沉 Harness；Crew 仅旧 run 可选遗留。
     echo：H7-3 玩具 Agent，证明只 register 即可扩展。
+
+    各 Agent 预算（建 Runtime 时 ``budget=defn.budget`` 覆盖 default）：
+    - chat 20/8000：ReAct 多轮工具；对话+观察吃 token
+    - knowledge None/4000：无 Harness 工具（allowlist=[]）；只限 token
+      （勿用 max_tool_calls=0：apply_before 时 0>=0 会直接拒跑）
+    - alarm None/6000：同上，流水线多次 LLM，告警上下文更长
+    - echo None/500：玩具，收紧 token
     """
     from app.agents.harness_alarm.executor import AlarmExecutor
     from app.agents.harness_chat.executor import ChatExecutor
     from app.agents.harness_echo.executor import EchoExecutor
     from app.agents.harness_knowledge.executor import KnowledgeExecutor
 
-    registry.register("chat", AgentDefinition(id="chat", executor=ChatExecutor()))
+    registry.register(
+        "chat",
+        AgentDefinition(
+            id="chat",
+            executor=ChatExecutor(),
+            # maps_*：显式允许高德 MCP；未写前缀则 MCP 不可见、不可调
+            tool_allowlist=["query_order", "query_weather", "maps_*"],
+            policy_set="default",
+            budget=BudgetPolicy(max_tool_calls=20, max_tokens=8000),
+        ),
+    )
     registry.register(
         "knowledge",
-        AgentDefinition(id="knowledge", executor=KnowledgeExecutor()),
+        AgentDefinition(
+            id="knowledge",
+            executor=KnowledgeExecutor(),
+            tool_allowlist=[],
+            policy_set="default",
+            budget=BudgetPolicy(max_tool_calls=None, max_tokens=4000),
+        ),
     )
-    registry.register("alarm", AgentDefinition(id="alarm", executor=AlarmExecutor()))
-    registry.register("echo", AgentDefinition(id="echo", executor=EchoExecutor()))
+    registry.register(
+        "alarm",
+        AgentDefinition(
+            id="alarm",
+            executor=AlarmExecutor(),
+            tool_allowlist=[],
+            policy_set="default",
+            budget=BudgetPolicy(max_tool_calls=None, max_tokens=6000),
+        ),
+    )
+    registry.register(
+        "echo",
+        AgentDefinition(
+            id="echo",
+            executor=EchoExecutor(),
+            tool_allowlist=[],
+            policy_set="default",
+            budget=BudgetPolicy(max_tool_calls=None, max_tokens=500),
+        ),
+    )
     return registry
 
 

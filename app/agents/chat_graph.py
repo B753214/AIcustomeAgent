@@ -21,6 +21,10 @@ from app.agents.tool_validation import (
     validate_tool_args,
 )
 from app.config import settings
+from app.harness.contracts import HarnessError
+from app.harness.policies import ToolPolicy, check_model_budget, record_model_usage
+from app.harness.policies.tool_policy import is_tool_allowed
+from app.harness.tools import get_tool_run_binding
 
 TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
 CHAT_REACT_SYSTEM = f"""你是智能运维 Agent 助手，语气专业、简洁、友好。
@@ -56,7 +60,7 @@ class ChatState(TypedDict):
     messages: Annotated[list, add_messages]
     tool_fail_counts: dict[str, int]
 
-async def ensure_chat_tools():
+async def ensureapp():
     """懒加载高德等额外工具（进程内只拉一次）。"""
     global _extra_tools, _extra_tools_loaded
     if _extra_tools_loaded:
@@ -138,12 +142,82 @@ def _chat_tools() -> list:
     ]
 
 
-async def call_model(state: ChatState) -> dict:
-    llm = _build_llm()
+def _tools_for_binding() -> list:
+    """Harness 绑定时按白名单过滤模型可见工具；无绑定则全量。
+
+    MCP 工具也必须出现在 Agent ``tool_allowlist``（可用 ``maps_*`` 前缀），
+    不再自动并入全部已加载 MCP 名。
+    """
     tools = _chat_tools()
-    model = llm.bind_tools(tools)
+    binding = get_tool_run_binding()
+    if binding is None or binding.allowlist is None:
+        return tools
+    return [
+        t
+        for t in tools
+        if is_tool_allowed(getattr(t, "name", None) or "", binding.allowlist)
+    ]
+
+
+def _policy_for_call() -> ToolPolicy | None:
+    """按 Agent 白名单生成 ToolPolicy（含 MCP，不自动放行）。"""
+    binding = get_tool_run_binding()
+    if binding is None:
+        return None
+    if binding.allowlist is not None:
+        return ToolPolicy(allowlist=binding.allowlist)
+    return binding.policy
+
+
+async def _run_tool_via_harness(
+    name: str,
+    args: dict,
+    tool: Any | None,
+) -> str | None:
+    """若在 Harness ToolRunBinding 内：走 ToolRunner / ToolPolicy；否则返回 None 走旧路径。"""
+    binding = get_tool_run_binding()
+    if binding is None:
+        return None
+
+    policy = _policy_for_call()
+    registered = name in binding.runner.registry.list_names()
+
+    try:
+        if binding.budget is not None:
+            binding.budget.check(binding.ctx)
+
+        if registered:
+            result = await binding.runner.arun(
+                name,
+                args,
+                binding.ctx,
+                tool_policy=policy,
+                budget_policy=None,  # 下方统一 increment，避免双重计数
+            )
+            if binding.budget is not None:
+                binding.budget.increment(binding.ctx, tool_calls=1)
+            return str(result)
+
+        if policy is not None:
+            policy.check_call(name, args, binding.ctx)
+        if tool is None:
+            return f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
+        content = await _ainvoke_tool_with_timeout(tool, args, name)
+        if binding.budget is not None and not str(content).startswith(TOOL_ERROR_PREFIX):
+            binding.budget.increment(binding.ctx, tool_calls=1)
+        return content
+    except HarnessError as e:
+        return f"{TOOL_ERROR_PREFIX} {e.message}"
+
+
+async def call_model(state: ChatState) -> dict:
+    check_model_budget()
+    llm = _build_llm()
+    tools = _tools_for_binding()
+    model = llm.bind_tools(tools) if tools else llm
     messages = [SystemMessage(content=CHAT_REACT_SYSTEM)] + list(state["messages"])
     response = await model.ainvoke(messages)
+    record_model_usage(response)
     return {"messages": [response]}
 
 
@@ -188,15 +262,27 @@ async def call_tools(state: ChatState) -> dict:
         tid = tc["id"] if isinstance(tc, dict) else tc.id
         tool = tools_by_name.get(name)
 
-        if tool is None:
+        if tool is None and get_tool_run_binding() is None:
             content = f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
-        else:
+        elif tool is not None:
             cleaned, err = validate_tool_args(tool, name, args)
             if err is not None:
                 content = err
             else:
-                # MCP 工具仅支持 async，统一 ainvoke；外层 wait_for 防挂死
-                content = await _ainvoke_tool_with_timeout(tool, cleaned or {}, name)
+                harness_out = await _run_tool_via_harness(
+                    name, cleaned or {}, tool
+                )
+                if harness_out is not None:
+                    content = harness_out
+                else:
+                    # 非 Harness 入口：仍走 StructuredTool.ainvoke
+                    content = await _ainvoke_tool_with_timeout(
+                        tool, cleaned or {}, name
+                    )
+        else:
+            # 未在 _chat_tools 中（异常名）：Harness 仍可拦白名单
+            harness_out = await _run_tool_via_harness(name, args, None)
+            content = harness_out or f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
 
         _bump_fail_count(counts, name, content)
         outs.append(ToolMessage(content=content, tool_call_id=tid, name=name))

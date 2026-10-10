@@ -50,9 +50,14 @@ def test_register_default_policies_wires_real_policies():
     assert default._auth is not None
     assert default._budget is not None
     assert default._budget.max_tool_calls == 20
+    assert default._budget.max_tokens == 5000
     assert default._timeout is not None
+    assert default.tool is not None
+    assert default.tool.allowlist is None
     strict = reg.get("strict")
     assert strict._budget.max_tool_calls == 0
+    assert strict.tool is not None
+    assert strict.tool.allowlist == set()
 
 
 def test_caller_can_apply_before_without_runtime():
@@ -134,6 +139,38 @@ async def test_runtime_unknown_policy_set_becomes_run_failed():
     assert events[0].type == RUN_STARTED
     assert events[-1].type == RUN_FAILED
     assert "not registered" in (events[-1].payload or {}).get("message", "")
+
+
+@pytest.mark.asyncio
+async def test_runtime_budget_override_beats_policy_set():
+    """建 Runtime 时传入的 budget 覆盖 registry 里 default 的预算。"""
+    called = {"n": 0}
+
+    class FakeExecutor:
+        async def astream(self, ctx: RunContext) -> AsyncIterator[RunEvent]:
+            called["n"] += 1
+            yield RunEvent(
+                type=RUN_COMPLETED,
+                run_id=ctx.run_id,
+                sequence=1,
+                payload={"output": "should-not"},
+            )
+
+    runtime = AgentRuntime(
+        FakeExecutor(),
+        policy_registry=register_default_policies(),
+        policy_set="default",  # default 本身 tool_calls=20，可过
+        budget=BudgetPolicy(max_tool_calls=0, max_tokens=4000),  # Agent 覆盖
+    )
+    events = [
+        ev
+        async for ev in runtime.execute_stream(
+            RunRequest(input="hi", caller="api")
+        )
+    ]
+    assert called["n"] == 0
+    assert events[-1].type == RUN_FAILED
+    assert events[-1].payload["category"] == HarnessErrorCategory.POLICY.value
 
 
 @pytest.mark.asyncio

@@ -95,7 +95,9 @@ def build_chat_runtime(agent_id: str) -> AgentRuntime:
     return AgentRuntime(
         defn.executor,
         policy_registry=register_default_policies(),
-        policy_set="default",
+        policy_set=defn.policy_set or "default",
+        tool_allowlist=list(defn.tool_allowlist),
+        budget=defn.budget,
     )
 
 
@@ -129,7 +131,7 @@ async def chat_harness_http(
 async def chat_harness_stream(
     req: ChatRequest,
     kb: KnowledgeBase,
-    db: object,
+    db: object | None = None,
     *,
     cancellation_token: CancellationToken | None = None,
     user_id: str | None = None,

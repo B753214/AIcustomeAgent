@@ -136,6 +136,10 @@ async def run_chat_react(
             },
         }
     except Exception as e:
+        from app.harness.contracts import HarnessError
+
+        if isinstance(e, HarnessError):
+            raise
         print(f"[chat_react] 失败，降级: {e}")
         return {
             "reply": _FALLBACK,
@@ -260,6 +264,10 @@ async def iter_chat_react(message: str, history: list | None = None):
         yield {"type": "result", **res}
 
     except Exception as e:
+        from app.harness.contracts import HarnessError
+
+        if isinstance(e, HarnessError):
+            raise
         print(f"[iter_chat_react] 失败: {e}")
         yield {"type": "token", "content": _FALLBACK}
         yield {

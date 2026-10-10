@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from app.agents.harness_knowledge.executor import KnowledgeExecutor
+from app.database import AsyncSession as session_factory
 from app.harness.contracts import RunRequest, RunResult
-from app.harness.registry import register_default_policies
+from app.harness.registry import get_builtin_agent_registry, register_default_policies
 from app.harness.runtime import AgentRuntime
 from app.rag.retriever import KnowledgeBase
 
@@ -13,7 +13,7 @@ def to_run_request(query: str, kb: KnowledgeBase) -> RunRequest:
         input=query,
         agent_id="knowledge",
         caller="api",
-        options={"kb": kb},
+        options={"kb": kb, "session_factory": session_factory},
     )
 
 
@@ -37,10 +37,13 @@ def to_retrieval_response(result: RunResult) -> dict:
 
 
 def build_knowledge_runtime() -> AgentRuntime:
+    defn = get_builtin_agent_registry().get("knowledge")
     return AgentRuntime(
-        KnowledgeExecutor(),
+        defn.executor,
         policy_registry=register_default_policies(),
-        policy_set="default",
+        policy_set=defn.policy_set or "default",
+        tool_allowlist=list(defn.tool_allowlist),
+        budget=defn.budget,
     )
 
 

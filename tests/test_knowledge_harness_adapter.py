@@ -20,6 +20,7 @@ def test_to_run_request_maps_query_and_kb():
     assert req.agent_id == "knowledge"
     assert req.caller == "api"
     assert req.options["kb"] is kb
+    assert req.options["session_factory"] is not None
 
 
 def test_to_retrieval_response_maps_result():
@@ -45,9 +46,14 @@ def test_to_retrieval_response_includes_error():
 
 @pytest.mark.asyncio
 async def test_knowledge_harness_http_uses_executor():
-    with patch(
-        "app.agents.harness_knowledge.executor.aanswer_with_rag",
-        new=AsyncMock(return_value=("pong", ["s1"])),
+    with (
+        patch(
+            "app.agents.harness_knowledge.executor.aanswer_with_rag",
+            new=AsyncMock(return_value=("pong", ["s1"])),
+        ),
+        patch("app.harness.runtime.agent_runtime.persist_run_start", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_event", new=AsyncMock()),
+        patch("app.harness.runtime.agent_runtime.persist_run_end", new=AsyncMock()),
     ):
         resp = await knowledge_harness_http("ping", kb=object())  # type: ignore[arg-type]
     assert resp["reply"] == "pong"

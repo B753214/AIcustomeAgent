@@ -15,6 +15,7 @@ from app.harness.contracts import (
 )
 from app.harness.registry import ToolRegistry
 from app.harness.runtime.cancellation import CancellationToken
+from app.harness.policies import ToolPolicy
 from app.harness.tools import ToolRunner
 
 
@@ -84,6 +85,34 @@ async def test_allowlist_policy():
         )
     assert ei.value.category is HarnessErrorCategory.POLICY
     assert called["n"] == 0
+
+
+@pytest.mark.asyncio
+async def test_tool_policy_check_call():
+    called = {"n": 0}
+
+    def handler(message: str) -> str:
+        called["n"] += 1
+        return message
+
+    runner = _runner_with("echo", handler, required=["message"])
+    policy = ToolPolicy(allowlist={"echo"})
+    assert await runner.arun(
+        "echo",
+        {"message": "ok"},
+        _ctx(),
+        tool_policy=policy,
+    ) == "ok"
+
+    with pytest.raises(HarnessError) as ei:
+        await runner.arun(
+            "echo",
+            {"message": "ok"},
+            _ctx(),
+            tool_policy=ToolPolicy(allowlist={"other"}),
+        )
+    assert ei.value.category is HarnessErrorCategory.POLICY
+    assert called["n"] == 1
 
 
 @pytest.mark.asyncio

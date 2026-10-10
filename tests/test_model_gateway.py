@@ -15,13 +15,17 @@ def test_get_known_roles_pass_role_default_model(mock_get_llm: MagicMock):
     mock_get_llm.return_value = fake
     gw = ModelGateway()
 
-    for role in ("worker", "router", "judge"):
+    for role in ("worker", "router", "light", "judge"):
         mock_get_llm.reset_mock()
         assert gw.get(role) is fake
         mock_get_llm.assert_called_once()
         kwargs = mock_get_llm.call_args.kwargs
         assert kwargs["model"] == ROLE_MODELS[role]
         assert kwargs["base_url"] == settings.AIROBOT_LLM_BASE_URL
+
+    assert ROLE_MODELS["router"] == settings.AIROBOT_LLM_LIGHT_MODEL
+    assert ROLE_MODELS["light"] == settings.AIROBOT_LLM_LIGHT_MODEL
+    assert ROLE_MODELS["worker"] == settings.AIROBOT_LLM_MODEL
 
 
 @patch("app.harness.model.model_gateway.get_llm")

@@ -2,7 +2,9 @@ import asyncio
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from enum import StrEnum
+from typing import Any
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -16,13 +18,15 @@ from app.agents.chat_react import iter_chat_react, run_chat_react
 from app.agents.crew import run_crew
 from app.agents.tools import CREW_TOOLS_READY
 from app.config import settings
+from app.database import AsyncSession as _session_factory
 from app.rag.retriever import (
     aanswer_with_rag,
     bind_kb_for_crew,
     clear_kb_for_crew,
     get_kb_instance,
+    iter_rag_tokens,
     KnowledgeBase,
-    aanswer_with_rag_stream,
+    retrieve_rag_chunks,
 )
 from app.services.memory import list_facts
 from app.services.memory.alarm_episode import extract_episode_from_alarm_result, save_alarm_episode, get_alarm_episode, \
@@ -156,7 +160,9 @@ async def _prepare_history(
 
 async def classify_intent(message: str, history: list) -> IntentEnum:
     try:
-        llm_struct = get_llm().with_structured_output(Classifier)
+        from app.harness.model import get_light_llm
+
+        llm_struct = get_light_llm().with_structured_output(Classifier)
         # 兼容：如果传入的仍是 dict，先转为 LangChain Message
         lc_history = _to_langchain_messages(history) if history and isinstance(history[0], dict) else history
         response = await ainvoke_with_retry(
@@ -168,6 +174,10 @@ async def classify_intent(message: str, history: list) -> IntentEnum:
             return IntentEnum.CHAT
         return response.intent
     except Exception as e:
+        from app.harness.contracts import HarnessError
+
+        if isinstance(e, HarnessError):
+            raise
         print(f"[classify_intent] 解析失败，回退为 CHAT: {e}")
         return IntentEnum.CHAT
 
@@ -465,21 +475,198 @@ async def run(
     return _with_session_meta(res, session_id)
 
 
-async def run_astream(
+@asynccontextmanager
+async def _db_scope(db: AsyncSession | None, factory=None):
+    """有外部 session 时原样借用且不提交；否则短开短关。"""
+    if db is not None:
+        yield db
+        return
+    maker = factory or _session_factory
+    async with maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def harness_run_astream(
     message: str,
     session_id: str | None,
     kb: KnowledgeBase,
-    db: AsyncSession,
+    db: AsyncSession | None,
     user_id: str | None = None,
     *,
     run_id: str | None = None,
     message_engine: str | None = None,
+    session_factory=None,
 ):
-    session_id, uid = await _resolve_owned_session(session_id, user_id, db)
+    """Harness ChatExecutor 专用：只跑闲聊（chat_react）。
+
+    Adapter 已做过 session_id 字符串发号；此处补 DB 归属 + 拉历史。
+    不再：告警 / 二次分类 / knowledge / Crew。
+    旧统一入口仍用 ``run_astream``。
+    """
+    async with _db_scope(db, session_factory) as scoped:
+        session_id, uid = await _resolve_owned_session(session_id, user_id, scoped)
+        history = await _prepare_history(
+            session_id, uid, scoped, message, create_if_missing=False
+        )
     t_start = time.perf_counter()
-    history = await _prepare_history(
-        session_id, uid, db, message, create_if_missing=False
+    lc_history = _to_langchain_messages(history)
+    query_vector = None
+
+    yield {"type": "stage", "stage": "rate_limit", "msg": "限流检查通过", "ms": 0, "ok": True}
+
+    if settings.cache_enabled and settings.AIROBOT_EMBEDDING_API_KEY and not history:
+        yield {"type": "stage", "stage": "cache", "msg": "语义缓存查询中…", "ms": 0}
+        t_cache = time.perf_counter()
+        query_vector = await asyncio.to_thread(kb.embed_query, message)
+        cached = semantic_cache.get(query_vector, message, user_id=uid)
+        cache_ms = round((time.perf_counter() - t_cache) * 1000, 1)
+        if cached is not None:
+            yield {
+                "type": "stage",
+                "stage": "cache",
+                "msg": "语义缓存命中",
+                "ms": cache_ms,
+                "ok": True,
+                "hit": True,
+            }
+            yield {"type": "token", "content": cached.get("reply", "")}
+            async with _db_scope(db, session_factory) as scoped:
+                await _persist_chat_turn(
+                    session_id,
+                    uid,
+                    message,
+                    cached.get("reply", ""),
+                    scoped,
+                    run_id=run_id,
+                    message_engine=message_engine,
+                    payload=cached,
+                )
+            total_ms = round((time.perf_counter() - t_start) * 1000, 1)
+            traces.record(
+                {
+                    "message": message[:80],
+                    "session_id": session_id,
+                    "status": 200,
+                    "intent": cached.get("intent"),
+                    "engine": cached.get("engine", "chat_react"),
+                    "cache_hit": True,
+                    "cache_checked": True,
+                    "cache_lookup_ms": cache_ms,
+                    "total_ms": total_ms,
+                }
+            )
+            yield {
+                "type": "done",
+                "reply": cached.get("reply", ""),
+                "intent": cached.get("intent", "chat"),
+                "sources": cached.get("sources", []),
+                "engine": cached.get("engine", "chat_react"),
+                "cache_hit": True,
+                "total_ms": total_ms,
+                "meta": {"session_id": session_id},
+            }
+            return
+        yield {
+            "type": "stage",
+            "stage": "cache",
+            "msg": "语义缓存未命中",
+            "ms": cache_ms,
+            "ok": True,
+            "hit": False,
+        }
+    else:
+        reason = "多轮会话" if history else "缓存未开启"
+        yield {
+            "type": "stage",
+            "stage": "cache",
+            "msg": f"跳过语义缓存（{reason}）",
+            "ms": 0,
+            "skipped": True,
+        }
+
+    yield {
+        "type": "stage",
+        "stage": "chat_react",
+        "msg": "闲聊 Agent 处理中…",
+        "ok": True,
+    }
+    full_reply = ""
+    intent: Any = "chat"
+    engine = "chat_react"
+    meta: dict = {}
+    async for ev in iter_chat_react(message, lc_history):
+        et = ev.get("type")
+        if et == "stage":
+            yield ev
+        elif et == "token":
+            full_reply += ev.get("content") or ""
+            yield ev
+        elif et == "result":
+            full_reply = ev.get("reply") or full_reply
+            intent = ev.get("intent") or intent
+            engine = ev.get("engine") or engine
+            meta = dict(ev.get("meta") or {})
+
+    res = {
+        "reply": full_reply,
+        "intent": str(intent),
+        "sources": [],
+        "engine": engine,
+        "cache_hit": False,
+        "meta": meta,
+    }
+    _maybe_cache(query_vector, res, message, uid)
+    async with _db_scope(db, session_factory) as scoped:
+        await _persist_chat_turn(
+            session_id,
+            uid,
+            message,
+            full_reply,
+            scoped,
+            run_id=run_id,
+            message_engine=message_engine,
+            payload=res,
+        )
+    total_ms = round((time.perf_counter() - t_start) * 1000, 1)
+    traces.record(
+        {
+            "message": message[:80],
+            "session_id": session_id,
+            "status": 200,
+            "intent": res["intent"],
+            "engine": engine,
+            "cache_hit": False,
+            "cache_checked": query_vector is not None,
+            "sources": 0,
+            "total_ms": total_ms,
+        }
     )
+    yield {"type": "stage", "stage": "write", "msg": "写入会话记忆", "ok": True}
+    yield {"type": "done", **_with_session_meta(res, session_id), "total_ms": total_ms}
+
+
+async def run_astream(
+    message: str,
+    session_id: str | None,
+    kb: KnowledgeBase,
+    db: AsyncSession | None,
+    user_id: str | None = None,
+    *,
+    run_id: str | None = None,
+    message_engine: str | None = None,
+    session_factory=None,
+):
+    async with _db_scope(db, session_factory) as scoped:
+        session_id, uid = await _resolve_owned_session(session_id, user_id, scoped)
+        history = await _prepare_history(
+            session_id, uid, scoped, message, create_if_missing=False
+        )
+    t_start = time.perf_counter()
     lc_history = _to_langchain_messages(history)
     query_vector = None
 
@@ -495,10 +682,11 @@ async def run_astream(
             yield {"type": "stage", "stage": "cache", "msg": "语义缓存命中", "ms": cache_ms, "ok": True, "hit": True}
             yield {"type": "intent", "intent": cached.get("intent", "chat")}
             yield {"type": "token", "content": cached.get("reply", "")}
-            await _persist_chat_turn(
-                session_id, uid, message, cached.get("reply", ""), db,
-                run_id=run_id, message_engine=message_engine, payload=cached,
-            )
+            async with _db_scope(db, session_factory) as scoped:
+                await _persist_chat_turn(
+                    session_id, uid, message, cached.get("reply", ""), scoped,
+                    run_id=run_id, message_engine=message_engine, payload=cached,
+                )
             total_ms = round((time.perf_counter() - t_start) * 1000, 1)
             traces.record({
                 "message": message[:80], "session_id": session_id, "status": 200,
@@ -528,7 +716,8 @@ async def run_astream(
         full_reply = ""
         sources: list = []
         meta = None
-        alarm_msg = await _alarm_message_for_run(session_id, uid, message, db)
+        async with _db_scope(db, session_factory) as scoped:
+            alarm_msg = await _alarm_message_for_run(session_id, uid, message, scoped)
         async for ev in run_alarm_agent_stream(alarm_msg):
             if ev.get("type") == "token" and ev.get("content"):
                 full_reply += ev["content"]
@@ -542,20 +731,21 @@ async def run_astream(
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
                 meta = ev.get("meta") or meta
-        await _save_alarm_episode_from_result(
-            session_id,
-            uid,
-            {"reply": full_reply, "meta": meta or {}, "sources": sources},
-            db,
-        )
-        await _persist_chat_turn(
-            session_id, uid, message, full_reply, db,
-            run_id=run_id,
-            message_engine=message_engine,
-            payload={"intent": "alarm", "engine": "alarm", "sources": sources, "meta": meta},
-            intent="alarm",
-            sources=sources,
-        )
+        async with _db_scope(db, session_factory) as scoped:
+            await _save_alarm_episode_from_result(
+                session_id,
+                uid,
+                {"reply": full_reply, "meta": meta or {}, "sources": sources},
+                scoped,
+            )
+            await _persist_chat_turn(
+                session_id, uid, message, full_reply, scoped,
+                run_id=run_id,
+                message_engine=message_engine,
+                payload={"intent": "alarm", "engine": "alarm", "sources": sources, "meta": meta},
+                intent="alarm",
+                sources=sources,
+            )
         total_ms = round((time.perf_counter() - t_start) * 1000, 1)
         traces.record({
             "message": message[:80], "session_id": session_id, "status": 200,
@@ -590,10 +780,11 @@ async def run_astream(
                 "engine": "crew", "used_crew": True, "cache_hit": False,
             }
             _maybe_cache(query_vector, res, message, uid)
-            await _persist_chat_turn(
-                session_id, uid, message, reply, db,
-                run_id=run_id, message_engine=message_engine, payload=res,
-            )
+            async with _db_scope(db, session_factory) as scoped:
+                await _persist_chat_turn(
+                    session_id, uid, message, reply, scoped,
+                    run_id=run_id, message_engine=message_engine, payload=res,
+                )
             total_ms = round((time.perf_counter() - t_start) * 1000, 1)
             traces.record({
                 "message": message[:80], "session_id": session_id, "status": 200,
@@ -623,7 +814,8 @@ async def run_astream(
         engine = "alarm"
         yield {"type": "stage", "stage": "alarm", "msg": "意图识别为监控告警", "ok": True}
         alarm_meta = None
-        alarm_msg = await _alarm_message_for_run(session_id, uid, message, db)
+        async with _db_scope(db, session_factory) as scoped:
+            alarm_msg = await _alarm_message_for_run(session_id, uid, message, scoped)
         async for ev in run_alarm_agent_stream(alarm_msg):
             if ev.get("type") == "token" and ev.get("content"):
                 full_reply += ev["content"]
@@ -637,15 +829,23 @@ async def run_astream(
                 full_reply = ev.get("reply") or full_reply
                 sources = ev.get("sources") or sources
                 alarm_meta = ev.get("meta") or alarm_meta
-        await _save_alarm_episode_from_result(
-            session_id,
-            uid,
-            {"reply": full_reply, "meta": alarm_meta or {}, "sources": sources},
-            db,
-        )
+        async with _db_scope(db, session_factory) as scoped:
+            await _save_alarm_episode_from_result(
+                session_id,
+                uid,
+                {"reply": full_reply, "meta": alarm_meta or {}, "sources": sources},
+                scoped,
+            )
     elif intent == "knowledge":
         yield {"type": "stage", "stage": "retrieval", "msg": "混合检索 + RAG 生成中…", "ok": True}
-        async for event in aanswer_with_rag_stream(message, kb, get_llm(), lc_history):
+        async with _db_scope(db, session_factory) as scoped:
+            previous = kb._store
+            kb._store = scoped
+            try:
+                chunks = await retrieve_rag_chunks(message, kb, lc_history)
+            finally:
+                kb._store = previous
+        async for event in iter_rag_tokens(message, chunks, get_llm(), lc_history):
             if event.get("sources"):
                 sources = event["sources"]
             if event["type"] == "token" and event.get("content"):
@@ -673,10 +873,11 @@ async def run_astream(
         "cache_hit": False,
     }
     _maybe_cache(query_vector, res, message, uid)
-    await _persist_chat_turn(
-        session_id, uid, message, full_reply, db,
-        run_id=run_id, message_engine=message_engine, payload=res,
-    )
+    async with _db_scope(db, session_factory) as scoped:
+        await _persist_chat_turn(
+            session_id, uid, message, full_reply, scoped,
+            run_id=run_id, message_engine=message_engine, payload=res,
+        )
     total_ms = round((time.perf_counter() - t_start) * 1000, 1)
     traces.record({
         "message": message[:80], "session_id": session_id, "status": 200,

@@ -81,6 +81,19 @@ def test_register_builtin_agents_ids():
     assert hasattr(registry.get("knowledge").executor, "astream")
     assert hasattr(registry.get("alarm").executor, "astream")
     assert hasattr(registry.get("echo").executor, "astream")
+    assert registry.get("chat").tool_allowlist == [
+        "query_order",
+        "query_weather",
+        "maps_*",
+    ]
+    assert registry.get("chat").policy_set == "default"
+    assert registry.get("chat").budget is not None
+    assert registry.get("chat").budget.max_tokens == 8000
+    assert registry.get("knowledge").tool_allowlist == []
+    assert registry.get("knowledge").budget.max_tool_calls is None
+    assert registry.get("knowledge").budget.max_tokens == 4000
+    assert registry.get("alarm").budget.max_tokens == 6000
+    assert registry.get("echo").budget.max_tokens == 500
 
 
 def test_get_builtin_agent_registry_is_singleton():

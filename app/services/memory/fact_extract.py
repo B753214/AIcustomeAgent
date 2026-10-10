@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.harness.model import get_llm
+from app.harness.model import get_light_llm
 from app.schema.memory_fact import MemoryFactCandidate, MemoryFactExtractResult
 from app.services.memory.fact_policy import should_persist_fact
 
@@ -46,7 +46,7 @@ async def extract_fact_candidates(
     if not messages:
         return []
     try:
-        llm = get_llm().with_structured_output(MemoryFactExtractResult)
+        llm = get_light_llm().with_structured_output(MemoryFactExtractResult)
         result: MemoryFactExtractResult = await llm.ainvoke(
             _EXTRACT_PROMPT.format(transcript=_transcript(messages))
         )

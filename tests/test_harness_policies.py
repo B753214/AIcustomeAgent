@@ -99,8 +99,8 @@ def test_timeout_apply_deadline():
 # --- Tool ---
 
 
-def test_tool_allowlist_and_arg_length():
-    p = ToolPolicy(allowlist={"query_order"}, max_arg_chars=8)
+def test_tool_allowlist():
+    p = ToolPolicy(allowlist={"query_order"})
     ctx = _ctx()
     p.check_call("query_order", {"message": "ok"}, ctx)
 
@@ -108,16 +108,27 @@ def test_tool_allowlist_and_arg_length():
         p.check_call("evil", {}, ctx)
     assert ei.value.details["tool"] == "evil"
 
-    with pytest.raises(HarnessError) as ei2:
-        p.check_call("query_order", {"message": "123456789"}, ctx)
-    assert ei2.value.details["arg"] == "message"
+
+def test_tool_allowlist_none_allows_any():
+    p = ToolPolicy(allowlist=None)
+    p.check_call("any_tool", {"x": "abcd" * 100}, _ctx())
 
 
-def test_tool_allowlist_none_only_checks_length():
-    p = ToolPolicy(allowlist=None, max_arg_chars=3)
-    p.check_call("any_tool", {"x": "ab"}, _ctx())
+def test_tool_allowlist_prefix_maps():
+    p = ToolPolicy(allowlist=["query_weather", "maps_*"])
+    ctx = _ctx()
+    p.check_call("maps_text_search", {}, ctx)
+    p.check_call("query_weather", {"location": "杭州"}, ctx)
+
+    with pytest.raises(HarnessError) as ei:
+        p.check_call("evil_tool", {}, ctx)
+    assert ei.value.details["tool"] == "evil_tool"
+
+
+def test_tool_allowlist_empty_denies_all():
+    p = ToolPolicy(allowlist=[])
     with pytest.raises(HarnessError):
-        p.check_call("any_tool", {"x": "abcd"}, _ctx())
+        p.check_call("query_order", {}, _ctx())
 
 
 # --- Retry ---

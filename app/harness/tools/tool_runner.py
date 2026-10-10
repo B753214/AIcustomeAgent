@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.harness.contracts import (
     HarnessError,
@@ -10,6 +10,10 @@ from app.harness.contracts import (
     RunContext,
 )
 from app.harness.registry import ToolRegistry
+
+if TYPE_CHECKING:
+    from app.harness.policies.budget import BudgetPolicy
+    from app.harness.policies.tool_policy import ToolPolicy
 
 _MAX_RESULT_CHARS = 8000
 
@@ -29,6 +33,9 @@ class ToolRunner:
         arguments: dict[str, Any],
         ctx: RunContext,
         allowlist: list[str] | None = None,
+        *,
+        tool_policy: ToolPolicy | None = None,
+        budget_policy: BudgetPolicy | None = None,
     ) -> Any:
         try:
             spec, handler = self.registry.get(name)
@@ -39,12 +46,17 @@ class ToolRunner:
                 details={"tool": name},
             ) from e
 
-        if allowlist is not None and name not in allowlist:
+        if tool_policy is not None:
+            tool_policy.check_call(name, arguments, ctx)
+        elif allowlist is not None and name not in allowlist:
             raise HarnessError(
                 HarnessErrorCategory.POLICY,
                 f"tool {name!r} is not allowed in this context",
                 details={"tool": name, "allowlist": list(allowlist)},
             )
+
+        if budget_policy is not None:
+            budget_policy.check(ctx)
 
         token = getattr(ctx, "cancellation_token", None)
         if token is not None and token.is_cancelled():
@@ -98,5 +110,8 @@ class ToolRunner:
                     result,
                     details={"tool": name},
                 )
+
+        if budget_policy is not None:
+            budget_policy.increment(ctx, tool_calls=1)
 
         return result

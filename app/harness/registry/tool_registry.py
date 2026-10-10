@@ -78,3 +78,14 @@ def register_builtin_tools(registry: ToolRegistry) -> ToolRegistry:
         query_weather,
     )
     return registry
+
+
+_builtin_tool_registry: ToolRegistry | None = None
+
+
+def get_builtin_tool_registry() -> ToolRegistry:
+    """进程内单例：内置工具只注册一次。"""
+    global _builtin_tool_registry
+    if _builtin_tool_registry is None:
+        _builtin_tool_registry = register_builtin_tools(ToolRegistry())
+    return _builtin_tool_registry
