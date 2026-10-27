@@ -1,5 +1,11 @@
 # 配置字段对照表（Harness H0-3）
 
+## SSE 心跳
+
+`SSE_HEARTBEAT_INTERVAL_SEC`：默认 `15` 秒，必须大于 0。聊天流（含旧分支）与告警分析流在建立连接时发送 `: heartbeat\n\n`，等待业务事件时按此间隔补发心跳。正常业务数据到达后重新计算空闲间隔。
+
+心跳是 SSE 注释，不展示、不作为 Agent 事件落库；前端收到字节后会重置 120 秒无数据超时。心跳不代表任务取得进展，也不替代模型、工具或任务总时限。客户端断开时会取消待取事件并关闭生成器，远端调用能否立即停止仍取决于外部服务。
+
 与 `app/config.py`、`.env.example` 保持同步。  
 环境变量名与字段名对应（**大小写不敏感**）；不要给无前缀字段乱加 `AIROBOT_`（例如用 `USE_CREW`，不要写成 `AIROBOT_USE_CREW`）。
 
@@ -61,6 +67,9 @@ PostgreSQL / Milvus 是否必选与健康检查语义见 [deps.md](./deps.md)。
 | `USE_CREW` | `false` | CrewAI 可选路径 |
 | `CREW_TOOLS_READY` | `true` | 工具就绪标记 |
 | `MEMORY_MAX_TURNS` | `5` | 短时记忆轮数 |
+| `MEMORY_CONTEXT_TOKEN_BUDGET` | `3000` | Chat 历史上下文软预算 |
+| `RAG_HISTORY_TOKEN_BUDGET` | `6000` | Knowledge 按会话读取历史时使用的独立软预算 |
+| `RAG_RUN_TOKEN_BUDGET` | `16000` | Knowledge Harness 累计模型 Token 预算，含模型输入和输出；保持 Chat 的 8000 不变 |
 | `RETRY_ATTEMPTS` / `RETRY_MAX_WAIT` | `3` / `3` | tenacity |
 | `TOOL_TIMEOUT_SEC` | `30` | 单次工具超时 |
 | `ORDER_MOCK_FAIL_RATE` | `0` | Mock 订单失败概率；离线测试保持 0 |
@@ -76,6 +85,9 @@ PostgreSQL / Milvus 是否必选与健康检查语义见 [deps.md](./deps.md)。
 | `ALARM_MCP_*` | 见 `.env.example` | MCP 拉数 |
 | `ALARM_BROWSER_*` / `ALARM_INFO_PLATE_*` | 见示例 | Playwright 降级 |
 | `ALARM_REPLAN_*` / `ALARM_REPORT_*` | 见示例 | Replan / 报告 |
+| `ALARM_REPLAN_ENABLED` | `true` | LLM 判断首批证据是否足够；false 时只分析首批 |
+| `ALARM_REPLAN_TIMEOUT_SEC` | `30` | 单次证据评估超时（秒） |
+| `ALARM_REPLAN_TIME_BUDGET_SEC` | `60` | 证据评估及补页的总时间预算（秒），不含首次抓取和最终报告 |
 | `AMAP_*` / `WEATHER_API_KEY` | 关 / 空 | 闲聊地图与天气 |
 
 ---

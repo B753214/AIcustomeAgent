@@ -86,7 +86,9 @@ async def test_call_tools_blocks_tool_outside_allowlist():
 @pytest.mark.asyncio
 async def test_call_tools_allows_mcp_via_prefix():
     """MCP 须写进白名单（可用 maps_*）；未写前缀则拦截。"""
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import AsyncMock, patch
+    from langchain_core.tools import StructuredTool
+    from app.harness.registry.tool_registry import ToolRegistry
 
     state = {
         "messages": [
@@ -104,20 +106,23 @@ async def test_call_tools_allows_mcp_via_prefix():
         ],
         "tool_fail_counts": {},
     }
-    mock_tool = MagicMock()
-    mock_tool.name = "maps_text_search"
-    mock_tool.ainvoke = AsyncMock(return_value="ok")
+    async def search(keywords: str) -> str:
+        return "ok"
+
+    mock_tool = StructuredTool.from_function(
+        coroutine=search, name="maps_text_search", description="Search places",
+    )
+    registry = ToolRegistry()
+    registry.register_model_tool(mock_tool)
+    runner = ToolRunner(registry)
 
     with tool_run_scope(
         _ctx(),
-        ToolRunner(get_builtin_tool_registry()),
+        runner,
         allowlist=["query_order", "maps_*"],
     ), patch(
-        "app.agents.chat_graph._chat_tools",
-        return_value=[mock_tool],
-    ), patch(
         "app.agents.chat_graph._ainvoke_tool_with_timeout",
-        new=AsyncMock(return_value="ok"),
+        new=AsyncMock(side_effect=AssertionError("MCP must use ToolRunner")),
     ):
         out = await call_tools(state)
 

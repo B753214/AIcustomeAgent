@@ -12,8 +12,13 @@ from app.harness.model import get_light_llm
 logger = logging.getLogger("airobot.memory")
 
 _PROMPT_SYSTEM = (
-    "你是一个专业的查询重写器。根据历史对话，把当前问题改写为一条可独立检索的中文问句。"
-    "只输出问句本身，不要解释。"
+    "你是 RAG 检索查询重写器。结合最近对话，把当前追问改写成一条可独立检索的中文问句。\n"
+    "规则：\n"
+    "- 把「这/那/上面/它」等指代还原为历史中的具体对象或术语\n"
+    "- 保留专有名词、错误码、接口名、配置 ID，不要篡改或编造历史中没有的实体\n"
+    "- 当前问已完整、可独立检索时，只做轻微规范化，不要无故大幅改写\n"
+    "- 面向向量/关键词检索：保留实体与关键术语，少口语、少修辞\n"
+    "- 只输出一条问句，不超过 80 字；不要解释、不要引号、不要前缀标签"
 )
 
 
@@ -48,7 +53,7 @@ async def rewrite_retrieval_query(question: str, history: list[Any] | None) -> s
                     content=(
                         f"历史：\n{hist}\n\n"
                         f"当前问题：{question}\n"
-                        "请重写为一条可检索问句："
+                        "请按规则输出一条可独立检索的问句："
                     )
                 ),
             ]

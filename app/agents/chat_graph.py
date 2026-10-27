@@ -23,7 +23,6 @@ from app.agents.tool_validation import (
 from app.config import settings
 from app.harness.contracts import HarnessError
 from app.harness.policies import ToolPolicy, check_model_budget, record_model_usage
-from app.harness.policies.tool_policy import is_tool_allowed
 from app.harness.tools import get_tool_run_binding
 
 TOOL_ERROR_PREFIX = "[TOOL_ERROR]"
@@ -60,14 +59,15 @@ class ChatState(TypedDict):
     messages: Annotated[list, add_messages]
     tool_fail_counts: dict[str, int]
 
-async def ensureapp():
-    """懒加载高德等额外工具（进程内只拉一次）。"""
+async def ensure_chat_tools():
+    """Harness 负责 MCP 发现和注册；旧入口仍保留工具列表兼容。"""
     global _extra_tools, _extra_tools_loaded
-    if _extra_tools_loaded:
-        return
-    from app.agents.amap_mcp import get_amap_tools
+    from app.harness.tools.mcp import ensure_mcp_tools
+    from app.harness.registry.tool_registry import get_builtin_tool_registry
 
-    _extra_tools = await get_amap_tools()
+    binding = get_tool_run_binding()
+    registry = binding.runner.registry if binding else get_builtin_tool_registry()
+    _extra_tools = await ensure_mcp_tools(registry)
     _extra_tools_loaded = True
 
 
@@ -148,15 +148,13 @@ def _tools_for_binding() -> list:
     MCP 工具也必须出现在 Agent ``tool_allowlist``（可用 ``maps_*`` 前缀），
     不再自动并入全部已加载 MCP 名。
     """
-    tools = _chat_tools()
     binding = get_tool_run_binding()
-    if binding is None or binding.allowlist is None:
-        return tools
-    return [
-        t
-        for t in tools
-        if is_tool_allowed(getattr(t, "name", None) or "", binding.allowlist)
-    ]
+    if binding is None:
+        return _chat_tools()
+    allowlist = binding.allowlist
+    if allowlist is None and binding.policy is not None:
+        allowlist = binding.policy.allowlist
+    return binding.runner.registry.list_model_tools(allowlist)
 
 
 def _policy_for_call() -> ToolPolicy | None:
@@ -180,32 +178,19 @@ async def _run_tool_via_harness(
         return None
 
     policy = _policy_for_call()
-    registered = name in binding.runner.registry.list_names()
-
     try:
         if binding.budget is not None:
             binding.budget.check(binding.ctx)
 
-        if registered:
-            result = await binding.runner.arun(
-                name,
-                args,
-                binding.ctx,
-                tool_policy=policy,
-                budget_policy=None,  # 下方统一 increment，避免双重计数
-            )
-            if binding.budget is not None:
-                binding.budget.increment(binding.ctx, tool_calls=1)
-            return str(result)
-
         if policy is not None:
             policy.check_call(name, args, binding.ctx)
-        if tool is None:
-            return f"{TOOL_ERROR_PREFIX} 未知工具: {name}"
-        content = await _ainvoke_tool_with_timeout(tool, args, name)
-        if binding.budget is not None and not str(content).startswith(TOOL_ERROR_PREFIX):
+        result = await binding.runner.arun(
+            name, args, binding.ctx, tool_policy=policy,
+            budget_policy=None,
+        )
+        if binding.budget is not None:
             binding.budget.increment(binding.ctx, tool_calls=1)
-        return content
+        return str(result)
     except HarnessError as e:
         return f"{TOOL_ERROR_PREFIX} {e.message}"
 
@@ -252,7 +237,9 @@ async def call_tools(state: ChatState) -> dict:
     if not tool_calls:
         return {}
 
-    tools_by_name = {t.name: t for t in _chat_tools()}
+    binding = get_tool_run_binding()
+    tools = (binding.runner.registry.list_model_tools() if binding else _chat_tools())
+    tools_by_name = {t.name: t for t in tools}
     outs: list[ToolMessage] = []
     counts = dict(state.get("tool_fail_counts") or {})
 

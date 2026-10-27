@@ -1,6 +1,7 @@
 """告警 Agent：pipeline 拉数 + Replan + LLM 报告（非流式 / SSE）。"""
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
@@ -72,6 +73,7 @@ def _assemble(
     cls: dict,
     config_id: str,
     res: dict | None,
+    *, evidence_context: dict | None = None,
 ) -> tuple[list, list[str], dict, dict | None]:
     """返回 messages, sources, fetch_meta, error_analysis。"""
     playbook = load_playbook(cls["key"])
@@ -117,6 +119,14 @@ def _assemble(
             user_prompt += "\n"
     else:
         user_prompt += "\n【说明】未拉到实时监控数据，仅依据告警正文分析。\n"
+
+    if evidence_context:
+        user_prompt += (
+            "\n证据评估记录（请区分已证实结论、推测和待确认项；不得假定缺失资料已获取。"
+            "stop_reason 为 assessment_invalid 或 assessment_failed 时，必须说明证据评估未完成，"
+            "本报告仅依据已获取数据，不得声称评估已确认数据足够）：\n"
+            + json.dumps(evidence_context, ensure_ascii=False, default=str)[:5000]
+        )
 
     messages = [
         SystemMessage(content=system_prompt),
@@ -188,7 +198,7 @@ def _result_dict(
 
 
 def _result_from_state(state: dict, *, skip: bool | None = None) -> dict:
-    return _result_dict(
+    result = _result_dict(
         state.get("reply") or "",
         state["parsed"],
         state.get("skill_meta") or {},
@@ -199,6 +209,13 @@ def _result_from_state(state: dict, *, skip: bool | None = None) -> dict:
         page_count=len(state.get("fetched_pages") or []),
         skill_key_initial=state.get("skill_key_initial"),
     )
+    result["meta"].update(
+        evidence_decisions=state.get("evidence_decisions") or [],
+        evidence_stop_reason=state.get("evidence_stop_reason"),
+        evidence_validation_errors=state.get("evidence_validation_errors") or [],
+        fetch_errors=state.get("fetch_errors") or [],
+    )
+    return result
 
 
 def _checkpoint_payload(state: dict) -> dict[str, Any]:
@@ -225,6 +242,13 @@ def _checkpoint_payload(state: dict) -> dict[str, Any]:
         "replans": state.get("replans") or [],
         "playbook_switched": state.get("playbook_switched"),
         "idempotency_keys": state.get("idempotency_keys") or [],
+        "evidence_decisions": state.get("evidence_decisions") or [],
+        "evidence_stop_reason": state.get("evidence_stop_reason"),
+        "evidence_validation_errors": state.get("evidence_validation_errors") or [],
+        "last_fetch_ok": state.get("last_fetch_ok", False),
+        "last_page_count": state.get("last_page_count", 0),
+        "has_more": state.get("has_more"),
+        "fetch_errors": state.get("fetch_errors") or [],
     }
 
 
@@ -324,7 +348,9 @@ async def run_alarm_agent_stream(
         "monitorDetail": state.get("monitor_detail"),
     }
     messages, sources, fetch_meta, _ = _assemble(
-        message, parsed, cls, state.get("config_id") or "", res
+        message, parsed, cls, state.get("config_id") or "", res,
+        evidence_context={"decisions": state.get("evidence_decisions") or [],
+                          "stop_reason": state.get("evidence_stop_reason")},
     )
 
     yield {

@@ -9,6 +9,7 @@ import {
 import type { HealthInfo, SessionItem } from '../types'
 
 type Props = {
+  localSessionIds: string[]
   sessionId: string
   apiKey: string
   userId: string
@@ -23,6 +24,7 @@ type Props = {
 }
 
 export function SidebarLeft({
+  localSessionIds,
   sessionId,
   apiKey,
   userId,
@@ -37,6 +39,11 @@ export function SidebarLeft({
 }: Props) {
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [showKey, setShowKey] = useState(false)
+  const visibleSessions = [
+    ...localSessionIds.filter((id) => !sessions.some((session) => session.session_id === id))
+      .map((id) => ({ session_id: id } as SessionItem)),
+    ...sessions,
+  ]
 
   useEffect(() => {
     void fetchJson<SessionItem[]>('/sessions', { method: 'POST' }).then((list) => {
@@ -113,10 +120,10 @@ export function SidebarLeft({
         历史会话
       </div>
       <div className="session-list">
-        {!sessions.length ? (
+        {!visibleSessions.length ? (
           <div style={{ color: 'var(--muted)', fontSize: 11, padding: 8 }}>暂无历史会话</div>
         ) : (
-          sessions.map((s) => {
+          visibleSessions.map((s) => {
             const id = s.session_id
             const active = id === sessionId.trim()
             const time = s.created_at

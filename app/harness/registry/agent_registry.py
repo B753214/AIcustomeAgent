@@ -49,7 +49,7 @@ def register_builtin_agents(registry: AgentRegistry) -> AgentRegistry:
 
     各 Agent 预算（建 Runtime 时 ``budget=defn.budget`` 覆盖 default）：
     - chat 20/8000：ReAct 多轮工具；对话+观察吃 token
-    - knowledge None/4000：无 Harness 工具（allowlist=[]）；只限 token
+    - knowledge None/RAG_RUN_TOKEN_BUDGET：默认16000，包含历史、资料及生成消耗
       （勿用 max_tool_calls=0：apply_before 时 0>=0 会直接拒跑）
     - alarm None/6000：同上，流水线多次 LLM，告警上下文更长
     - echo None/500：玩具，收紧 token
@@ -58,6 +58,7 @@ def register_builtin_agents(registry: AgentRegistry) -> AgentRegistry:
     from app.agents.harness_chat.executor import ChatExecutor
     from app.agents.harness_echo.executor import EchoExecutor
     from app.agents.harness_knowledge.executor import KnowledgeExecutor
+    from app.config import settings
 
     registry.register(
         "chat",
@@ -77,7 +78,7 @@ def register_builtin_agents(registry: AgentRegistry) -> AgentRegistry:
             executor=KnowledgeExecutor(),
             tool_allowlist=[],
             policy_set="default",
-            budget=BudgetPolicy(max_tool_calls=None, max_tokens=4000),
+            budget=BudgetPolicy(max_tool_calls=None, max_tokens=settings.rag_run_token_budget),
         ),
     )
     registry.register(

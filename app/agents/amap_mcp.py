@@ -5,37 +5,9 @@ import asyncio
 import concurrent.futures
 from typing import Any
 
-from langchain_mcp_adapters.client import MultiServerMCPClient
+from app.harness.tools.mcp import get_amap_tools
 
-from app.config import settings
-
-_amap_tools: list | None = None
 _amap_crew_tools: list | None = None
-
-
-async def get_amap_tools() -> list:
-    """LangChain StructuredTool 列表（chat_graph 用 ainvoke）。"""
-    global _amap_tools
-    if _amap_tools is not None:
-        return _amap_tools
-    if not settings.amap_mcp_enabled or not settings.amap_maps_api_key:
-        _amap_tools = []
-        return _amap_tools
-    try:
-        url = f"{settings.amap_mcp_url}?key={settings.amap_maps_api_key}"
-        client = MultiServerMCPClient(
-            {
-                "amap": {
-                    "url": url,
-                    "transport": "streamable_http",
-                }
-            }
-        )
-        _amap_tools = await client.get_tools()
-    except Exception as e:
-        print(f"[amap_mcp] 拉取工具失败: {e}")
-        _amap_tools = []
-    return _amap_tools
 
 
 def _run_async(coro):

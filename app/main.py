@@ -22,6 +22,7 @@ from app.services.memory.fact_store import (
     update_fact,
 )
 from app.services.ratelimit import limiter
+from app.services.sse import with_sse_heartbeat
 import uvicorn
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, Request, Query
 from sqlalchemy import text
@@ -408,11 +409,11 @@ async def chat_stream(
     _sse_headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
     if settings.harness_runtime:
-        kb = await _kb_for_harness_stream()
         token = CancellationToken()
 
         async def gen_harness():
             try:
+                kb = await _kb_for_harness_stream()
                 async for chunk in chat_harness_stream(
                     req, kb, None, cancellation_token=token, user_id=user_id
                 ):
@@ -426,7 +427,7 @@ async def chat_stream(
                 token.cancel()
 
         return StreamingResponse(
-            gen_harness(),
+            with_sse_heartbeat(gen_harness(), interval=settings.sse_heartbeat_interval_sec),
             media_type="text/event-stream",
             headers=_sse_headers,
         )
@@ -444,7 +445,7 @@ async def chat_stream(
             break
 
     return StreamingResponse(
-        gen_legacy(),
+        with_sse_heartbeat(gen_legacy(), interval=settings.sse_heartbeat_interval_sec),
         media_type="text/event-stream",
         headers=_sse_headers,
     )
@@ -605,7 +606,7 @@ async def api_analyze(request: Request):
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(
-        gen(),
+        with_sse_heartbeat(gen(), interval=settings.sse_heartbeat_interval_sec),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

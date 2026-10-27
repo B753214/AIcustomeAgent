@@ -91,7 +91,8 @@ def test_register_builtin_agents_ids():
     assert registry.get("chat").budget.max_tokens == 8000
     assert registry.get("knowledge").tool_allowlist == []
     assert registry.get("knowledge").budget.max_tool_calls is None
-    assert registry.get("knowledge").budget.max_tokens == 4000
+    from app.config import settings
+    assert registry.get("knowledge").budget.max_tokens == settings.rag_run_token_budget
     assert registry.get("alarm").budget.max_tokens == 6000
     assert registry.get("echo").budget.max_tokens == 500
 

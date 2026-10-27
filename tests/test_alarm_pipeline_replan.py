@@ -1,248 +1,135 @@
-"""Day5–Day7：pipeline Replan 开关、上限与 LLM 冲突仲裁单测（不调 MCP / 浏览器 / 真实 LLM）。"""
-from __future__ import annotations
-
+"""LLM evidence decisions and bounded pagination, without external services."""
 from unittest.mock import AsyncMock
-
 import pytest
-
 from app.agents.alarm import pipeline as pl
-from app.agents.alarm.replan import should_fetch_page2, should_switch_playbook
-
-def _replan_ready_state() -> dict:
-    return {
-        "page": 1,
-        "page_size": 50,
-        "fetched_pages": [1],
-        "monitor_rate": {"count": 80},
-        "error_analysis": {
-            "total": 50,
-            "uniqueUsers": 20,
-            "topErrorsRaw": [{"msg": "err-A", "count": 10}],
-        },
-        "pagination": "browser",
-        "parsed": {},
-        "replans": [],
-        "playbook_switched": False,
-        "skill_key": "render",
-        "skill_meta": {"key": "render", "type": "渲染异常"},
-        "skip_reason": None,
-        "monitor_detail": {"list": []},
-    }
+from app.agents.alarm.replan import EvidenceDecision
 
 
-def _conflict_state() -> dict:
-    """同时满足补页 + 换 playbook，触发 Day6 LLM 仲裁。"""
-    state = _replan_ready_state()
-    state["error_analysis"] = {
-        "total": 50,
-        "uniqueUsers": 20,
-        "topErrorsRaw": [{"msg": "接口失败 code非1", "count": 10}],
-        "pageName": "下单页",
-        "errUrl": "/bff/submit",
-    }
-    state["monitor_detail"] = {
-        "list": [{"err_msg": "接口失败", "scene": "提单", "url": "/api/order/create"}]
-    }
-    return state
+def state():
+    s = pl.initial_state("alarm")
+    s.update(config_id="123", parsed={"detailUrl": "https://monitor", "alarmType": "render"},
+             skill_key="render", fetched_pages=[1], page=1, pagination="browser",
+             monitor_detail={"list": [{"id": "1", "err_msg": "err"}]},
+             error_analysis={"total": 1}, fetch_res={"channel": "browser"},
+             monitor_rate={"count": 100}, last_fetch_ok=True, has_more=True)
+    return s
 
 
-@pytest.mark.asyncio
-async def test_run_replan_loop_fetch_page2(monkeypatch):
-    state = _replan_ready_state()
-    fetched_pages: list[int] = []
-
-    async def mock_fetch(s, step, *, on_progress=None):
-        fetched_pages.append(int(step.get("page") or 0))
-        s["fetched_pages"].append(2)
-        s["page"] = 2
-
-    async def mock_analyze(s):
-        return None
-
-    monkeypatch.setattr(pl, "_step_fetch", mock_fetch)
-    monkeypatch.setattr(pl, "_step_analyze", mock_analyze)
-
-    stages: list[str] = []
-
-    async def on_stage(msg: str, meta: dict | None = None) -> None:
-        stages.append(msg)
-
-    await pl._run_replan_loop(state, on_stage=on_stage)
-
-    assert fetched_pages == [2]
-    assert "fetch_page2" in state["replans"]
-    assert any("补拉第 2 页" in m for m in stages)
+def decision(action="fetch_next_page"):
+    return EvidenceDecision(action=action, reason="need more users", missing_evidence=["user samples"],
+                            expected_gain="confirm scope")
 
 
-@pytest.mark.asyncio
-async def test_run_replan_loop_respects_max_pages(monkeypatch):
-    state = _replan_ready_state()
-    state["fetched_pages"] = [1, 2]
-    state["page"] = 2
-    monkeypatch.setattr(pl.settings, "alarm_replan_max_pages", 2)
-
-    async def mock_fetch(s, step, *, on_progress=None):
-        raise AssertionError("不应再补页")
-
-    monkeypatch.setattr(pl, "_step_fetch", mock_fetch)
-    await pl._run_replan_loop(state)
-    assert state["replans"] == []
-
-
-@pytest.mark.asyncio
-async def test_run_replan_loop_switch_playbook_once(monkeypatch):
-    state = _replan_ready_state()
-    state["error_analysis"] = {
-        "total": 20,
-        "topErrorsRaw": [{"msg": "接口失败 code非1", "count": 15}],
-        "pageName": "下单页",
-        "errUrl": "/bff/submit",
-    }
-    # 不满足补页（未满 50 条）
-    monkeypatch.setattr(pl.settings, "alarm_replan_max_playbook_switch", 1)
-
-    stages: list[str] = []
-
-    async def on_stage(msg: str, meta: dict | None = None) -> None:
-        stages.append(msg)
-
-    await pl._run_replan_loop(state, on_stage=on_stage)
-
-    assert state["skill_key"] == "bff"
-    assert state["playbook_switched"] is True
-    assert any(r.startswith("switch_playbook:") for r in state["replans"])
-    assert any("更换 playbook" in m for m in stages)
-
-
-@pytest.mark.asyncio
-async def test_run_replan_loop_no_switch_when_max_switch_zero(monkeypatch):
-    state = _replan_ready_state()
-    state["error_analysis"] = {
-        "total": 20,
-        "topErrorsRaw": [{"msg": "接口失败", "count": 15}],
-        "errUrl": "/bff/x",
-    }
+@pytest.fixture(autouse=True)
+def config(monkeypatch):
+    monkeypatch.setattr(pl.settings, "alarm_browser_enabled", True)
+    monkeypatch.setattr(pl.settings, "alarm_replan_max_pages", 3)
     monkeypatch.setattr(pl.settings, "alarm_replan_max_playbook_switch", 0)
 
-    await pl._run_replan_loop(state)
-    assert state["skill_key"] == "render"
-    assert state["replans"] == []
+
+@pytest.mark.asyncio
+async def test_fetches_multiple_pages_then_finishes(monkeypatch):
+    s = state()
+    judge = AsyncMock(side_effect=[decision(), decision(), decision("finish")])
+    monkeypatch.setattr(pl, "assess_evidence", judge)
+    calls = []
+    async def fetch(s, step, **kwargs):
+        calls.append(step["page"])
+        s["fetched_pages"].append(step["page"])
+        s["monitor_detail"]["list"].append({"id": str(step["page"]), "err_msg": "new"})
+    monkeypatch.setattr(pl, "_step_fetch", fetch)
+    await pl._run_replan_loop(s)
+    assert calls == [2, 3]
+    assert s["evidence_stop_reason"] == "finish"
+    assert len(s["evidence_decisions"]) == 3
+
+
+@pytest.mark.parametrize("action", ["finish", "need_other_evidence"])
+@pytest.mark.asyncio
+async def test_no_fetch_when_model_does_not_request_it(monkeypatch, action):
+    s = state()
+    monkeypatch.setattr(pl, "assess_evidence", AsyncMock(return_value=decision(action)))
+    fetch = AsyncMock()
+    monkeypatch.setattr(pl, "_step_fetch", fetch)
+    await pl._run_replan_loop(s)
+    fetch.assert_not_awaited()
+    assert s["evidence_stop_reason"] == action
+
+
+@pytest.mark.parametrize("condition,reason", [("limit", "page_limit"), ("end", "no_more_pages"),
+                                            ("unavailable", "pagination_unavailable")])
+@pytest.mark.asyncio
+async def test_guards_override_model(monkeypatch, condition, reason):
+    s = state()
+    if condition == "limit":
+        monkeypatch.setattr(pl.settings, "alarm_replan_max_pages", 1)
+    elif condition == "end":
+        s["has_more"] = False
+    else:
+        monkeypatch.setattr(pl.settings, "alarm_browser_enabled", False)
+    monkeypatch.setattr(pl, "assess_evidence", AsyncMock(return_value=decision()))
+    fetch = AsyncMock()
+    monkeypatch.setattr(pl, "_step_fetch", fetch)
+    await pl._run_replan_loop(s)
+    fetch.assert_not_awaited()
+    assert s["evidence_stop_reason"] == reason
 
 
 @pytest.mark.asyncio
-async def test_run_initial_pipeline_skips_replan_when_disabled(monkeypatch):
+async def test_assessment_failure_stops_without_fetch(monkeypatch):
+    s = state()
+    monkeypatch.setattr(pl, "assess_evidence", AsyncMock(side_effect=ValueError("bad JSON")))
+    fetch = AsyncMock()
+    monkeypatch.setattr(pl, "_step_fetch", fetch)
+    await pl._run_replan_loop(s)
+    fetch.assert_not_awaited()
+    assert s["evidence_stop_reason"] == "assessment_failed"
+
+
+@pytest.mark.asyncio
+async def test_no_new_evidence_stops_loop(monkeypatch):
+    s = state()
+    judge = AsyncMock(return_value=decision())
+    monkeypatch.setattr(pl, "assess_evidence", judge)
+    monkeypatch.setattr(pl, "_step_fetch", AsyncMock())
+    await pl._run_replan_loop(s)
+    assert s["evidence_stop_reason"] == "no_new_evidence"
+    judge.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_failed_page_keeps_prior_evidence_and_can_retry(monkeypatch):
+    s = state()
+    previous = s["fetch_res"]
+    monkeypatch.setattr(pl, "fetch_monitor_data", AsyncMock(return_value=None))
+    await pl._step_fetch(s, {"page": 2})
+    assert s["fetch_res"] is previous
+    assert s["monitor_detail"]["list"][0]["id"] == "1"
+    assert s["fetched_pages"] == [1]
+    assert "fetch:123:p2" not in s["idempotency_keys"]
+    assert not s["last_fetch_ok"]
+
+
+@pytest.mark.asyncio
+async def test_evaluation_timeout_is_bounded(monkeypatch):
+    import asyncio
+    s = state()
+    monkeypatch.setattr(pl.settings, "alarm_replan_time_budget_sec", 0.01)
+    async def slow(s):
+        await asyncio.sleep(1)
+        return decision()
+    monkeypatch.setattr(pl, "assess_evidence", slow)
+    await pl._run_replan_loop(s)
+    assert s["evidence_stop_reason"] == "assessment_failed"
+
+
+@pytest.mark.asyncio
+async def test_disabled_replan_does_not_call_model(monkeypatch):
     monkeypatch.setattr(pl.settings, "alarm_replan_enabled", False)
-    replan_calls: list[int] = []
-
-    async def track_replan(*_a, **_kw):
-        replan_calls.append(1)
-
-    monkeypatch.setattr(pl, "_run_replan_loop", track_replan)
-
-    async def fake_run_step(state, step, *, on_progress=None):
-        sid = step.get("id")
-        if sid == pl.STEP_PARSE:
-            state["parsed"] = {"indicator": "测试"}
-            state["config_id"] = ""
-        elif sid == pl.STEP_CLASSIFY:
-            state["skill_meta"] = {"key": "render", "type": "渲染异常"}
-            state["skill_key"] = "render"
-        elif sid == pl.STEP_FETCH:
-            state["fetch_res"] = None
-        elif sid == pl.STEP_ANALYZE:
-            state["skip_reason"] = None
-        return state
-
-    monkeypatch.setattr(pl, "run_step", fake_run_step)
-
-    state = await pl.run_initial_pipeline("P1 测试", stop_before_report=True)
-    assert replan_calls == []
-    assert state.get("replans") == []
-
-
-@pytest.mark.asyncio
-async def test_run_replan_loop_conflict_llm_chooses_switch(monkeypatch):
-    state = _conflict_state()
-    assert should_fetch_page2(
-        page=1,
-        monitor_rate=state["monitor_rate"],
-        error_analysis=state["error_analysis"],
-        pagination=state["pagination"],
-    )
-    assert should_switch_playbook(skill_key="render", error_analysis=state["error_analysis"]) == "bff"
-
-    fetched_pages: list[int] = []
-
-    async def mock_fetch(s, step, *, on_progress=None):
-        fetched_pages.append(int(step.get("page") or 0))
-
-    monkeypatch.setattr(pl, "_step_fetch", mock_fetch)
-    monkeypatch.setattr(
-        pl,
-        "llm_pick_replan_action",
-        AsyncMock(return_value="switch_playbook:bff"),
-    )
-
-    await pl._run_replan_loop(state)
-
-    assert state["skill_key"] == "bff"
-    assert state["replans"][0] == "switch_playbook:bff"
-    pl.llm_pick_replan_action.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_run_replan_loop_conflict_llm_none_fallback_fetch(monkeypatch):
-    state = _conflict_state()
-    fetched_pages: list[int] = []
-
-    async def mock_fetch(s, step, *, on_progress=None):
-        fetched_pages.append(int(step.get("page") or 0))
-        s["fetched_pages"].append(2)
-        s["page"] = 2
-
-    async def mock_analyze(s):
-        return None
-
-    monkeypatch.setattr(pl, "_step_fetch", mock_fetch)
-    monkeypatch.setattr(pl, "_step_analyze", mock_analyze)
-    monkeypatch.setattr(pl, "llm_pick_replan_action", AsyncMock(return_value=None))
-
-    await pl._run_replan_loop(state)
-
-    assert fetched_pages == [2]
-    assert "fetch_page2" in state["replans"]
-
-
-@pytest.mark.asyncio
-async def test_run_replan_loop_conflict_llm_finish(monkeypatch):
-    state = _conflict_state()
-    monkeypatch.setattr(pl, "llm_pick_replan_action", AsyncMock(return_value="finish"))
-
-    async def mock_fetch(s, step, *, on_progress=None):
-        raise AssertionError("finish 时不应补页")
-
-    monkeypatch.setattr(pl, "_step_fetch", mock_fetch)
-    await pl._run_replan_loop(state)
-
-    assert state["replans"] == []
-    assert state["skill_key"] == "render"
-
-
-def test_replan_rules_still_gate_fetch_and_switch():
-    """上限由 pipeline 控制；规则函数保持纯判定。"""
-    ea = {
-        "total": 50,
-        "uniqueUsers": 20,
-        "topErrorsRaw": [{"msg": "a", "count": 10}],
-    }
-    assert should_fetch_page2(
-        page=1, monitor_rate={"count": 80}, error_analysis=ea, pagination="browser"
-    )
-    assert should_switch_playbook(
-        skill_key="render",
-        error_analysis={
-            "total": 20,
-            "topErrorsRaw": [{"msg": "接口失败", "count": 15}],
-            "errUrl": "/bff/x",
-        },
-    ) == "bff"
+    async def step(s, step, **kwargs):
+        s.update(state())
+    judge = AsyncMock()
+    monkeypatch.setattr(pl, "run_step", step)
+    monkeypatch.setattr(pl, "assess_evidence", judge)
+    await pl.run_initial_pipeline("alarm", stop_before_report=True)
+    judge.assert_not_awaited()

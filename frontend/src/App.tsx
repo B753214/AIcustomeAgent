@@ -12,7 +12,7 @@ import { useMetrics } from './hooks/useMetrics'
 import './styles/dashboard.css'
 
 export default function App() {
-  const [sessionId, setSessionId] = useState('default')
+  const [sessionId, setSessionId] = useState(newSessionId)
   const [apiKey, setApiKey] = useState(() => getStoredApiKey())
   const [userId, setUserId] = useState(() => getStoredUserId())
   const [refreshToken, setRefreshToken] = useState(0)
@@ -36,6 +36,7 @@ export default function App() {
       <div className="page-body">
         <div className="main">
           <SidebarLeft
+            localSessionIds={chat.localSessionIds}
             sessionId={sessionId}
             apiKey={apiKey}
             userId={userId}
@@ -55,7 +56,6 @@ export default function App() {
             onNewSession={() => {
               const id = newSessionId()
               setSessionId(id)
-              chat.clearChat()
             }}
             onClearChat={chat.clearChat}
             onSwitchSession={(id) => {
@@ -65,7 +65,8 @@ export default function App() {
             }}
           />
 
-          <ChatPanel messages={chat.messages} sending={chat.sending} onSend={(t) => void chat.sendChat(t)} />
+          <ChatPanel messages={chat.messages} sending={chat.sending}
+            onSend={(t) => void chat.sendChat(t)} onStop={chat.stopChat} />
 
           <SidebarRight
             pipeState={chat.pipeState}

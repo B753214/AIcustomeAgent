@@ -20,8 +20,18 @@ def format_detail_for_llm(detail_data: Any, max_chars: int = _DETAIL_MAX_CHARS) 
     if not items:
         return "无明细数据"
 
+    # 优先展示不同错误/用户的代表样本，避免首批重复错误挤掉新页证据。
+    representatives = []
+    seen = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        key = (str(item.get("err_msg", "")), str(item.get("uid", "")), str(item.get("url", "")))
+        if key not in seen:
+            seen.add(key)
+            representatives.append(item)
     rows: list[str] = []
-    for i, item in enumerate(items[:50]):
+    for i, item in enumerate(representatives[:50]):
         if not isinstance(item, dict):
             continue
         parts: list[str] = []

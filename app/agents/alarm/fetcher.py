@@ -51,8 +51,13 @@ def _detail_list(detail_data: Any) -> list:
 def merge_monitor_details(*parts: Any) -> Any:
     """合并多页 monitorDetail 的 list；优先保留 dict 形态（含 list 字段）。"""
     merged: list = []
+    seen: set[str] = set()
     for part in parts:
-        merged.extend(_detail_list(part))
+        for item in _detail_list(part):
+            key = json.dumps(item, sort_keys=True, ensure_ascii=False, default=str)
+            if key not in seen:
+                merged.append(item)
+                seen.add(key)
     for part in parts:
         if isinstance(part, dict):
             out = dict(part)
@@ -169,14 +174,25 @@ async def fetch_monitor_data(
     page_size: int = 50,
 ) -> dict | None:
     """固定链路：MCP → Browser → None。成功返回含 monitorRate/monitorDetail/channel。"""
-    await _emit(on_progress, "正在经 MCP 拉取监控数据…")
+    await _emit(on_progress, "正在经 MCP 拉取首批数据…" if page == 1 else f"正在经浏览器拉取第 {page} 页…")
+    # MCP 不支持分页，只有首批允许使用；后续页必须走浏览器。
     res = await _fetch_via_mcp(
         market_config_id=market_config_id,
         biz_type=biz_type,
         start_time=start_time,
         end_time=end_time,
-    )
+    ) if page == 1 else None
     if res:
+        items = _detail_list(res.get("monitorDetail"))
+        size = max(1, int(page_size))
+        detail = res.get("monitorDetail")
+        if isinstance(detail, dict):
+            res["monitorDetail"] = {**detail, "list": items[:size]}
+        elif isinstance(detail, list):
+            res["monitorDetail"] = items[:size]
+        res["page"] = 1
+        res["pageSize"] = size
+        res["has_more"] = len(items) >= size
         return res
     print("[FETCH] MCP 不可用或失败")
 

@@ -33,7 +33,7 @@ def analyze_error_details(detail_data: Any) -> dict | None:
     )
     if not isinstance(raw_list, list) or not raw_list:
         return None
-    detail_list = [x for x in raw_list[:50] if isinstance(x, dict)]
+    detail_list = [x for x in raw_list if isinstance(x, dict)]
     if not detail_list:
         return None
 

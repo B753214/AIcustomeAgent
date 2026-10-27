@@ -4,6 +4,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from langchain_core.messages import HumanMessage
 
 from app.agents.harness_knowledge.executor import KnowledgeExecutor
 from app.harness.contracts import RUN_COMPLETED, RUN_FAILED, RunContext, RunRequest
@@ -33,7 +34,38 @@ async def test_knowledge_executor_maps_rag_result():
     assert ev.payload["sources"] == ["doc.md#0"]
     assert ev.payload["metadata"]["intent"] == "knowledge"
     assert ev.payload["metadata"]["engine"] == "langchain"
-    mocked.assert_awaited_once_with("什么是 X？", "fake-kb", history=[])
+    mocked.assert_awaited_once_with(
+        "什么是 X？", "fake-kb", history=[], session_factory=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_knowledge_executor_loads_session_history_when_missing():
+    lc_history = [HumanMessage(content="上一轮问过 RAG")]
+    with (
+        patch(
+            "app.agents.harness_knowledge.executor.aanswer_with_rag",
+            new=AsyncMock(return_value=("ok", [])),
+        ) as mocked,
+        patch(
+            "app.agents.harness_knowledge.executor._history_for_run",
+            new=AsyncMock(return_value=lc_history),
+        ),
+    ):
+        ctx = RunContext(
+            run_id="r3",
+            request=RunRequest(
+                input="那向量库呢？",
+                agent_id="knowledge",
+                session_id="s1",
+                options={"kb": "fake-kb", "session_factory": object()},
+            ),
+        )
+        events = [ev async for ev in KnowledgeExecutor().astream(ctx)]
+
+    assert events[0].type == RUN_COMPLETED
+    mocked.assert_awaited_once()
+    assert mocked.await_args.kwargs["history"] is lc_history
 
 
 @pytest.mark.asyncio

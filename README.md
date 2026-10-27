@@ -36,7 +36,7 @@
 | **语义缓存** | 首轮问题按余弦+词面双门限命中复用，毫秒级响应 | `app/services/semantic_cache.py` |
 | **稳定性** | tenacity 指数退避重试 + 滑动窗口限流 | `app/services/resilience.py` / `ratelimit.py` |
 | **可视化控制台** | 旧版 HTML + React 18 双前端并存 | `/dashboard` · `/console/` · `frontend/` |
-| **告警排查** | info-plate 告警 RCA：MCP → 浏览器 → 正文；可选 Replan（补第 2 页 / 换 playbook）；SSE `/api/analyze` | `app/agents/alarm/` |
+| **告警排查** | info-plate 告警 RCA：首批取证 → LLM 证据评估 → 按需浏览器补页 → 分析报告；SSE `/api/analyze` | `app/agents/alarm/` |
 
 ---
 
@@ -348,13 +348,14 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 
 拉数顺序固定：**MCP → Playwright 浏览器 → 告警正文降级**（无需再配 fetch mode）。浏览器登录也可调 `GET/POST /login`。
 
-**Replan（可选）**：设 `ALARM_REPLAN_ENABLED=true` 后，首轮拉数 + 分析完成后，规则引擎可能：
+**证据评估与补页（默认开启）**：先拉一页数据（默认 20 条），由 LLM 输出结构化决策：证据足够、需要下一页、需要其他来源。补页必须说明缺失证据及预期收益。模型失败或输出非法时基于已有数据生成报告，并标注评估未完成。
 
-1. **补第 2 页明细**（明细打满一页且证据偏弱，默认每页 20 条）→ SSE `stage=alarm_replan`，msg 含「补拉第 2 页…」
-2. **更换 playbook**（明细类型与当前 skill 不一致）→ SSE msg 含「更换 playbook…」
-3. **LLM 仲裁**（补页与换本同时成立时）→ 小模型在三选一里勾选：补页 / 换本 / 结束；输出非法则回退为**先补页**
+代码限制最多页数（默认含首批共 2 页）、单次评估超时（30 秒）和评估/补页总时间（60 秒）；没有下一页、没有新增数据或补页失败时停止。补页失败保留已取得的证据。手册切换仍由独立规则处理，不再与补页冲突仲裁。
 
-`done.meta` 含 `replans`、`page_count`、`skill_key_initial`。默认 **关闭** Replan，行为与旧版一致。
+MCP 不支持分页，首次只保留配置数量的明细，后续页直接走浏览器。两种通道是否具有相同排序取决于上游接口；合并时去重，报告仅按已取得样本分析，不能视为完整故障覆盖。
+
+`done.meta` 包含 `evidence_decisions`、`evidence_stop_reason`、`fetch_errors`、`replans` 和 `page_count`。设置 `ALARM_REPLAN_ENABLED=false` 可关闭证据评估及补页。
+
 
 > 钉钉推送与 React 工作台静态托管不在本仓库；前端自行将 API baseURL 指向本服务即可。
 
@@ -394,7 +395,9 @@ curl -X POST http://localhost:8000/api/v1/ingest -F "file=@data/knowledge_base.m
 | `ALARM_INFO_PLATE_USER` / `ALARM_INFO_PLATE_PASSWORD` | str | — | 浏览器登录账号 |
 | `ALARM_REPORT_FORMAT` | str | `markdown` | `markdown` \| `rca` |
 | `ALARM_SKIP_WHEN_ZERO_COUNT` | bool | `true` | 监控 count=0 时跳过 LLM |
-| `ALARM_REPLAN_ENABLED` | bool | `false` | 启用 Replan（补页 / 换 playbook） |
+| `ALARM_REPLAN_ENABLED` | bool | `true` | LLM 证据评估与补页 |
+| `ALARM_REPLAN_TIMEOUT_SEC` | float | `30` | 单次证据评估超时 |
+| `ALARM_REPLAN_TIME_BUDGET_SEC` | float | `60` | 评估及补页总时间 |
 | `ALARM_DETAIL_PAGE_SIZE` | int | `20` | 明细每页条数 |
 | `ALARM_REPLAN_MAX_PAGES` | int | `2` | 最多拉取页数（含第 1 页） |
 | `ALARM_REPLAN_MAX_PLAYBOOK_SWITCH` | int | `1` | 单轮最多换 playbook 次数 |

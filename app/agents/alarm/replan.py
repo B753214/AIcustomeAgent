@@ -1,9 +1,80 @@
-"""Replan 规则：是否补第 2 页 / 是否换 playbook（纯函数，不接 runner）。"""
+"""LLM 证据评估与手册选择；旧补页规则仅保留兼容，不用于主链路。"""
 from __future__ import annotations
 
 from typing import Any
+from typing import Literal
+import asyncio
+import json
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.agents.alarm.classify import SKILL_MAP, classify_by_name
+
+
+class EvidenceOutputError(ValueError):
+    """结构化输出未返回可用的证据决策。"""
+
+
+class EvidenceDecision(BaseModel):
+    """模型只建议取证动作；实际分页由 Pipeline 约束。"""
+    model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
+    action: Literal["finish", "fetch_next_page", "need_other_evidence"]
+    reason: str = Field(min_length=1, max_length=1000)
+    missing_evidence: list[str] = Field(max_length=10)
+    expected_gain: str = Field(max_length=1000)
+
+    @model_validator(mode="after")
+    def require_fetch_reason(self):
+        if self.action == "fetch_next_page" and (
+            not any(s.strip() for s in self.missing_evidence) or not self.expected_gain.strip()
+        ):
+            raise ValueError("补页必须说明缺失证据及预期收益")
+        if self.action == "need_other_evidence" and not any(s.strip() for s in self.missing_evidence):
+            raise ValueError("需要其他来源时必须列出缺失证据")
+        return self
+
+
+async def assess_evidence(state: dict) -> EvidenceDecision:
+    """依据当前证据判断是否需要更多明细；非法输出/超时交由调用方降级。"""
+    from app.agents.alarm.prompts import EVIDENCE_ASSESSMENT_PROMPT
+    from app.agents.alarm.runner import _build_llm
+    from app.agents.alarm.load_playbooks import load_playbook
+    from app.config import settings
+    from app.harness.policies import check_model_budget, record_model_usage
+
+    detail = state.get("monitor_detail")
+    rows = detail if isinstance(detail, list) else (detail or {}).get("list", [])
+    # 首尾代表样本 + 全量规则统计，避免持续补页扩大判定上下文。
+    samples = rows if len(rows) <= 12 else rows[:6] + rows[-6:]
+    payload = {
+        "alarm": (state.get("message") or "")[:1500],
+        "playbook": load_playbook(state.get("skill_key") or "precise")[:4000],
+        "monitor_rate": state.get("monitor_rate"),
+        "analysis": state.get("error_analysis"),
+        "samples": samples,
+        "pages": state.get("fetched_pages"),
+    }
+    check_model_budget()
+    model = _build_llm().with_structured_output(
+        EvidenceDecision, method="function_calling", include_raw=True,
+    )
+    messages = EVIDENCE_ASSESSMENT_PROMPT.format_messages(
+        evidence=json.dumps(payload, ensure_ascii=False, default=str)[:16000],
+    )
+    response = await asyncio.wait_for(
+        model.ainvoke(messages), timeout=settings.alarm_replan_timeout_sec,
+    )
+    record_model_usage(response.get("raw"))
+    error = response.get("parsing_error")
+    if error is not None:
+        from pydantic import ValidationError
+        if isinstance(error, ValidationError):
+            raise error
+        raise EvidenceOutputError("证据决策结构化解析失败") from error
+    decision = response.get("parsed")
+    if decision is None:
+        raise EvidenceOutputError("模型未提交证据决策")
+    return EvidenceDecision.model_validate(decision)
 
 # hint=precise 时必须在明细文案里看到这些，才认为分类可信
 _HINT_TRUST_KEYWORDS = (

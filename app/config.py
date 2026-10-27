@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import ValidationError, model_validator
+from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -62,8 +62,12 @@ class Settings(BaseSettings):
     memory_max_turns: int = 5
     # M3：装配「摘要+最近消息+当前问」的软 Token 上限（M3-2 起生效）
     memory_context_token_budget: int = 3000
+    # RAG 单独配置；不改变闲聊历史上下文预算。
+    rag_history_token_budget: int = Field(default=6000, gt=0)
+    rag_run_token_budget: int = Field(default=16000, gt=0)
     retry_attempts: int = 3
     retry_max_wait: int = 3
+    sse_heartbeat_interval_sec: float = Field(default=15.0, gt=0, allow_inf_nan=False)
     tool_timeout_sec: float = 30
     # Mock 订单查询失败概率（0~1）；默认 0 保证离线测试可复现
     order_mock_fail_rate: float = 0.0
@@ -97,7 +101,9 @@ class Settings(BaseSettings):
     alarm_skip_when_zero_count: bool = True
     alarm_report_format: str = "markdown"
     alarm_mock_enabled: bool = False
-    alarm_replan_enabled: bool = False
+    alarm_replan_enabled: bool = True
+    alarm_replan_timeout_sec: float = Field(default=30.0, gt=0)
+    alarm_replan_time_budget_sec: float = Field(default=60.0, gt=0)
     alarm_detail_page_size: int = 20
     alarm_replan_max_pages: int = 2
     alarm_replan_max_playbook_switch: int = 1

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -14,6 +15,7 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: dict[str, ToolEntry] = {}
+        self._model_tools: dict[str, Any] = {}
 
     def register(self, spec: ToolSpec, handler: ToolHandler) -> None:
         if spec.name in self._tools:
@@ -39,6 +41,44 @@ class ToolRegistry:
 
     def list_names(self) -> list[str]:
         return list(self._tools.keys())
+
+    def has_model_tool(self, tool: Any) -> bool:
+        return self._model_tools.get(tool.name) is tool
+
+    def register_model_tool(self, tool: Any, *, timeout_sec: float = 30.0) -> None:
+        """将适配后的 MCP/其他 LangChain 工具登记为 Spec 和异步 handler。"""
+        schema = tool.args_schema
+        if not isinstance(schema, dict):
+            schema = tool.get_input_schema().model_json_schema()
+
+        async def handler(**arguments: Any) -> Any:
+            return await tool.ainvoke(arguments)
+
+        self.register(
+            ToolSpec(name=tool.name, description=tool.description or tool.name,
+                     input_schema=schema, timeout_sec=timeout_sec),
+            handler,
+        )
+        self._model_tools[tool.name] = tool
+
+    def list_model_tools(self, allowlist: list[str] | None = None) -> list[Any]:
+        """本地和 MCP 共用模型工具来源；绑定时应用同一白名单。"""
+        from langchain_core.tools import StructuredTool
+        from app.harness.policies.tool_policy import is_tool_allowed
+
+        result = []
+        for name, (spec, handler) in self._tools.items():
+            if not is_tool_allowed(name, allowlist):
+                continue
+            if name not in self._model_tools:
+                kwargs = ({"coroutine": handler} if inspect.iscoroutinefunction(handler)
+                          else {"func": handler})
+                self._model_tools[name] = StructuredTool.from_function(
+                    name=name, description=spec.description,
+                    args_schema=spec.input_schema, **kwargs,
+                )
+            result.append(self._model_tools[name])
+        return result
 
 
 def register_builtin_tools(registry: ToolRegistry) -> ToolRegistry:

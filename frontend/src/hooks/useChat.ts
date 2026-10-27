@@ -1,88 +1,101 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { consumeChatStream, type ChatEvent } from '../api/chatStream'
+import { ChatSessions, type ChatSession, type StreamRequest } from '../api/chatSessions'
 import { apiHeaders, formatHttpError } from '../api/client'
 import { INTENT_LABEL, STAGE_MAP, STAGES } from '../constants'
 import type { ChatMessage, PipeStageState, StageKey, StageStatus } from '../types'
 
 function emptyPipe(): Record<string, PipeStageState> {
-  const state: Record<string, PipeStageState> = {}
-  STAGES.forEach((s) => {
-    state[s.key] = { status: 'wait', ms: null, desc: '' }
-  })
-  return state
+  return Object.fromEntries(STAGES.map((stage) => [stage.key, { status: 'wait', ms: null, desc: '' }]))
 }
 
+const STREAM_IDLE_MS = 120_000
 let msgSeq = 0
 function nextId() {
-  msgSeq += 1
-  return `m-${Date.now()}-${msgSeq}`
+  return `m-${Date.now()}-${++msgSeq}`
 }
 
 export function useChat(sessionId: string, apiKey: string, userId: string, onDone?: () => void) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [sending, setSending] = useState(false)
-  const [pipeState, setPipeState] = useState(emptyPipe)
-  const [pipeLabel, setPipeLabel] = useState('就绪')
-  const [sources, setSources] = useState<string[]>([])
-  const tStart = useRef(0)
-  const pipeRef = useRef(pipeState)
-  pipeRef.current = pipeState
+  const sid = sessionId.trim() || 'default'
+  const store = useMemo(() => new ChatSessions(emptyPipe), [apiKey, userId])
+  const snapshot = useCallback(() => store.get(sid).view, [store, sid])
+  const view = useSyncExternalStore(store.subscribe, snapshot)
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
 
-  const elapsed = () => Math.round(performance.now() - tStart.current)
+  // Session changes retain all requests. Identity changes/unmount release them.
+  useEffect(() => () => store.dispose(), [store])
 
-  const resetPipeline = useCallback(() => {
-    setPipeState(emptyPipe())
-    setPipeLabel('就绪')
-  }, [])
+  const clearChat = useCallback(() => store.clear(sid), [store, sid])
+  const stopChat = useCallback(() => {
+    const request = store.get(sid).request
+    if (request) {
+      request.reason = 'stop'
+      request.controller.abort()
+    }
+  }, [store, sid])
 
-  const markStage = useCallback((key: StageKey, status: StageStatus, ms: number | null, desc?: string) => {
-    setPipeState((prev) => {
-      if (!prev[key] && !STAGES.some((s) => s.key === key)) return prev
-      const cur = prev[key] || { status: 'wait' as StageStatus, ms: null, desc: '' }
-      if (status === 'skip' && cur.status === 'ok') return prev
-      return {
-        ...prev,
-        [key]: {
-          status,
-          ms: ms != null ? ms : cur.ms,
-          desc: desc || cur.desc,
-        },
-      }
-    })
-  }, [])
-
-  const clearChat = useCallback(() => {
-    setMessages([])
-    resetPipeline()
-    setSources([])
-  }, [resetPipeline])
-
-  const loadHistory = useCallback(async (sid: string) => {
-    setMessages([])
-    resetPipeline()
-    setSources([])
+  const loadHistory = useCallback(async (id: string) => {
+    const session = store.get(id.trim() || 'default')
+    // Local live/completed results take precedence over a possibly older DB snapshot.
+    if (session.loaded || session.request || session.history) return
+    const controller = new AbortController()
+    session.history = controller
+    const isValid = () => store.owns(session) && session.history === controller
+      && !controller.signal.aborted && !session.request
     try {
-      const resp = await fetch(`/api/v1/sessions/${encodeURIComponent(sid)}/history`, {
+      const resp = await fetch(`/api/v1/sessions/${encodeURIComponent(session.id)}/history`, {
+        signal: controller.signal,
         headers: apiHeaders({}, apiKey, userId),
       })
+      if (resp.status === 404) {
+        if (isValid()) session.loaded = true
+        return
+      }
       if (!resp.ok) throw new Error('load failed')
       const data = (await resp.json()) as { messages?: { role: string; content: string }[] }
-      const msgs = data.messages || []
-      if (!msgs.length) return
-      setMessages(
-        msgs.map((m) => ({
-          id: nextId(),
-          role: m.role === 'user' ? 'user' : 'ai',
-          content: m.content,
+      if (!isValid()) return
+      session.loaded = true
+      store.update(session, (previous) => ({ ...previous,
+        messages: (data.messages || []).map((message) => ({
+          id: nextId(), role: message.role === 'user' ? 'user' : 'ai', content: message.content,
         })),
-      )
+      }))
     } catch {
-      setMessages([{ id: nextId(), role: 'ai', content: '加载历史消息失败' }])
+      if (isValid()) store.update(session, (previous) => ({ ...previous,
+        messages: [{ id: nextId(), role: 'ai', content: '加载历史消息失败，请重新选择会话重试' }],
+      }))
+    } finally {
+      if (session.history === controller) session.history = undefined
     }
-  }, [apiKey, resetPipeline, userId])
+  }, [apiKey, store, userId])
+
+  useEffect(() => { void loadHistory(sid) }, [loadHistory, sid])
+
+  const updateStage = useCallback((session: ChatSession, key: StageKey, status: StageStatus,
+    ms: number | null, desc?: string) => {
+    store.update(session, (previous) => {
+      const current = previous.pipeState[key]
+      if (!current && !STAGES.some((stage) => stage.key === key)) return previous
+      if (status === 'skip' && current?.status === 'ok') return previous
+      return { ...previous, pipeState: { ...previous.pipeState,
+        [key]: { status, ms: ms ?? current?.ms ?? null, desc: desc || current?.desc || '' },
+      } }
+    })
+  }, [store])
 
   const processEvent = useCallback(
-    (ev: Record<string, unknown>, bubbleId: string) => {
-      if (ev.type === 'stage') {
+    (session: ChatSession, request: StreamRequest, ev: ChatEvent, bubbleId: string) => {
+      const elapsed = () => Math.round(performance.now() - request.startedAt)
+      const markStage = (key: StageKey, status: StageStatus, ms: number | null, desc?: string) =>
+        updateStage(session, key, status, ms, desc)
+      const setMessages = (change: (messages: ChatMessage[]) => ChatMessage[]) =>
+        store.update(session, (view) => ({ ...view, messages: change(view.messages) }))
+      const setPipeLabel = (pipeLabel: string) =>
+        store.update(session, (view) => ({ ...view, pipeLabel }))
+      const setSources = (sources: string[]) =>
+        store.update(session, (view) => ({ ...view, sources }))
+      if (ev.type === 'stage' || ev.type === 'workflow.step') {
         const intent = String(ev.name || ev.intent || '')
         if (intent) {
           markStage('intent', 'ok', elapsed(), `意图: ${intent}`)
@@ -100,144 +113,127 @@ export function useChat(sessionId: string, apiKey: string, userId: string, onDon
           else if (ev.skipped || ev.hit === false) status = 'skip'
           if (ev.hit === true) status = 'ok'
           const ms = typeof ev.ms === 'number' ? ev.ms : elapsed()
-          markStage(key, status, ms, String(ev.msg || ev.stage))
+          markStage(key, status, ms, String(ev.message || ev.msg || ev.stage))
         }
-      } else if (ev.type === 'intent') {
-        markStage('intent', 'ok', elapsed(), `意图: ${ev.intent}`)
-      } else if (ev.type === 'token') {
+      } else if (ev.type === 'route.selected' || ev.type === 'intent') {
+        markStage('intent', 'ok', elapsed(), `意图: ${ev.intent || ev.agent_id || ev.agent || "-"}`)
+      } else if (ev.type.startsWith('tool.')) {
+        const failed = ev.type === 'tool.failed'
+        markStage('generate', failed ? 'err' : ev.type === 'tool.completed' ? 'ok' : 'run',
+          elapsed(), `工具 ${String(ev.tool || ev.name || '')}：${failed ? '失败' : ev.type === 'tool.completed' ? '完成' : '执行中'}`)
+      } else if (ev.type === 'model.started') {
+        markStage('generate', 'run', null, '生成中…')
+      } else if (ev.type === 'token' || ev.type === 'model.token') {
         const text = String(ev.content || ev.reply || '')
-        if (pipeRef.current.generate?.status === 'wait') {
+        if (session.view.pipeState.generate?.status === 'wait') {
           markStage('retrieve', 'ok', elapsed(), '检索完成')
           markStage('generate', 'run', null, '生成中…')
         }
         setMessages((prev) =>
           prev.map((m) => (m.id === bubbleId ? { ...m, content: m.content + text, typing: true } : m)),
         )
-      } else if (ev.type === 'done') {
+      } else if (ev.type === 'run.failed' || ev.type === 'error') {
+        throw new Error(String(ev.message || ev.detail || '任务执行失败'))
+      } else if (ev.type === 'done' || ev.type === 'run.completed') {
+        const metadata = (ev.metadata || ev.meta || {}) as Record<string, unknown>
+        ev = { ...metadata, ...ev }
         const totalMs = Number(ev.total_ms) || elapsed()
         markStage('generate', 'ok', elapsed(), '生成完成')
         markStage('save', 'ok', null, '已保存')
         const hitLabel = ev.cache_hit ? ' · 缓存命中' : ''
         setPipeLabel(`完成 · ${totalMs}ms${hitLabel}`)
         setSources(Array.isArray(ev.sources) ? (ev.sources as string[]) : [])
-        const meta = ev.meta as { fetch_channel?: string } | undefined
+        const meta = metadata as { fetch_channel?: string }
         const crewLabel = ev.used_crew ? ' · crew' : ''
         const fetchCh = meta?.fetch_channel ? ` · ${meta.fetch_channel}` : ''
         const intent = String(ev.intent || '-')
         const label = `${INTENT_LABEL[intent] || intent} · ${String(ev.engine || 'langchain')}${crewLabel}${fetchCh} · ${totalMs}ms${hitLabel}`
         setMessages((prev) =>
-          prev.map((m) => (m.id === bubbleId ? { ...m, typing: false, meta: label } : m)),
+          prev.map((m) => (m.id === bubbleId ? { ...m, content: typeof ev.output === 'string' ? ev.output : typeof ev.reply === 'string' ? ev.reply : m.content, typing: false, meta: label } : m)),
         )
-        onDone?.()
       }
     },
-    [markStage, onDone],
+    [store, updateStage],
   )
 
   const sendChat = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
-      if (!trimmed || sending) return
-      const sid = sessionId.trim() || 'default'
+      if (!trimmed) return
+      const session = store.get(sid)
+      const request = store.begin(session)
+      if (!request) return
+      const isValid = () => store.isActive(session, request)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const resetTimeout = () => {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          request.reason = 'timeout'
+          request.controller.abort()
+        }, STREAM_IDLE_MS)
+      }
       const userMsg: ChatMessage = { id: nextId(), role: 'user', content: trimmed }
       const bubbleId = nextId()
-      setMessages((prev) => [...prev, userMsg, { id: bubbleId, role: 'ai', content: '', typing: true }])
-      resetPipeline()
-      setPipeLabel('处理中…')
-      setSources([])
-      setSending(true)
-      tStart.current = performance.now()
+      store.update(session, (previous) => ({ ...previous,
+        messages: [...previous.messages, userMsg, { id: bubbleId, role: 'ai', content: '', typing: true }],
+        pipeState: emptyPipe(), pipeLabel: '处理中…', sources: [], sending: true,
+      }))
 
+      resetTimeout()
       try {
         const resp = await fetch('/api/v1/chat/stream', {
           method: 'POST',
+          signal: request.controller.signal,
           headers: apiHeaders({ 'Content-Type': 'application/json' }, apiKey, userId),
           body: JSON.stringify({ message: trimmed, session_id: sid }),
         })
+        if (!isValid()) return
         if (!resp.ok) {
           const j = await resp.json().catch(() => ({}))
-          const msg =
-            resp.status === 401
-              ? '无效或缺失 API Key，请在左侧「API 鉴权」填写正确 Key'
-              : formatHttpError(j, resp.status)
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === bubbleId ? { ...m, content: `⚠️ ${msg}`, typing: false } : m,
-            ),
-          )
-          setPipeLabel(resp.status === 401 ? '鉴权失败' : '请求失败')
-          markStage('error', 'err', null, `HTTP ${resp.status}`)
-          return
+          throw new Error(resp.status === 401
+            ? '无效或缺失 API Key，请在左侧「API 鉴权」填写正确 Key'
+            : formatHttpError(j, resp.status))
         }
         if (!resp.body) throw new Error('无响应流')
-        const reader = resp.body.getReader()
-        const decoder = new TextDecoder()
-        let buf = ''
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            if (buf.trim()) {
-              const line = buf.split('\n').find((l) => l.startsWith('data:'))
-              if (line) {
-                try {
-                  processEvent(JSON.parse(line.slice(5).trim()), bubbleId)
-                } catch {
-                  /* ignore */
-                }
-              }
-            }
-            break
-          }
-          buf += decoder.decode(value, { stream: true })
-          const parts = buf.split('\n\n')
-          buf = parts.pop() || ''
-          for (const part of parts) {
-            if (!part.trim()) continue
-            const line = part.split('\n').find((l) => l.startsWith('data:'))
-            if (!line) continue
-            try {
-              processEvent(JSON.parse(line.slice(5).trim()), bubbleId)
-            } catch {
-              /* ignore */
-            }
-          }
+        if (!resp.headers.get('content-type')?.includes('text/event-stream')) {
+          throw new Error('服务未返回 SSE 事件流')
         }
+        resetTimeout()
+        await consumeChatStream(resp.body, (event: ChatEvent) => {
+          if (isValid()) processEvent(session, request, event, bubbleId)
+        }, request.controller.signal, resetTimeout)
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === bubbleId ? { ...m, content: `⚠️ 网络错误：${message}`, typing: false } : m,
-          ),
-        )
-        setPipeLabel('连接失败')
+        if (!isValid()) return
+        const stopped = request.reason === 'stop'
+        const message = stopped ? '已停止接收，本次执行可能尚未在服务端结束'
+          : request.reason === 'timeout' ? '等待响应超过 120 秒，连接已中断'
+          : err instanceof Error ? err.message : String(err)
+        console.warn('Chat stream ended:', stopped ? 'user stopped' : message)
+        store.update(session, (previous) => ({ ...previous,
+          messages: previous.messages.map((messageRow) => messageRow.id === bubbleId
+            ? { ...messageRow, content: messageRow.content.trim() ? messageRow.content
+                : (stopped ? '已停止接收' : '未收到完整回答'),
+                meta: `⚠️ ${message}`, typing: false } : messageRow),
+          pipeLabel: stopped ? '已停止接收' : '回答中断',
+        }))
+        updateStage(session, 'error', stopped ? 'skip' : 'err',
+          Math.round(performance.now() - request.startedAt), message)
       } finally {
-        setSending(false)
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== bubbleId) return m
-            return {
-              ...m,
-              typing: false,
-              content: m.content.trim() ? m.content : '（无输出）',
-            }
-          }),
-        )
-        onDone?.()
+        clearTimeout(timer)
+        request.controller.abort()
+        if (isValid()) {
+          session.request = undefined
+          store.update(session, (previous) => ({ ...previous, sending: false,
+            messages: previous.messages.map((message) => message.id === bubbleId
+              ? { ...message, typing: false, content: message.content.trim() ? message.content : '（无输出）' }
+              : message),
+          }))
+          onDoneRef.current?.()
+        }
       }
     },
-    [apiKey, markStage, onDone, processEvent, resetPipeline, sending, sessionId, userId],
+    [apiKey, processEvent, sid, store, updateStage, userId],
   )
 
-  return {
-    messages,
-    sending,
-    pipeState,
-    pipeLabel,
-    sources,
-    sendChat,
-    clearChat,
-    loadHistory,
-    resetPipeline,
-    setMessages,
-  }
+  return { ...view, localSessionIds: store.localSessionIds(), sendChat, stopChat, clearChat, loadHistory }
 }

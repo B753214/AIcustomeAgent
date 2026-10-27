@@ -6,9 +6,10 @@ type Props = {
   messages: ChatMessage[]
   sending: boolean
   onSend: (text: string) => void
+  onStop: () => void
 }
 
-export function ChatPanel({ messages, sending, onSend }: Props) {
+export function ChatPanel({ messages, sending, onSend, onStop }: Props) {
   const [input, setInput] = useState('')
   const bodyRef = useRef<HTMLDivElement>(null)
   const areaRef = useRef<HTMLTextAreaElement>(null)
@@ -74,8 +75,8 @@ export function ChatPanel({ messages, sending, onSend }: Props) {
             }
           }}
         />
-        <button className="btn" type="button" disabled={sending} onClick={submit}>
-          发送
+        <button className="btn" type="button" onClick={sending ? onStop : submit}>
+          {sending ? '停止接收' : '发送'}
         </button>
       </div>
     </div>

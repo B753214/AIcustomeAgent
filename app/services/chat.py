@@ -127,6 +127,7 @@ async def _prepare_history(
     message: str,
     *,
     create_if_missing: bool = False,
+    context_token_budget: int | None = None,
 ) -> list[dict]:
     history = await load_session_history(
         session_id,
@@ -152,7 +153,8 @@ async def _prepare_history(
     return build_recent_context(
         recent_for_ctx,
         current_message=message,
-        budget=settings.memory_context_token_budget,
+        budget=(settings.memory_context_token_budget
+                if context_token_budget is None else context_token_budget),
         max_turns=settings.memory_max_turns,
         summary=summary,
         facts_block=facts_block,

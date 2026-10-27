@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import inspect
+import asyncio
+import time
+from pydantic import ValidationError
 from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -9,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 from app.agents.alarm.classify import SKILL_MAP, classify_alarm
 from app.agents.alarm.fetcher import fetch_monitor_data, merge_monitor_details
 from app.agents.alarm.parse import extract_monitor_url, parse_alarm_message
-from app.agents.alarm.replan import should_fetch_page2, should_switch_playbook, llm_pick_replan_action
+from app.agents.alarm.replan import EvidenceOutputError, assess_evidence, should_switch_playbook
 from app.agents.alarm.report import (
     analyze_error_details,
     build_skip_report,
@@ -59,7 +62,9 @@ def initial_state(message: str) -> dict:
         "fetch_meta": {},
         "replans": [],
         "plan": [],
-        "idempotency_keys": []
+        "idempotency_keys": [],
+        "evidence_decisions": [], "evidence_stop_reason": None,
+        "last_fetch_ok": False, "last_page_count": 0, "has_more": None,
     }
 
 
@@ -162,28 +167,30 @@ async def _step_fetch(state: dict, step: dict, *, on_progress: ProgressCb | None
         page=page,
         page_size=page_size,
     )
-    # 外部调用已发生即记键（含失败），恢复/重试不再打接口
-    keys.append(key)
+    if page > 1 and res and res.get("monitorDetail") is None:
+        res = None
+    state["last_fetch_ok"] = bool(res)
+    if not res:
+        state.setdefault("fetch_errors", []).append({"page": page, "reason": "fetch_failed"})
+        if not state.get("fetch_res"):
+            state["pagination"] = None
+            state["fetch_meta"] = {"fetch_channel": "text_fallback", "config_id": config_id}
+        return
 
+    keys.append(key)
     state["fetch_res"] = res
     state["page"] = page
     if page not in fetched_pages:
         fetched_pages.append(page)
 
-    if not res:
-        state["pagination"] = None
-        state["fetch_meta"] = {
-            "fetch_channel": "text_fallback",
-            "config_id": config_id,
-            "page": page,
-            "pageSize": page_size,
-        }
-        return
-
     parsed = state.get("parsed") or {}
-    state["monitor_rate"] = _enrich_rate(dict(res.get("monitorRate") or {}), parsed)
+    if page == 1 or not state.get("monitor_rate"):
+        state["monitor_rate"] = _enrich_rate(dict(res.get("monitorRate") or {}), parsed)
 
     detail = res.get("monitorDetail")
+    rows = detail if isinstance(detail, list) else (detail or {}).get("list", [])
+    state["last_page_count"] = len(rows)
+    state["has_more"] = res.get("has_more", len(rows) >= page_size)
     if state.get("monitor_detail") is None:
         state["monitor_detail"] = detail
     else:
@@ -251,7 +258,9 @@ async def _step_report(state: dict) -> None:
     if not state.get("fetch_res"):
         res = None
     messages, sources, fetch_meta, error_analysis = alarm_runner._assemble(
-        message, parsed, cls, config_id, res
+        message, parsed, cls, config_id, res,
+        evidence_context={"decisions": state.get("evidence_decisions") or [],
+                          "stop_reason": state.get("evidence_stop_reason")},
     )
     state["sources"] = sources
     state["fetch_meta"] = {**(state.get("fetch_meta") or {}), **fetch_meta}
@@ -300,90 +309,97 @@ async def _run_replan_loop(
     on_progress: ProgressCb | None = None,
     on_stage: StageCb | None = None,
 ) -> None:
-    """Replan：补页与换本冲突时 LLM 三选一；否则先补页再换本；每轮最多改一项，总循环 ≤ 3。"""
-    max_pages = int(getattr(settings, "alarm_replan_max_pages", 2))
-    max_switch = int(getattr(settings, "alarm_replan_max_playbook_switch", 1))
-    page_size = int(state.get("page_size") or 50)
-    parsed = state.get("parsed") or {}
-
-    for _ in range(3):
-        changed = False
-        fetched = state.get("fetched_pages") or []
-
-        want_page2 = (
-            len(fetched) < max_pages
-            and should_fetch_page2(
-                page=int(state.get("page") or 1),
-                page_size=page_size,
-                fetched_pages=fetched,
-                monitor_rate=state.get("monitor_rate"),
-                error_analysis=state.get("error_analysis"),
-                pagination=state.get("pagination"),
-                draft_report=None,
-            )
+    """先由 LLM 判断证据，再在页数/时间边界内补页。"""
+    max_pages = max(1, int(settings.alarm_replan_max_pages))
+    deadline = time.monotonic() + settings.alarm_replan_time_budget_sec
+    decisions = state.setdefault("evidence_decisions", [])
+    # 手册更换仍是独立规则；它不再参与补页仲裁。
+    if settings.alarm_replan_max_playbook_switch > 0:
+        hint = should_switch_playbook(
+            skill_key=state.get("skill_key") or "",
+            playbook_switched=bool(state.get("playbook_switched")),
+            alarm_type=(state.get("parsed") or {}).get("alarmType"),
+            error_analysis=state.get("error_analysis"),
+            monitor_detail=state.get("monitor_detail"),
         )
+        if hint:
+            await _step_switch_playbook(state, hint)
+            state.setdefault("replans", []).append(f"switch_playbook:{hint}")
+            await _emit(on_stage, f"更换 playbook 为 {hint}", {"replan": "switch_playbook"})
 
-        hint_key = None
-        if max_switch > 0 and not state.get("playbook_switched") and not state.get("skip_reason"):
-            hint_key = should_switch_playbook(
-                skill_key=str(state.get("skill_key") or ""),
-                playbook_switched=bool(state.get("playbook_switched")),
-                alarm_type=parsed.get("alarmType"),
-                error_analysis=state.get("error_analysis"),
-                monitor_detail=state.get("monitor_detail"),
+    for _ in range(max_pages):
+        if state.get("skip_reason"):
+            return
+        if not state.get("monitor_detail") or not state.get("error_analysis"):
+            state["evidence_stop_reason"] = "no_detail"
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            state["evidence_stop_reason"] = "time_budget"
+            return
+        try:
+            decision = await asyncio.wait_for(assess_evidence(state), timeout=remaining)
+        except (ValidationError, EvidenceOutputError) as exc:
+            state["evidence_stop_reason"] = "assessment_invalid"
+            # 不记录原始模型输出或异常正文，只保留字段位置和错误类型。
+            state["evidence_validation_errors"] = [
+                {"field": ".".join(str(p) for p in err["loc"]) or "response",
+                 "type": err["type"]}
+                for err in exc.errors(include_input=False, include_context=False)[:10]
+            ] if isinstance(exc, ValidationError) else [{"field": "response", "type": "structured_output_error"}]
+            await _emit(on_stage, "证据评估输出校验失败，停止补页并基于已有数据生成报告",
+                        {"replan": "finish", "stop_reason": "assessment_invalid"})
+            return
+        except Exception:
+            state["evidence_stop_reason"] = "assessment_failed"
+            await _emit(on_stage, "证据评估失败，基于已有数据生成报告", {"replan": "finish"})
+            return
+        decisions.append(decision.model_dump())
+        await _emit(on_stage, f"证据评估：{decision.reason}", decision.model_dump())
+        if decision.action != "fetch_next_page":
+            state["evidence_stop_reason"] = decision.action
+            return
+        fetched = state.get("fetched_pages") or []
+        if len(fetched) >= max_pages:
+            state["evidence_stop_reason"] = "page_limit"
+            return
+        if (state.get("pagination") not in ("browser", "browser_only")
+                or not settings.alarm_browser_enabled
+                or not (state.get("parsed") or {}).get("detailUrl")):
+            state["evidence_stop_reason"] = "pagination_unavailable"
+            return
+        if state.get("has_more") is False:
+            state["evidence_stop_reason"] = "no_more_pages"
+            return
+        next_page = max(fetched or [1]) + 1
+        detail = state.get("monitor_detail")
+        old_rows = detail if isinstance(detail, list) else detail.get("list", [])
+        old_count = len(old_rows)
+        await _emit(on_stage, f"证据不足，补拉第 {next_page} 页明细…",
+                    {"replan": "fetch_next_page", "page": next_page})
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            state["evidence_stop_reason"] = "time_budget"
+            return
+        try:
+            await asyncio.wait_for(
+                _step_fetch(state, {"id": STEP_FETCH, "page": next_page}, on_progress=on_progress),
+                timeout=remaining,
             )
-
-        choice = None
-        if want_page2 and hint_key:
-            choice = await llm_pick_replan_action(
-                skill_key=str(state.get("skill_key") or ""),
-                hint_key=hint_key,
-                error_analysis=state.get("error_analysis"),
-                monitor_rate=state.get("monitor_rate"),
-            )
-            if choice == "finish":
-                break
-
-        if want_page2 and hint_key:
-            if choice == "fetch_page2" or choice is None:
-                action = "fetch_page2"
-            elif choice.startswith("switch_playbook:"):
-                action = "switch_playbook"
-            else:
-                action = None
-        elif want_page2:
-            action = "fetch_page2"
-        elif hint_key:
-            action = "switch_playbook"
-        else:
-            action = None
-
-        if action == "fetch_page2":
-            await _emit(
-                on_stage,
-                "证据偏弱，补拉第 2 页明细…",
-                {"replan": "fetch_page2", "page": 2},
-            )
-            await _step_fetch(state, {"id": STEP_FETCH, "page": 2}, on_progress=on_progress)
-            await _step_analyze(state)
-            state.setdefault("replans", []).append("fetch_page2")
-            changed = True
-            continue
-
-        if action == "switch_playbook" and hint_key:
-            old_key = state.get("skill_key")
-            await _emit(
-                on_stage,
-                f"明细指向 {hint_key}，更换 playbook（原 {old_key}）…",
-                {"replan": f"switch_playbook:{hint_key}", "from": old_key, "to": hint_key},
-            )
-            await _step_switch_playbook(state, hint_key)
-            state.setdefault("replans", []).append(f"switch_playbook:{hint_key}")
-            changed = True
-            continue
-
-        if not changed:
-            break
+        except Exception:
+            state["evidence_stop_reason"] = "fetch_failed"
+            return
+        if not state.get("last_fetch_ok"):
+            state["evidence_stop_reason"] = "fetch_failed"
+            return
+        state.setdefault("replans", []).append(f"fetch_page:{next_page}")
+        await _step_analyze(state)
+        detail = state.get("monitor_detail")
+        rows = detail if isinstance(detail, list) else (detail or {}).get("list", [])
+        if len(rows) <= old_count:
+            state["evidence_stop_reason"] = "no_new_evidence"
+            return
+    state["evidence_stop_reason"] = "page_limit"
 
 
 async def run_initial_pipeline(
